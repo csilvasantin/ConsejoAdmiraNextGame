@@ -36,8 +36,9 @@
       "ssh": {
         "enabled": true,
         "user": "carlos",
-        "host": "admira-mac-02.local",
-        "connect": "ssh carlos@admira-mac-02.local"
+        "host": "MacBookAirCarla.local",
+        "ip": "192.168.0.118",
+        "connect": "ssh carlos@192.168.0.118"
       }
     },
     {
