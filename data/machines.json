@@ -47,7 +47,7 @@
         "ip_tailscale": "100.74.101.14",
         "connect_local": "ssh carlos@192.168.0.118",
         "connect_tailscale": "ssh carlos@100.74.101.14",
-        "note": "Activar Remote Login en System Settings"
+        "note": "Puerto 22 rechazado — Remote Login no activado"
       }
     },
     {
@@ -94,7 +94,7 @@
         "ip_tailscale": "100.99.176.126",
         "connect_local": null,
         "connect_tailscale": "ssh usuario@100.99.176.126",
-        "note": "Pendiente confirmar usuario y activar Remote Login"
+        "note": "Puerto abierto pero SSH cierra — activar Remote Login"
       }
     },
     {
