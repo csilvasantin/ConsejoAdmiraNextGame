@@ -74,6 +74,30 @@
       }
     },
     {
+      "id": "admira-mac-dg",
+      "color": "plata",
+      "member": "Director General",
+      "role": "Direccion",
+      "name": "MacBook Air 16 (DG)",
+      "machineRole": "Direccion",
+      "location": "Madrid",
+      "platform": "macOS",
+      "status": "online",
+      "lastSeen": "2026-03-21T19:30:00Z",
+      "currentFocus": "Conectado a Tailscale",
+      "note": "Tailscale: macbookair16.tail48b61c.ts.net",
+      "ssh": {
+        "enabled": false,
+        "user": null,
+        "host": "macbookair16.tail48b61c.ts.net",
+        "ip_local": null,
+        "ip_tailscale": "100.99.176.126",
+        "connect_local": null,
+        "connect_tailscale": "ssh usuario@100.99.176.126",
+        "note": "Pendiente confirmar usuario y activar Remote Login"
+      }
+    },
+    {
       "id": "admira-win-01",
       "color": "negro",
       "member": "Laboratorio",
