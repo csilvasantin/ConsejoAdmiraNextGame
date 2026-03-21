@@ -1,0 +1,9 @@
+{
+  "name": "admira-next",
+  "version": "0.1.0",
+  "description": "Panel simple para controlar el estado de los ordenadores del equipo Admira Next.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  }
+}

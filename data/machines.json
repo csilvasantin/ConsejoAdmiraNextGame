@@ -1,0 +1,36 @@
+{
+  "team": "Admira Next",
+  "updatedAt": "2026-03-21T14:12:00Z",
+  "machines": [
+    {
+      "id": "admira-mac-01",
+      "member": "Cesar",
+      "name": "Mac principal",
+      "location": "Madrid",
+      "platform": "macOS",
+      "status": "online",
+      "lastSeen": "2026-03-21T14:12:00Z",
+      "note": "Equipo principal de trabajo"
+    },
+    {
+      "id": "admira-mac-02",
+      "member": "Equipo nuevo",
+      "name": "Mac onboarding",
+      "location": "Pendiente",
+      "platform": "macOS",
+      "status": "busy",
+      "lastSeen": "2026-03-21T14:12:00Z",
+      "note": "Preparando onboarding y bots"
+    },
+    {
+      "id": "admira-win-01",
+      "member": "Laboratorio",
+      "name": "PC auxiliar",
+      "location": "Oficina",
+      "platform": "Windows",
+      "status": "offline",
+      "lastSeen": "2026-03-20T18:00:00Z",
+      "note": "Pendiente de reactivar"
+    }
+  ]
+}

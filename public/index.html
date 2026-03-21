@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admira Next</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero">
+        <p class="eyebrow">Control de flota</p>
+        <h1>Admira Next</h1>
+        <p class="subtitle">Estado operativo de los ordenadores del equipo.</p>
+      </header>
+
+      <section class="summary" id="summary"></section>
+      <section class="grid" id="machines"></section>
+    </main>
+
+    <template id="machine-template">
+      <article class="card">
+        <div class="card-top">
+          <div>
+            <p class="member"></p>
+            <h2 class="name"></h2>
+          </div>
+          <span class="status-badge"></span>
+        </div>
+        <dl class="meta">
+          <div><dt>ID</dt><dd class="id"></dd></div>
+          <div><dt>Ubicación</dt><dd class="location"></dd></div>
+          <div><dt>Plataforma</dt><dd class="platform"></dd></div>
+          <div><dt>Última señal</dt><dd class="last-seen"></dd></div>
+        </dl>
+        <p class="note"></p>
+        <div class="actions">
+          <select class="status-select">
+            <option value="online">online</option>
+            <option value="busy">busy</option>
+            <option value="offline">offline</option>
+            <option value="maintenance">maintenance</option>
+          </select>
+          <input class="note-input" type="text" placeholder="Nota rápida">
+          <button class="save-button" type="button">Guardar</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
