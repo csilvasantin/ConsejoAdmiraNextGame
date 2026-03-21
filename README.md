@@ -1,4 +1,4 @@
-# Admira Next
+# AdmiraNext Team
 
 Panel ligero para controlar el estado de los miembros del equipo, centrado en sus ordenadores.
 
@@ -32,14 +32,14 @@ Este MVP incluye:
 ## Arranque
 
 ```bash
-cd /Users/csilvasantin/Documents/Codex/Admira-Next
+cd /Users/csilvasantin/Documents/Codex/AdmiraNext-Team
 npm start
 ```
 
 Después abre:
 
 ```text
-http://localhost:3030
+http://127.0.0.1:3030
 ```
 
 ## API

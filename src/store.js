@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const DATA_PATH = resolve("/Users/csilvasantin/Documents/Codex/Admira-Next/data/machines.json");
+const DATA_PATH = resolve(import.meta.dirname, "../data/machines.json");
 
 export async function readMachines() {
   const raw = await readFile(DATA_PATH, "utf8");

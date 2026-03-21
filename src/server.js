@@ -6,7 +6,7 @@ import { readMachines, updateMachineStatus } from "./store.js";
 
 const PORT = 3030;
 const HOST = "127.0.0.1";
-const PUBLIC_DIR = resolve("/Users/csilvasantin/Documents/Codex/Admira-Next/public");
+const PUBLIC_DIR = resolve(import.meta.dirname, "../public");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -81,5 +81,5 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Admira Next escuchando en http://${HOST}:${PORT}`);
+  console.log(`AdmiraNext Team escuchando en http://${HOST}:${PORT}`);
 });
