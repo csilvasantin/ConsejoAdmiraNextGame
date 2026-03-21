@@ -4,6 +4,7 @@
   "machines": [
     {
       "id": "admira-mac-01",
+      "color": null,
       "member": "Cesar",
       "role": "Coordinacion y automatizacion",
       "name": "Mac principal",
@@ -23,6 +24,7 @@
     },
     {
       "id": "admira-mac-02",
+      "color": "azul",
       "member": "Carlos",
       "role": "Onboarding y operaciones",
       "name": "Mac onboarding",
@@ -43,6 +45,7 @@
     },
     {
       "id": "admira-win-01",
+      "color": null,
       "member": "Laboratorio",
       "role": "Pruebas y soporte",
       "name": "PC auxiliar",
@@ -63,6 +66,7 @@
     },
     {
       "id": "admira-mac-carla",
+      "color": null,
       "member": "Carla",
       "role": "Desarrollo y operaciones",
       "name": "MacBook Air de Carla",
