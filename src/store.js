@@ -29,3 +29,29 @@ export async function updateMachineStatus(id, status, note = "") {
   await writeMachines(data);
   return machine;
 }
+
+export async function updateMachineSync(id, payload) {
+  const data = await readMachines();
+  const machine = data.machines.find((item) => item.id === id);
+  if (!machine) {
+    return null;
+  }
+
+  if (payload.status) {
+    machine.status = payload.status;
+  }
+
+  if (typeof payload.note === "string") {
+    machine.note = payload.note.trim() || machine.note;
+  }
+
+  if (typeof payload.currentFocus === "string") {
+    machine.currentFocus = payload.currentFocus.trim() || machine.currentFocus;
+  }
+
+  machine.lastSeen = new Date().toISOString();
+  data.updatedAt = new Date().toISOString();
+
+  await writeMachines(data);
+  return machine;
+}

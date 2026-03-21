@@ -1,35 +1,44 @@
 {
   "team": "AdmiraNext Team",
-  "updatedAt": "2026-03-21T14:12:00Z",
+  "updatedAt": "2026-03-21T14:45:00Z",
   "machines": [
     {
       "id": "admira-mac-01",
       "member": "Cesar",
+      "role": "Coordinacion y automatizacion",
       "name": "Mac principal",
+      "machineRole": "Equipo principal",
       "location": "Madrid",
       "platform": "macOS",
       "status": "online",
-      "lastSeen": "2026-03-21T14:12:00Z",
+      "lastSeen": "2026-03-21T14:45:00Z",
+      "currentFocus": "Bots, despliegues y sincronizacion del equipo",
       "note": "Equipo principal de trabajo"
     },
     {
       "id": "admira-mac-02",
-      "member": "Equipo nuevo",
+      "member": "Carlos",
+      "role": "Onboarding y operaciones",
       "name": "Mac onboarding",
-      "location": "Pendiente",
+      "machineRole": "Equipo nuevo",
+      "location": "Madrid",
       "platform": "macOS",
       "status": "busy",
-      "lastSeen": "2026-03-21T14:12:00Z",
+      "lastSeen": "2026-03-21T14:45:00Z",
+      "currentFocus": "Instalando bots, paneles y acceso entre maquinas",
       "note": "Preparando onboarding y bots"
     },
     {
       "id": "admira-win-01",
       "member": "Laboratorio",
+      "role": "Pruebas y soporte",
       "name": "PC auxiliar",
+      "machineRole": "Equipo secundario",
       "location": "Oficina",
       "platform": "Windows",
       "status": "offline",
       "lastSeen": "2026-03-20T18:00:00Z",
+      "currentFocus": "Pendiente de reactivar para pruebas cruzadas",
       "note": "Pendiente de reactivar"
     }
   ]

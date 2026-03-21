@@ -119,6 +119,13 @@ h1 {
   font-size: 26px;
 }
 
+.role {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .status-badge {
   padding: 8px 12px;
   border-radius: 999px;
@@ -159,8 +166,29 @@ dd {
 }
 
 .note {
-  min-height: 48px;
+  min-height: 32px;
   color: var(--muted);
+}
+
+.focus-box {
+  margin: 16px 0 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(26, 127, 90, 0.08);
+}
+
+.focus-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.current-focus {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
 }
 
 .actions {

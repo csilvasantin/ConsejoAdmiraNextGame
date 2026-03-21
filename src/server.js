@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
-import { readMachines, updateMachineStatus } from "./store.js";
+import { readMachines, updateMachineStatus, updateMachineSync } from "./store.js";
 
 const PORT = 3030;
 const HOST = "127.0.0.1";
@@ -68,6 +68,33 @@ const server = createServer(async (request, response) => {
     }
 
     const updated = await updateMachineStatus(id, status, note);
+    if (!updated) {
+      sendJson(response, 404, { error: "Machine not found" });
+      return;
+    }
+
+    sendJson(response, 200, { ok: true, machine: updated });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname.startsWith("/api/machines/") && url.pathname.endsWith("/sync")) {
+    const parts = url.pathname.split("/");
+    const id = parts[3];
+    const rawBody = await readRequestBody(request);
+    const parsed = rawBody ? JSON.parse(rawBody) : {};
+    const status = parsed.status;
+
+    if (!["online", "busy", "offline", "maintenance"].includes(status)) {
+      sendJson(response, 400, { error: "Invalid status" });
+      return;
+    }
+
+    const updated = await updateMachineSync(id, {
+      status,
+      note: parsed.note ?? "",
+      currentFocus: parsed.currentFocus ?? ""
+    });
+
     if (!updated) {
       sendJson(response, 404, { error: "Machine not found" });
       return;

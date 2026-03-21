@@ -8,9 +8,11 @@ Tener una vista simple y operativa de:
 
 1. qué máquinas existen;
 2. a qué miembro pertenecen;
+3. cuál es el rol de cada persona y de cada equipo;
 3. cuál es su estado actual;
-4. cuándo fue la última actualización;
-5. notas rápidas de operación.
+4. en qué está trabajando cada uno ahora mismo;
+5. cuándo fue la última actualización;
+6. notas rápidas de operación.
 
 ## Estado actual
 
@@ -20,7 +22,8 @@ Este MVP incluye:
 2. API JSON local;
 3. panel web para ver equipos y máquinas;
 4. cambio rápido de estado desde la interfaz;
-5. almacenamiento en `data/machines.json`.
+5. foco actual de trabajo por máquina;
+6. almacenamiento en `data/machines.json`.
 
 ## Estados disponibles
 
@@ -32,7 +35,7 @@ Este MVP incluye:
 ## Arranque
 
 ```bash
-cd /Users/csilvasantin/Documents/Codex/AdmiraNext-Team
+cd /Users/Carlos/Documents/AdmiraNext-Team
 npm start
 ```
 
@@ -42,7 +45,7 @@ Después abre:
 http://127.0.0.1:3030
 ```
 
-## API
+## API local
 
 ### Listar máquinas
 
@@ -50,21 +53,26 @@ http://127.0.0.1:3030
 GET /api/machines
 ```
 
-### Actualizar estado
+### Sincronizar estado y foco
 
 ```text
-POST /api/machines/:id/status
+POST /api/machines/:id/sync
 Content-Type: application/json
 {
   "status": "busy",
-  "note": "Instalando bots en equipo nuevo"
+  "currentFocus": "Instalando bots en equipo nuevo",
+  "note": "Coordinando onboarding"
 }
 ```
+
+## Publicación web
+
+La publicación pública funciona en modo solo lectura con GitHub Pages y carga `machines.json` directamente.
 
 ## Siguientes pasos recomendados
 
 1. añadir login o clave simple;
-2. distinguir miembros, equipos y ubicaciones;
+2. separar miembros, equipos y tareas en entidades propias;
 3. añadir comprobación real de salud de cada ordenador;
 4. integrar bots o agentes por máquina;
-5. guardar historial de estados.
+5. guardar historial de estados y cambios de foco.

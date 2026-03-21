@@ -4,14 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AdmiraNext Team</title>
-    <link rel="stylesheet" href="/styles.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="stylesheet" href="./styles.css?v=20260321-1">
   </head>
   <body>
     <main class="app">
       <header class="hero">
         <p class="eyebrow">Control de flota</p>
         <h1>AdmiraNext Team</h1>
-        <p class="subtitle">Estado operativo de los ordenadores del equipo.</p>
+        <p class="subtitle">Quiénes somos, qué máquina usa cada uno y en qué está trabajando ahora mismo.</p>
       </header>
 
       <section class="summary" id="summary"></section>
@@ -24,15 +27,21 @@
           <div>
             <p class="member"></p>
             <h2 class="name"></h2>
+            <p class="role"></p>
           </div>
           <span class="status-badge"></span>
         </div>
         <dl class="meta">
           <div><dt>ID</dt><dd class="id"></dd></div>
+          <div><dt>Rol del equipo</dt><dd class="machine-role"></dd></div>
           <div><dt>Ubicación</dt><dd class="location"></dd></div>
           <div><dt>Plataforma</dt><dd class="platform"></dd></div>
           <div><dt>Última señal</dt><dd class="last-seen"></dd></div>
         </dl>
+        <div class="focus-box">
+          <p class="focus-label">Trabajo actual</p>
+          <p class="current-focus"></p>
+        </div>
         <p class="note"></p>
         <div class="actions">
           <select class="status-select">
@@ -41,12 +50,13 @@
             <option value="offline">offline</option>
             <option value="maintenance">maintenance</option>
           </select>
+          <input class="focus-input" type="text" placeholder="Que esta haciendo ahora">
           <input class="note-input" type="text" placeholder="Nota rápida">
-          <button class="save-button" type="button">Guardar</button>
+          <button class="save-button" type="button">Sincronizar</button>
         </div>
       </article>
     </template>
 
-    <script src="/app.js" type="module"></script>
+    <script src="./app.js?v=20260321-1" type="module"></script>
   </body>
 </html>
