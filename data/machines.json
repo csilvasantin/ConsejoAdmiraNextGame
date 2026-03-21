@@ -4,7 +4,7 @@
   "machines": [
     {
       "id": "admira-mac-01",
-      "color": null,
+      "color": "plata",
       "member": "Cesar",
       "role": "Coordinacion y automatizacion",
       "name": "Mac principal",
