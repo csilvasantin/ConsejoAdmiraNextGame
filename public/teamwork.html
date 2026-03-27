@@ -270,31 +270,39 @@
 
       .tw-machine-monitor {
         aspect-ratio: 16/9;
-        width: 100%;
-        border-radius: 10px;
+        border-radius: 6px;
         overflow: hidden;
         background: #1a1a2e;
         color: #a8e6cf;
         font-family: "SF Mono", "Menlo", "Monaco", monospace;
-        font-size: 10px;
         line-height: 1.3;
         position: relative;
         border: 2px solid #2a2a3e;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .tw-machine-monitor.small {
+        width: 160px;
+        font-size: 6px;
+      }
+      .tw-machine-monitor.expanded {
+        width: 100%;
+        font-size: 10px;
       }
       .tw-machine-monitor::after {
         content: "";
         position: absolute;
-        bottom: -8px;
+        bottom: -6px;
         left: 50%;
         transform: translateX(-50%);
-        width: 40px;
-        height: 6px;
+        width: 24px;
+        height: 4px;
         background: #2a2a3e;
-        border-radius: 0 0 4px 4px;
+        border-radius: 0 0 3px 3px;
       }
       .tw-machine-monitor pre {
         margin: 0;
-        padding: 8px 10px;
+        padding: 6px 8px;
         white-space: pre-wrap;
         word-break: break-all;
         overflow: hidden;
@@ -308,15 +316,17 @@
         color: #5f7469;
         font-size: 11px;
       }
+      .tw-machine-monitor.small .tw-machine-monitor-empty { font-size: 8px; }
       .tw-machine-monitor-time {
         position: absolute;
-        bottom: 4px;
-        right: 8px;
-        font-size: 9px;
+        bottom: 3px;
+        right: 6px;
+        font-size: 8px;
         color: #5f7469;
       }
+      .tw-machine-monitor.small .tw-machine-monitor-time { font-size: 5px; }
       .tw-machine-monitor-wrap {
-        margin-bottom: 4px;
+        padding-bottom: 8px;
       }
 
       .tw-machine-input {
@@ -485,9 +495,9 @@
     </main>
 
     <footer style="text-align:center;padding:24px 0 8px;color:var(--muted);font-size:12px;">
-      AdmiraNext Control v1.3.0 — 2026-03-27
+      AdmiraNext Control v1.3.1 — 2026-03-27
     </footer>
 
-    <script src="./teamwork.js?v=20260327-14" type="module"></script>
+    <script src="./teamwork.js?v=20260327-15" type="module"></script>
   </body>
 </html>

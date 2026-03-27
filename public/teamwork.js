@@ -242,7 +242,7 @@ function renderMachineApproveList(snapshots) {
     return `
     <div class="tw-machine-row" data-id="${m.id}">
       <div class="tw-machine-monitor-wrap">
-        <div class="tw-machine-monitor">${monitorContent}</div>
+        <div class="tw-machine-monitor small" data-monitor="${m.id}">${monitorContent}</div>
       </div>
       <div class="tw-machine-top">
         <div class="tw-machine-label">
@@ -313,6 +313,14 @@ function renderMachineApproveList(snapshots) {
         btn.textContent = "Error";
         setTimeout(() => { btn.textContent = "Enviar"; btn.disabled = false; }, 2000);
       }
+    });
+  });
+
+  // Toggle monitor size
+  machineApproveList.querySelectorAll(".tw-machine-monitor").forEach((mon) => {
+    mon.addEventListener("click", () => {
+      mon.classList.toggle("small");
+      mon.classList.toggle("expanded");
     });
   });
 
