@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
 import { readMachines, updateMachineStatus, updateMachineSync } from "./store.js";
-import { sendPromptToMachine, resolveMachineName, getTerminalCapture } from "./ssh-exec.js";
+import { sendPromptToMachine, resolveMachineName, getCapture } from "./ssh-exec.js";
 import { addEntry, getHistory } from "./teamwork-store.js";
 
 const PORT = 3030;
@@ -157,11 +157,25 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "GET" && url.pathname.startsWith("/api/teamwork/capture/")) {
     const captureId = url.pathname.split("/").pop();
-    const text = getTerminalCapture(captureId);
-    if (text) {
-      sendJson(response, 200, { ok: true, text });
+    const capture = getCapture(captureId);
+    if (capture) {
+      sendJson(response, 200, { ok: true, ...capture });
     } else {
       sendJson(response, 202, { ok: false, pending: true });
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname.startsWith("/api/screenshots/")) {
+    const filename = url.pathname.split("/").pop();
+    const screenshotPath = resolve(import.meta.dirname, "../data/screenshots", filename);
+    try {
+      const file = await readFile(screenshotPath);
+      response.writeHead(200, { "Content-Type": "image/jpeg", ...CORS_HEADERS });
+      response.end(file);
+    } catch {
+      response.writeHead(404, { "Content-Type": "text/plain" });
+      response.end("Not found");
     }
     return;
   }

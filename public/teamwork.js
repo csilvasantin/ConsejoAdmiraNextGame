@@ -148,8 +148,14 @@ async function loadCapture(captureId) {
   try {
     const res = await fetch(apiUrl(`/api/teamwork/capture/${captureId}`), { cache: "no-store" });
     const data = await res.json();
-    if (data.ok && data.text) {
-      el.innerHTML = `<pre>${data.text.replace(/</g, "&lt;")}</pre>`;
+    if (data.ok) {
+      if (data.type === "image") {
+        el.className = "tw-screenshot";
+        el.innerHTML = `<img src="${apiUrl(data.path)}" alt="Captura de pantalla" loading="lazy">`;
+      } else if (data.type === "text") {
+        el.className = "tw-terminal";
+        el.innerHTML = `<pre>${data.text.replace(/</g, "&lt;")}</pre>`;
+      }
       el.dataset.loaded = "true";
     }
   } catch {
