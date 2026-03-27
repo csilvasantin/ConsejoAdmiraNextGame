@@ -350,6 +350,11 @@ export function getMachineSnapshot(machineId) {
   return machineSnapshots.get(machineId) || null;
 }
 
+export async function getReachableMachines() {
+  const data = await readMachines();
+  return data.machines.filter((m) => m.ssh?.enabled && (isReachable(m) || isLocalMachine(m)));
+}
+
 export function getAllSnapshots() {
   const result = {};
   for (const [id, snap] of machineSnapshots) {

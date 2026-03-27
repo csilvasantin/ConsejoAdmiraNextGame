@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
 import { readMachines, updateMachineStatus, updateMachineSync } from "./store.js";
-import { sendPromptToMachine, resolveMachineName, getCapture, approveAll, approveMachine, getAllSnapshots } from "./ssh-exec.js";
+import { sendPromptToMachine, resolveMachineName, getCapture, approveAll, approveMachine, getAllSnapshots, getReachableMachines } from "./ssh-exec.js";
 import { addEntry, getHistory } from "./teamwork-store.js";
 
 const PORT = 3030;
@@ -160,11 +160,10 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    const data = await readMachines();
-    const sshEnabled = data.machines.filter((m) => m.ssh?.enabled);
+    const reachable = await getReachableMachines();
     const targets = target === "all" ? ["claude", "codex"] : [target];
     const results = await Promise.allSettled(
-      sshEnabled.flatMap((machine) =>
+      reachable.flatMap((machine) =>
         targets.map((t) => sendPromptToMachine(machine.id, prompt, t))
       )
     );
