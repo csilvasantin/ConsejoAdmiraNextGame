@@ -250,45 +250,37 @@
 
       .tw-machine-row {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: auto 1fr auto auto auto auto;
         gap: 8px;
-        padding: 14px 0;
+        align-items: center;
+        padding: 10px 0;
         border-bottom: 1px solid var(--line);
       }
       .tw-machine-row:last-child { border-bottom: none; }
 
-      .tw-machine-top {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        gap: 10px;
-        align-items: start;
-      }
-
-      .tw-machine-actions {
-        display: flex;
-        gap: 6px;
-        align-items: center;
+      .tw-machine-label {
+        min-width: 140px;
       }
 
       .tw-machine-input {
-        flex: 1;
-        padding: 7px 12px;
+        padding: 8px 12px;
         border-radius: 10px;
         border: 1px solid var(--line);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         min-width: 0;
+        width: 100%;
       }
       .tw-machine-input::placeholder { color: var(--muted); }
 
       .tw-machine-send {
-        padding: 7px 14px;
+        padding: 8px 14px;
         border-radius: 10px;
         border: none;
         background: var(--ink);
         color: white;
         font: inherit;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         cursor: pointer;
         white-space: nowrap;
@@ -439,6 +431,6 @@
       AdmiraNext Control v1.2.0 — 2026-03-27
     </footer>
 
-    <script src="./teamwork.js?v=20260327-11" type="module"></script>
+    <script src="./teamwork.js?v=20260327-12" type="module"></script>
   </body>
 </html>

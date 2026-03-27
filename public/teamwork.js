@@ -235,32 +235,21 @@ function renderMachineApproveList(snapshots) {
   }
 
   machineApproveList.innerHTML = filtered.map((m) => {
-    const snap = snapshots?.[m.id];
-    const snapshotHtml = snap
-      ? `<div class="tw-machine-snapshot"><pre>${snap.text.replace(/</g, "&lt;")}</pre><div class="tw-machine-snapshot-time">${formatTimeShort(snap.updatedAt)}</div></div>`
-      : `<div class="tw-machine-snapshot-empty">Sin captura</div>`;
     return `
     <div class="tw-machine-row" data-id="${m.id}">
-      <div class="tw-machine-top">
-        <div class="tw-machine-info">
-          ${snapshotHtml}
-          <div>
-            <span class="tw-machine-name">${m.name}</span><br>
-            <span class="tw-machine-member">${m.member}</span>
-          </div>
-        </div>
-        <button class="tw-approve-sm claude" data-machine="${m.id}" data-target="claude">Claude</button>
-        <button class="tw-approve-sm codex" data-machine="${m.id}" data-target="codex">Codex</button>
+      <div class="tw-machine-label">
+        <span class="tw-machine-name">${m.name}</span><br>
+        <span class="tw-machine-member">${m.member}</span>
       </div>
-      <div class="tw-machine-actions">
-        <input class="tw-machine-input" data-machine="${m.id}" type="text" placeholder="Enviar prompt a ${m.name}...">
-        <select class="tw-approve-sm" data-machine-target="${m.id}" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:7px 8px;font-size:11px;">
-          <option value="claude">Claude</option>
-          <option value="codex">Codex</option>
-          <option value="terminal">Terminal</option>
-        </select>
-        <button class="tw-machine-send" data-machine-send="${m.id}">Enviar</button>
-      </div>
+      <input class="tw-machine-input" data-machine="${m.id}" type="text" placeholder="Prompt para ${m.member}...">
+      <select class="tw-approve-sm" data-machine-target="${m.id}" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:8px 6px;font-size:11px;border-radius:10px;">
+        <option value="claude">Claude</option>
+        <option value="codex">Codex</option>
+        <option value="terminal">Terminal</option>
+      </select>
+      <button class="tw-machine-send" data-machine-send="${m.id}">Enviar</button>
+      <button class="tw-approve-sm claude" data-machine="${m.id}" data-target="claude">Aprobar</button>
+      <button class="tw-approve-sm codex" data-machine="${m.id}" data-target="codex">Aprobar</button>
     </div>`;
   }).join("");
 
