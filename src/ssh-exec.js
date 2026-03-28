@@ -14,7 +14,7 @@ const SCREENSHOTS_DIR = resolve(import.meta.dirname, "../data/screenshots");
 mkdir(SCREENSHOTS_DIR, { recursive: true }).catch(() => {});
 
 function isLocalMachine(machine) {
-  const host = (machine.ssh.host || "").split(".")[0].toLowerCase();
+  const host = (machine.ssh?.host || "").split(".")[0].toLowerCase();
   return host === LOCAL_HOSTNAME;
 }
 
@@ -548,7 +548,6 @@ export async function refreshAllSnapshots() {
   const data = await readMachines();
   // Try ALL SSH-enabled machines, not just cached-reachable
   const sshEnabled = data.machines.filter((m) => m.ssh?.enabled);
-
   await Promise.allSettled(
     sshEnabled.map(async (machine) => {
       // Skip recently-failed machines (retry every 2 min)
