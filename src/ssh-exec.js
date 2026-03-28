@@ -737,26 +737,41 @@ function parseAppsState(raw) {
   return result;
 }
 
-// Scan Claude Desktop for tool-approval buttons — direct children only (fast, no entire contents)
+// Play a notification sound locally (always on Mac Mini, regardless of which machine triggered)
+function playApprovalSound() {
+  execFile("afplay", ["/System/Library/Sounds/Glass.aiff"], { timeout: 5000 }, () => {});
+}
+
+// Scan Claude Desktop for tool-approval buttons.
+// Phase 1: fast direct scan (window/group/sheet) — covers native dialogs.
+// Phase 2: WebArea scan — covers Electron webview buttons (where Claude Code approvals live).
 async function detectClaudeApprovalButtons(machine) {
   const script = `tell application "System Events"
   if not (exists process "Claude") then return ""
   tell process "Claude"
     set r to ""
+    set foundApproval to false
     try
       repeat with w in every window
         try
+          -- Phase 1: direct window/group/sheet buttons (fast, <500ms)
           repeat with b in (every button of w)
             try
               set n to name of b
-              if n is not missing value and n is not "" then set r to r & n & "|"
+              if n is not missing value and n is not "" then
+                set r to r & n & "|"
+                if n is in {"Allow", "Yes", "OK", "Run", "Confirm", "Permitir", "Aceptar"} then set foundApproval to true
+              end if
             end try
           end repeat
           repeat with g in (every group of w)
             repeat with b in (every button of g)
               try
                 set n to name of b
-                if n is not missing value and n is not "" then set r to r & n & "|"
+                if n is not missing value and n is not "" then
+                  set r to r & n & "|"
+                  if n is in {"Allow", "Yes", "OK", "Run", "Confirm", "Permitir", "Aceptar"} then set foundApproval to true
+                end if
               end try
             end repeat
           end repeat
@@ -764,7 +779,10 @@ async function detectClaudeApprovalButtons(machine) {
             repeat with b in (every button of s)
               try
                 set n to name of b
-                if n is not missing value and n is not "" then set r to r & n & "|"
+                if n is not missing value and n is not "" then
+                  set r to r & n & "|"
+                  if n is in {"Allow", "Yes", "OK", "Run", "Confirm", "Permitir", "Aceptar"} then set foundApproval to true
+                end if
               end try
             end repeat
             repeat with g in (every group of s)
@@ -776,6 +794,22 @@ async function detectClaudeApprovalButtons(machine) {
               end repeat
             end repeat
           end repeat
+          -- Phase 2: WebArea scan (Electron webview) — only if Phase 1 found nothing
+          if not foundApproval then
+            repeat with wa in (every UI element of w whose role is "AXWebArea")
+              try
+                set waElems to entire contents of wa
+                repeat with e in waElems
+                  try
+                    if role of e is "AXButton" then
+                      set n to name of e
+                      if n is not missing value and n is not "" then set r to r & n & "|"
+                    end if
+                  end try
+                end repeat
+              end try
+            end repeat
+          end if
         end try
       end repeat
     end try
@@ -784,16 +818,18 @@ async function detectClaudeApprovalButtons(machine) {
 end tell`;
 
   if (isLocalMachine(machine)) {
-    const { error, stdout } = await execLocal(script, 15000);
+    // Phase 1 fast scan: 5s. Phase 2 WebArea scan: up to 25s total.
+    const { error, stdout } = await execLocal(script, 25000);
     return error ? "" : stdout?.trim() || "";
   }
 
+  // Remote machines: send the script over SSH (WebArea scan included)
   const lines = script.split("\n").map((l) => `-e '${l.trim()}'`).join(" ");
   function attempt(useLocal) {
     return new Promise((resolve_) => {
       const sshArgs = buildSshArgs(machine, useLocal);
       sshArgs.push(`osascript ${lines}`);
-      execFile("ssh", sshArgs, { timeout: 20_000 }, (error, stdout) => {
+      execFile("ssh", sshArgs, { timeout: 28_000 }, (error, stdout) => {
         resolve_(error ? "" : stdout?.trim() || "");
       });
     });
@@ -969,6 +1005,7 @@ async function watchdogCheck() {
         const buttonsStr = await detectClaudeApprovalButtons(machine);
         mState.claudeButtons = buttonsStr;
         if (hasClaudeToolApproval(buttonsStr)) {
+          playApprovalSound();
           await autoApprove(machine, "claude", mState);
           claudeApproved = true;
         }
@@ -982,12 +1019,14 @@ async function watchdogCheck() {
           "accept", "aceptar", "permission", "permiso", "waiting", "esperando",
           "y/n", "allow", "permitir"].some((kw) => codexTitle.includes(kw));
         if (titleHasApproval) {
+          playApprovalSound();
           await autoApprove(machine, "codex", mState);
           codexApproved = true;
         } else {
           // 2. Read Codex app text content for numbered approval options
           const codexText = await detectCodexApproval(machine);
           if (hasCodexApproval(codexText)) {
+            playApprovalSound();
             await autoApprove(machine, "codex", mState);
             codexApproved = true;
           }
@@ -1000,11 +1039,11 @@ async function watchdogCheck() {
         const termResult = await detectTerminalApproval(machine);
         mState.terminalState = termResult; // debug
         if (!claudeApproved && termResult.includes("CLAUDE_TERM:PENDING")) {
-          // Claude Code in Terminal needs Ctrl+Enter
+          playApprovalSound();
           await autoApprove(machine, "terminal_claude", mState);
         }
         if (!codexApproved && termResult.includes("CODEX_TERM:PENDING")) {
-          // Codex in Terminal — send "2" only when we KNOW it's pending
+          playApprovalSound();
           await autoApprove(machine, "codex", mState);
         }
       }
