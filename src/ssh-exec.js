@@ -267,10 +267,37 @@ function isReachable(machine) {
 // Build the osascript command for approval based on target app
 function buildApproveScript(appName) {
   if (appName === "Claude") {
-    // Claude: Ctrl+Enter to approve
+    // Claude: busca el botón de aprobación en TODAS las ventanas (multi-monitor)
+    // Si lo encuentra lo clicka directamente; si no, Ctrl+Enter como fallback
     return `tell application "Claude" to activate
 delay 0.3
-tell application "System Events" to key code 36 using control down`;
+tell application "System Events"
+  tell process "Claude"
+    set approved to false
+    repeat with w in every window
+      try
+        repeat with btn in buttons of w
+          try
+            set bName to name of btn
+            if bName is not missing value then
+              if bName contains "Run" or bName contains "Allow" or bName contains "Approve" or bName contains "Ejecutar" or bName contains "Permitir" or bName contains "Install" or bName contains "Create" or bName contains "Write" or bName contains "Delete" or bName contains "Check" then
+                set index of w to 1
+                delay 0.2
+                click btn
+                set approved to true
+                exit repeat
+              end if
+            end if
+          end try
+        end repeat
+      end try
+      if approved then exit repeat
+    end repeat
+    if not approved then
+      key code 36 using control down
+    end if
+  end tell
+end tell`;
   }
   if (appName === "Codex") {
     // Codex: send "2" + Enter to approve
@@ -714,22 +741,26 @@ function parseAppsState(raw) {
   return result;
 }
 
-// Scan Claude Desktop for tool-approval buttons via accessibility
+// Scan Claude Desktop for tool-approval buttons via accessibility (all windows = multi-monitor)
 async function detectClaudeApprovalButtons(machine) {
   const script = `tell application "System Events"
   tell process "Claude"
     set r to ""
     try
-      set allElems to entire contents of front window
-      repeat with e in allElems
+      repeat with w in every window
         try
-          set eName to name of e
-          set eRole to role of e
-          if eName is not missing value and eName is not "" then
-            if eRole contains "Button" then
-              set r to r & eName & "|"
-            end if
-          end if
+          set allElems to entire contents of w
+          repeat with e in allElems
+            try
+              set eName to name of e
+              set eRole to role of e
+              if eName is not missing value and eName is not "" then
+                if eRole contains "Button" then
+                  set r to r & eName & "|"
+                end if
+              end if
+            end try
+          end repeat
         end try
       end repeat
     end try
