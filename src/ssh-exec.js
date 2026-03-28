@@ -1,17 +1,20 @@
 import { execFile } from "node:child_process";
-import { resolve } from "node:path";
-import { mkdir, writeFile, copyFile } from "node:fs/promises";
-import { hostname } from "node:os";
+import { readFile, unlink } from "node:fs/promises";
+import { hostname, tmpdir } from "node:os";
+import { join } from "node:path";
 import { readMachines } from "./store.js";
 
 const LOCAL_HOSTNAME = hostname().replace(/\.local$/, "").toLowerCase();
 
 const TIMEOUT_MS = 15_000;
 const CAPTURE_DELAY_MS = 4000;
-const SCREENSHOTS_DIR = resolve(import.meta.dirname, "../data/screenshots");
 
-// Ensure screenshots dir exists
-mkdir(SCREENSHOTS_DIR, { recursive: true }).catch(() => {});
+// In-memory image store: machineId/captureId → Buffer
+const imageBuffers = new Map();
+
+export function getImageBuffer(id) {
+  return imageBuffers.get(id) || null;
+}
 
 function isLocalMachine(machine) {
   const host = (machine.ssh?.host || "").split(".")[0].toLowerCase();
@@ -86,7 +89,8 @@ function buildScpArgs(machine, useLocal) {
 }
 
 // Try ScreenCaptureKit screenshot via Swift on remote machine
-function captureScreenshot(machine, useLocal, localPath) {
+// Returns a Buffer with the screenshot, or rejects — no disk writes
+function captureScreenshot(machine, useLocal) {
   return new Promise((resolve, reject) => {
     const sshArgs = buildSshArgs(machine, useLocal);
     const swiftScript = `
@@ -106,35 +110,22 @@ Task {
         let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
         let rep = NSBitmapImageRep(cgImage: image)
         let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.6])!
-        try data.write(to: URL(fileURLWithPath: "/tmp/tw_screen.jpg"))
-        print("OK")
+        print(data.base64EncodedString())
     } catch { print("FAIL") }
     sem.signal()
 }
 sem.wait()
 `.trim();
 
-    // Write swift script and execute
     sshArgs.push(`cat > /tmp/tw_capture.swift << 'SWIFTEOF'
 ${swiftScript}
 SWIFTEOF
-swift /tmp/tw_capture.swift`);
+swift /tmp/tw_capture.swift && rm -f /tmp/tw_capture.swift`);
 
     execFile("ssh", sshArgs, { timeout: 30_000 }, (err, stdout) => {
-      if (err || !stdout.includes("OK")) return reject(err || new Error("capture failed"));
-
-      // SCP the file back
-      const user = machine.ssh.user || "csilvasantin";
-      const host = useLocal
-        ? deriveLocalHostname(machine)
-        : (machine.ssh.ip_tailscale || machine.ssh.host);
-      const scpArgs = buildScpArgs(machine, useLocal);
-      scpArgs.push(`${user}@${host}:/tmp/tw_screen.jpg`, localPath);
-
-      execFile("scp", scpArgs, { timeout: TIMEOUT_MS }, (scpErr) => {
-        if (scpErr) return reject(scpErr);
-        resolve(localPath);
-      });
+      const b64 = stdout?.trim();
+      if (err || !b64 || b64 === "FAIL") return reject(err || new Error("capture failed"));
+      try { resolve(Buffer.from(b64, "base64")); } catch (e) { reject(e); }
     });
   });
 }
@@ -234,13 +225,12 @@ export async function sendPromptToMachine(machineId, prompt, target = "terminal"
     const captureId = `${machineId}-${Date.now()}`;
     result.captureId = captureId;
 
-    // Start capture after delay (async)
+    // Start capture after delay (async) — stored in memory, no disk writes
     setTimeout(async () => {
-      // Try screenshot first
-      const screenshotPath = resolve(SCREENSHOTS_DIR, `${captureId}.jpg`);
       try {
-        await captureScreenshot(machine, usedLocal, screenshotPath);
-        captures.set(captureId, { type: "image", path: `/api/screenshots/${captureId}.jpg` });
+        const buf = await captureScreenshot(machine, usedLocal);
+        imageBuffers.set(captureId, buf);
+        captures.set(captureId, { type: "image", path: `/api/screenshots/${captureId}` });
       } catch {
         // Fallback to text capture
         const text = await captureTerminalText(machine, usedLocal, appName);
@@ -441,56 +431,40 @@ PYEOF
 python3 /tmp/tw_snap.py 2>/dev/null && sips -Z 960 /tmp/tw_screen.jpg --out /tmp/tw_screen.jpg >/dev/null 2>&1`;
 
 // Capture desktop screenshot for a machine, save locally
+// Returns a Buffer with the screenshot, or null — no disk writes ever
 async function captureDesktopScreenshot(machine) {
-  const filename = `snap-${machine.id}.jpg`;
-  const localPath = resolve(SCREENSHOTS_DIR, filename);
-
   if (isLocalMachine(machine)) {
-    // Local: captura el display de Claude (ID=2, pantalla vertical izquierda)
-    // donde siempre está Claude Desktop y donde aparecen los diálogos de aprobación
+    // Local: captura display 2 (pantalla Claude, vertical izquierda)
+    // Escribe a /tmp, lee a buffer, borra el tmp
+    const tmpPath = join(tmpdir(), `tw_snap_${machine.id}_${Date.now()}.jpg`);
     return new Promise((resolve_) => {
-      execFile("launchctl", ["asuser", String(process.getuid()), "screencapture", "-D", "2", "-x", "-t", "jpg", localPath], { timeout: 10_000 }, (err) => {
+      execFile("launchctl", ["asuser", String(process.getuid()), "screencapture", "-D", "2", "-x", "-t", "jpg", tmpPath], { timeout: 10_000 }, (err) => {
         if (err) return resolve_(null);
-        execFile("sips", ["-Z", "960", localPath, "--out", localPath], { timeout: 5_000 }, () => {
-          resolve_(filename);
+        execFile("sips", ["-Z", "960", tmpPath, "--out", tmpPath], { timeout: 5_000 }, async () => {
+          try {
+            const buf = await readFile(tmpPath);
+            resolve_(buf);
+          } catch { resolve_(null); }
+          finally { unlink(tmpPath).catch(() => {}); }
         });
       });
     });
   }
 
-  // Remote: trigger Cmd+Shift+3, convert latest screenshot, SCP back
+  // Remote: captura + base64 en el equipo remoto, decode aquí — sin SCP, sin disco local
   function attempt(useLocal) {
     return new Promise((resolve_) => {
       const sshArgs = buildSshArgs(machine, useLocal);
-      // Cmd+Ctrl+Shift+3 = silent screenshot to clipboard, then save via osascript
-      sshArgs.push(`osascript -e 'tell application "System Events" to key code 20 using {command down, shift down, control down}' -e 'delay 1' -e 'set png to the clipboard as «class PNGf»' -e 'set f to open for access POSIX file "/tmp/tw_screen_raw.png" with write permission' -e 'write png to f' -e 'close access f' && sips -Z 960 -s format jpeg /tmp/tw_screen_raw.png --out /tmp/tw_screen.jpg >/dev/null 2>&1 && rm /tmp/tw_screen_raw.png && echo OK`);
-
+      sshArgs.push(
+        `osascript -e 'tell application "System Events" to key code 20 using {command down, shift down, control down}' -e 'delay 1' -e 'set png to the clipboard as «class PNGf»' -e 'set f to open for access POSIX file "/tmp/tw_screen_raw.png" with write permission' -e 'write png to f' -e 'close access f' ` +
+        `&& sips -Z 960 -s format jpeg /tmp/tw_screen_raw.png --out /tmp/tw_screen.jpg >/dev/null 2>&1 ` +
+        `&& rm -f /tmp/tw_screen_raw.png ` +
+        `&& base64 /tmp/tw_screen.jpg && rm -f /tmp/tw_screen.jpg`
+      );
       execFile("ssh", sshArgs, { timeout: 20_000 }, (err, stdout) => {
-        if (err || !stdout?.includes("OK")) {
-          // Fallback: just SCP whatever is already at /tmp/tw_screen.jpg
-          const user = machine.ssh.user || "csilvasantin";
-          const host = useLocal
-            ? deriveLocalHostname(machine)
-            : (machine.ssh.ip_tailscale || machine.ssh.host);
-          const scpArgs = buildScpArgs(machine, useLocal);
-          scpArgs.push(`${user}@${host}:/tmp/tw_screen.jpg`, localPath);
-          execFile("scp", scpArgs, { timeout: TIMEOUT_MS }, (scpErr) => {
-            resolve_(scpErr ? null : filename);
-          });
-          return;
-        }
-
-        // SCP the fresh screenshot back
-        const user = machine.ssh.user || "csilvasantin";
-        const host = useLocal
-          ? deriveLocalHostname(machine)
-          : (machine.ssh.ip_tailscale || machine.ssh.host);
-        const scpArgs = buildScpArgs(machine, useLocal);
-        scpArgs.push(`${user}@${host}:/tmp/tw_screen.jpg`, localPath);
-
-        execFile("scp", scpArgs, { timeout: TIMEOUT_MS }, (scpErr) => {
-          resolve_(scpErr ? null : filename);
-        });
+        const b64 = stdout?.trim();
+        if (err || !b64) return resolve_(null);
+        try { resolve_(Buffer.from(b64, "base64")); } catch { resolve_(null); }
       });
     });
   }
@@ -531,10 +505,11 @@ async function captureTextFallback(machine) {
 }
 
 async function captureOneSnapshot(machine) {
-  // Try real desktop screenshot first
-  const imgFile = await captureDesktopScreenshot(machine);
-  if (imgFile) {
-    return { type: "image", image: `/api/screenshots/${imgFile}` };
+  // Try real desktop screenshot first — returns Buffer or null
+  const buf = await captureDesktopScreenshot(machine);
+  if (buf) {
+    imageBuffers.set(machine.id, buf);
+    return { type: "image", image: `/api/screenshots/${machine.id}` };
   }
   // Fallback to text
   const text = await captureTextFallback(machine);

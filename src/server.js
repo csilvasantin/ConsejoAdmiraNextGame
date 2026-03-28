@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
 import { readMachines, updateMachineStatus, updateMachineSync } from "./store.js";
-import { sendPromptToMachine, resolveMachineName, getCapture, approveAll, approveMachine, getAllSnapshots, getReachableMachines, getWatchdogState, setWatchdogEnabled, setMachineWatchdog, startWatchdog } from "./ssh-exec.js";
+import { sendPromptToMachine, resolveMachineName, getCapture, getImageBuffer, approveAll, approveMachine, getAllSnapshots, getReachableMachines, getWatchdogState, setWatchdogEnabled, setMachineWatchdog, startWatchdog } from "./ssh-exec.js";
 import { addEntry, getHistory } from "./teamwork-store.js";
 
 const PORT = 3030;
@@ -220,13 +220,12 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && url.pathname.startsWith("/api/screenshots/")) {
-    const filename = url.pathname.split("/").pop();
-    const screenshotPath = resolve(import.meta.dirname, "../data/screenshots", filename);
-    try {
-      const file = await readFile(screenshotPath);
+    const id = url.pathname.split("/").pop();
+    const buf = getImageBuffer(id);
+    if (buf) {
       response.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-cache, no-store, must-revalidate", ...CORS_HEADERS });
-      response.end(file);
-    } catch {
+      response.end(buf);
+    } else {
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end("Not found");
     }
