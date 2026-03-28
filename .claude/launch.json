@@ -1,11 +1,1 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "admira-team",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["src/server.js"],
-      "port": 3030
-    }
-  ]
-}
+{"version":"0.0.1","configurations":[{"name":"admiranext","runtimeExecutable":"node","runtimeArgs":["src/server.js"],"port":3030}]}
