@@ -588,14 +588,16 @@ export function resolveMachineName(machines, input) {
 
 const WATCHDOG_INTERVAL_MS = 30_000;
 
-// Keywords that indicate an app is waiting for approval
-const CLAUDE_WAITING_KEYWORDS = [
-  "wants to", "allow", "approve", "permission", "waiting",
-  "y/n", "Y/n", "Accept", "Deny", "Tool Use", "Run command"
+// Claude Desktop tool-use buttons start with these verbs when approval is pending
+const CLAUDE_TOOL_BUTTON_VERBS = [
+  "Ejecutó", "ejecutó", "Run", "Check", "Install", "Clone", "List", "Show",
+  "Read", "Leyó", "leyó", "Write", "Create", "Delete", "Search", "Find",
+  "archivo creado", "archivos", "comandos", "herramienta", "usó"
 ];
-const CODEX_WAITING_KEYWORDS = [
-  "approve", "aprobar", "confirm", "accept", "waiting",
-  "run", "allow", "permission", "y/n", "Y/n"
+// UI-only buttons to IGNORE (not tool approvals)
+const CLAUDE_IGNORE_BUTTONS = [
+  "Aceptar ediciones", "Opus", "Claude", "Vista previa", "~/",
+  "Sonnet", "Haiku", "contexto"
 ];
 
 const watchdogState = {
@@ -686,16 +688,62 @@ function parseAppsState(raw) {
   return result;
 }
 
-// Detect if a window title indicates waiting for approval
-function isWaitingForApproval(windowTitle, keywords) {
-  if (!windowTitle || windowTitle === "no-window") return false;
-  const lower = windowTitle.toLowerCase();
-  for (const kw of CLAUDE_WAITING_KEYWORDS.concat(keywords)) {
-    if (lower.includes(kw.toLowerCase())) return true;
+// Scan Claude Desktop for tool-approval buttons via accessibility
+async function detectClaudeApprovalButtons(machine) {
+  const script = `tell application "System Events"
+  tell process "Claude"
+    set r to ""
+    try
+      set allElems to entire contents of front window
+      repeat with e in allElems
+        try
+          set eName to name of e
+          set eRole to role of e
+          if eName is not missing value and eName is not "" then
+            if eRole contains "Button" then
+              set r to r & eName & "|"
+            end if
+          end if
+        end try
+      end repeat
+    end try
+    return r
+  end tell
+end tell`;
+
+  if (isLocalMachine(machine)) {
+    const { error, stdout } = await execLocal(script, 15000);
+    return error ? "" : stdout?.trim() || "";
   }
-  // Claude Code: the window title changes when waiting for tool approval
-  // A simple heuristic: if the title is just "Claude" it may be idle,
-  // but we should still approve since we can't tell from title alone
+
+  const lines = script.split("\n").map((l) => `-e '${l.trim()}'`).join(" ");
+  function attempt(useLocal) {
+    return new Promise((resolve_) => {
+      const sshArgs = buildSshArgs(machine, useLocal);
+      sshArgs.push(`osascript ${lines}`);
+      execFile("ssh", sshArgs, { timeout: 20_000 }, (error, stdout) => {
+        resolve_(error ? "" : stdout?.trim() || "");
+      });
+    });
+  }
+
+  if (deriveLocalHostname(machine) && !isLocalMachine(machine)) {
+    const r = await attempt(true);
+    if (r) return r;
+  }
+  return attempt(false);
+}
+
+// Check if any button text indicates a pending tool approval
+function hasClaudeToolApproval(buttonsStr) {
+  if (!buttonsStr) return false;
+  const buttons = buttonsStr.split("|").filter(Boolean);
+  for (const btn of buttons) {
+    // Skip known UI-only buttons
+    if (CLAUDE_IGNORE_BUTTONS.some((ign) => btn.includes(ign))) continue;
+    // Check if button matches tool-use verbs
+    if (CLAUDE_TOOL_BUTTON_VERBS.some((verb) => btn.includes(verb))) return true;
+  }
   return false;
 }
 
@@ -711,22 +759,31 @@ async function watchdogCheck() {
       const mState = watchdogState.perMachine[machine.id];
       if (!mState.enabled) return;
 
-      // Check BOTH apps on this machine
+      // Check app states (window titles)
       const raw = await captureAllAppsState(machine);
       const apps = parseAppsState(raw);
-
-      // Store app state for frontend visibility
       mState.claudeState = apps.claude;
       mState.codexState = apps.codex;
 
-      // Check Claude
-      if (apps.claude && apps.claude !== "no-window" && isWaitingForApproval(apps.claude, CLAUDE_WAITING_KEYWORDS)) {
-        await autoApprove(machine, "claude", mState);
+      // --- CLAUDE DETECTION ---
+      // Scan Claude's accessibility buttons for tool-approval indicators
+      if (apps.claude && apps.claude !== "no-window") {
+        const buttonsStr = await detectClaudeApprovalButtons(machine);
+        mState.claudeButtons = buttonsStr; // store for debugging
+        if (hasClaudeToolApproval(buttonsStr)) {
+          await autoApprove(machine, "claude", mState);
+        }
       }
 
-      // Check Codex
-      if (apps.codex && apps.codex !== "no-window" && isWaitingForApproval(apps.codex, CODEX_WAITING_KEYWORDS)) {
-        await autoApprove(machine, "codex", mState);
+      // --- CODEX DETECTION ---
+      // Codex: if running, send periodic approval (2+Enter is safe - ignored if nothing pending)
+      // Codex doesn't expose accessibility buttons, so we approve proactively
+      if (apps.codex && apps.codex !== "no-window" && apps.codex !== "OFF") {
+        // Only auto-approve Codex every other cycle to avoid spam
+        mState._codexCycle = (mState._codexCycle || 0) + 1;
+        if (mState._codexCycle % 2 === 0) {
+          await autoApprove(machine, "codex", mState);
+        }
       }
     })
   );
