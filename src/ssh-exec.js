@@ -464,10 +464,14 @@ async function captureDesktopScreenshot(machine) {
   const localPath = resolve(SCREENSHOTS_DIR, filename);
 
   if (isLocalMachine(machine)) {
-    // Local: use launchctl asuser screencapture (works without Screen Recording perms)
+    // Local: use launchctl asuser screencapture, then resize with sips
     return new Promise((resolve_) => {
       execFile("launchctl", ["asuser", String(process.getuid()), "screencapture", "-x", "-t", "jpg", localPath], { timeout: 10_000 }, (err) => {
-        resolve_(err ? null : filename);
+        if (err) return resolve_(null);
+        // Resize to max 960px to keep it small (~80-120KB)
+        execFile("sips", ["-Z", "960", localPath, "--out", localPath], { timeout: 5_000 }, () => {
+          resolve_(filename);
+        });
       });
     });
   }
