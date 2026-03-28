@@ -400,14 +400,20 @@ function updateSnapshotsInPlace(snapshots) {
     if (snap && snap.type === "image") {
       const imgSrc = snap.image.startsWith("/") ? apiUrl(snap.image) : snap.image;
       const cacheBust = imgSrc.includes("?") ? `&t=${Date.now()}` : `?t=${Date.now()}`;
+      const newSrc = `${imgSrc}${cacheBust}`;
       const img = mon.querySelector("img");
       if (img) {
-        img.src = `${imgSrc}${cacheBust}`;
+        // Precargar antes de swappear para evitar flickering
+        const preload = new Image();
+        preload.onload = () => {
+          img.src = newSrc;
+          const timeEl = mon.querySelector(".tw-machine-monitor-time");
+          if (timeEl) timeEl.textContent = formatTimeShort(snap.updatedAt);
+        };
+        preload.src = newSrc;
       } else {
-        mon.innerHTML = `<img src="${imgSrc}${cacheBust}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+        mon.innerHTML = `<img src="${newSrc}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
       }
-      const timeEl = mon.querySelector(".tw-machine-monitor-time");
-      if (timeEl) timeEl.textContent = formatTimeShort(snap.updatedAt);
     } else if (snap && snap.text) {
       mon.innerHTML = `<pre>${snap.text.replace(/</g, "&lt;")}</pre><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
     }
@@ -420,10 +426,11 @@ function updateSnapshotsInPlace(snapshots) {
     }
   }
 
-  // Re-sort rows: online first, offline last (moves DOM nodes, preserves event listeners)
+  // Re-sort rows solo si el orden ha cambiado (evita reflow innecesario)
   const rows = [...machineApproveList.querySelectorAll(".tw-machine-row")];
-  rows.sort((a, b) => (snapshots?.[b.dataset.id] ? 1 : 0) - (snapshots?.[a.dataset.id] ? 1 : 0));
-  rows.forEach((row) => machineApproveList.appendChild(row));
+  const sorted = [...rows].sort((a, b) => (snapshots?.[b.dataset.id] ? 1 : 0) - (snapshots?.[a.dataset.id] ? 1 : 0));
+  const orderChanged = rows.some((r, i) => r !== sorted[i]);
+  if (orderChanged) sorted.forEach((row) => machineApproveList.appendChild(row));
 }
 
 async function loadSnapshots() {

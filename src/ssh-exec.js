@@ -267,37 +267,10 @@ function isReachable(machine) {
 // Build the osascript command for approval based on target app
 function buildApproveScript(appName) {
   if (appName === "Claude") {
-    // Claude: busca el botón de aprobación en TODAS las ventanas (multi-monitor)
-    // Si lo encuentra lo clicka directamente; si no, Ctrl+Enter como fallback
+    // Claude: activa la app y envía Ctrl+Enter — macOS da foco al diálogo modal automáticamente
     return `tell application "Claude" to activate
-delay 0.3
-tell application "System Events"
-  tell process "Claude"
-    set approved to false
-    repeat with w in every window
-      try
-        repeat with btn in buttons of w
-          try
-            set bName to name of btn
-            if bName is not missing value then
-              if bName contains "Run" or bName contains "Allow" or bName contains "Approve" or bName contains "Ejecutar" or bName contains "Permitir" or bName contains "Install" or bName contains "Create" or bName contains "Write" or bName contains "Delete" or bName contains "Check" then
-                set index of w to 1
-                delay 0.2
-                click btn
-                set approved to true
-                exit repeat
-              end if
-            end if
-          end try
-        end repeat
-      end try
-      if approved then exit repeat
-    end repeat
-    if not approved then
-      key code 36 using control down
-    end if
-  end tell
-end tell`;
+delay 0.4
+tell application "System Events" to key code 36 using control down`;
   }
   if (appName === "Codex") {
     // Codex: send "2" + Enter to approve
