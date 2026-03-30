@@ -61,6 +61,22 @@ http://127.0.0.1:3030
 GET /api/machines
 ```
 
+### Lanzar onboarding global
+
+```text
+POST /api/teamwork/onboarding-all
+Content-Type: application/json
+{
+  "prompt": "opcional, si se quiere sobrescribir el onboarding canónico"
+}
+```
+
+Semantica operativa:
+
+- `onboarding` es local y no debe emitirse a todos desde este panel;
+- `onboarding all` hace primero el onboarding local en la IA coordinadora y despues reenvia el onboarding canonico a todos los equipos alcanzables;
+- el backend intenta usar una sola via por maquina, con prioridad `Codex`, `Claude`, `Terminal`.
+
 ### Sincronizar estado y foco
 
 ```text

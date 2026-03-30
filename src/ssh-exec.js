@@ -415,6 +415,72 @@ export function getAllSnapshots() {
   return result;
 }
 
+function isActiveDesktopApp(state) {
+  return Boolean(state && state !== "no-window" && state !== "OFF");
+}
+
+function pickOnboardingTarget(machine) {
+  const snapshot = machineSnapshots.get(machine.id);
+
+  if (isActiveDesktopApp(snapshot?.codexState)) {
+    return "codex";
+  }
+
+  if (isActiveDesktopApp(snapshot?.claudeState)) {
+    return "claude";
+  }
+
+  return "terminal";
+}
+
+export async function sendOnboardingToAll(prompt) {
+  const data = await readMachines();
+  const sshEnabled = data.machines.filter((m) => m.ssh?.enabled);
+  const reachable = sshEnabled.filter((m) => isReachable(m) || isLocalMachine(m));
+  const unreachable = sshEnabled.filter((m) => !isReachable(m) && !isLocalMachine(m));
+
+  const results = await Promise.allSettled(
+    reachable.map(async (machine) => {
+      const target = pickOnboardingTarget(machine);
+      const result = await sendPromptToMachine(machine.id, prompt, target);
+      return {
+        ...result,
+        id: machine.id,
+        machine: machine.name,
+        target
+      };
+    })
+  );
+
+  const output = results.map((entry, index) => {
+    if (entry.status === "fulfilled") {
+      return entry.value;
+    }
+
+    const machine = reachable[index];
+    return {
+      ok: false,
+      id: machine?.id,
+      machine: machine?.name || "unknown",
+      target: machine ? pickOnboardingTarget(machine) : "terminal",
+      error: entry.reason instanceof Error ? entry.reason.message : "rejected"
+    };
+  });
+
+  for (const machine of unreachable) {
+    output.push({
+      ok: false,
+      id: machine.id,
+      machine: machine.name,
+      target: null,
+      error: "offline",
+      skipped: true
+    });
+  }
+
+  return output;
+}
+
 // Python/Quartz remote screenshot + sips resize to 960px
 const PYTHON_CAPTURE_REMOTE = `cat > /tmp/tw_snap.py << 'PYEOF'
 import Quartz.CoreGraphics as CG

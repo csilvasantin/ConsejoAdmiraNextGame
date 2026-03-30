@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
 import { createMachineEntry, readMachines, updateMachineStatus, updateMachineSync } from "./store.js";
-import { sendPromptToMachine, resolveMachineName, getCapture, getImageBuffer, approveAll, approveMachine, getAllSnapshots, getReachableMachines, getWatchdogState, setWatchdogEnabled, setMachineWatchdog, startWatchdog } from "./ssh-exec.js";
+import { sendPromptToMachine, resolveMachineName, getCapture, getImageBuffer, approveAll, approveMachine, getAllSnapshots, getReachableMachines, getWatchdogState, setWatchdogEnabled, setMachineWatchdog, sendOnboardingToAll, startWatchdog } from "./ssh-exec.js";
 import { addEntry, getHistory } from "./teamwork-store.js";
 
 const PORT = 3030;
@@ -28,6 +28,8 @@ const FRIENDLY_ROUTES = new Map([
   ["/creativa", "/new-member.html?preset=creative-macbook-air-clean"],
   ["/alta-creativa", "/new-member.html?preset=creative-macbook-air-clean"]
 ]);
+const DEFAULT_ONBOARDING_PROMPT =
+  "Haz onboarding leyendo el repositorio onboarding de Admira Next primero. Carga el contexto compartido, identifica los repositorios activos y queda listo para continuar sin pedir de nuevo el contexto base.";
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", ...CORS_HEADERS });
@@ -209,6 +211,15 @@ const server = createServer(async (request, response) => {
       return { machine: v.name || v.machine, ok: v.ok, error: v.error };
     });
     sendJson(response, 200, { ok: true, results: output });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/teamwork/onboarding-all") {
+    const rawBody = await readRequestBody(request);
+    const parsed = rawBody ? JSON.parse(rawBody) : {};
+    const prompt = parsed.prompt?.trim() || DEFAULT_ONBOARDING_PROMPT;
+    const results = await sendOnboardingToAll(prompt);
+    sendJson(response, 200, { ok: true, prompt, results });
     return;
   }
 

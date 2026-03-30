@@ -657,7 +657,7 @@
 
       <section class="tw-panel">
         <div class="tw-command">
-          <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;">
+          <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;">
             <input class="tw-quick" id="quickInput" type="text"
                    placeholder="Escribe un prompt para todos los equipos..."
                    autocomplete="off" autofocus>
@@ -668,7 +668,9 @@
               <option value="terminal">Solo Terminal</option>
             </select>
             <button class="tw-send" id="sendAllBtn" style="height:100%;">Enviar a todos</button>
+            <button class="tw-send" id="onboardingAllBtn" style="height:100%;background:#1f8f63;">Onboarding all</button>
           </div>
+          <p style="margin:10px 0 0;color:var(--muted);font-size:12px;">`onboarding` es local para esta sesion. `onboarding all` refresca todos los equipos alcanzables usando una sola IA por maquina.</p>
         </div>
         <div class="tw-feedback" id="feedback"></div>
       </section>
@@ -711,10 +713,10 @@
     </main>
 
     <footer style="text-align:center;padding:24px 0 8px;color:var(--muted);font-size:12px;">
-      AdmiraNext Control v1.9.8 — 2026-03-28
+      AdmiraNext Control v1.10.0 — 2026-03-30
     </footer>
 
-    <script src="./teamwork.js?v=20260328-18" type="module"></script>
+    <script src="./teamwork.js?v=20260330-1" type="module"></script>
     <script>
       (function() {
         const c = document.getElementById("matrixCanvas");

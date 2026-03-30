@@ -32,3 +32,5 @@ AdmiraNext Team
 - Se ha ejecutado una incorporacion casi completa por SSH sobre `192.168.0.120`: Command Line Tools, Homebrew, Python, `gh`, Chrome, Codex, onboarding copiado y bots levantados en segundo plano.
 - El estado real del equipo ya queda reflejado en `machines.json` con Tailscale y SSH operativos, `Claude` y `Codex` instalados y `ClaudeBot`/`CodexBot` activos. El unico punto que seguia pendiente al cierre era completar `gh auth login`.
 - El cierre final ya ha quedado completado: `gh auth status` valido en el Mac nuevo, Tailscale conectado, bots vivos y ficha actualizada a estado `idle`, lista para arrancar el onboarding diario.
+- Se fija una semantica nueva para activacion: `onboarding` significa solo onboarding local de la sesion actual, mientras que `onboarding all` significa refresco global de todos los equipos alcanzables de `Admira Next`.
+- `AdmiraNext-Team` ya expone `POST /api/teamwork/onboarding-all`, el panel de `teamwork` muestra un atajo visible y el backend evita duplicar `Claude` y `Codex` en una misma maquina prefiriendo `Codex`, luego `Claude` y despues `Terminal`.

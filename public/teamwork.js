@@ -1,5 +1,6 @@
 const quickInput = document.querySelector("#quickInput");
 const sendAllBtn = document.querySelector("#sendAllBtn");
+const onboardingAllBtn = document.querySelector("#onboardingAllBtn");
 const feedback = document.querySelector("#feedback");
 const historyList = document.querySelector("#historyList");
 
@@ -8,6 +9,10 @@ let isStaticMode = false;
 const FUNNEL_URL = "https://macmini.tail48b61c.ts.net";
 const FUNNEL_HOST = "macmini.tail48b61c.ts.net";
 const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === FUNNEL_HOST;
+const DEFAULT_ONBOARDING_PROMPT =
+  "Haz onboarding leyendo el repositorio onboarding de Admira Next primero. Carga el contexto compartido, identifica los repositorios activos y queda listo para continuar sin pedir de nuevo el contexto base.";
+const LOCAL_ONBOARDING_COMMANDS = new Set(["onboarding", "haz onboarding"]);
+const GLOBAL_ONBOARDING_COMMANDS = new Set(["onboarding all", "haz onboarding all"]);
 
 // Redirect GitHub Pages to Funnel
 if (location.hostname === "csilvasantin.github.io") {
@@ -16,6 +21,10 @@ if (location.hostname === "csilvasantin.github.io") {
 
 function apiUrl(path) {
   return isLocal ? path : `${FUNNEL_URL}${path}`;
+}
+
+function normalizeCommand(text) {
+  return text.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function showFeedback(text, ok) {
@@ -96,6 +105,52 @@ async function sendToAll(prompt) {
   loadHistory();
 }
 
+async function sendOnboardingAll(prompt = DEFAULT_ONBOARDING_PROMPT) {
+  onboardingAllBtn.disabled = true;
+  sendAllBtn.disabled = true;
+  onboardingAllBtn.textContent = "Lanzando...";
+
+  try {
+    const res = await fetch(apiUrl("/api/teamwork/onboarding-all"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    const ok = data.results.filter((r) => r.ok).length;
+    const offline = data.results.filter((r) => r.skipped).length;
+    const fail = data.results.filter((r) => !r.ok && !r.skipped).length;
+    const parts = [`${ok} equipos actualizados`];
+    if (offline) parts.push(`${offline} offline`);
+    if (fail) parts.push(`${fail} con error`);
+    showFeedback(`Onboarding all lanzado: ${parts.join(" | ")}`, ok > 0);
+    quickInput.value = "";
+  } catch (err) {
+    showFeedback(`Error: ${err.message}`, false);
+  }
+
+  onboardingAllBtn.disabled = false;
+  sendAllBtn.disabled = false;
+  onboardingAllBtn.textContent = "Onboarding all";
+  loadHistory();
+}
+
+async function handleQuickCommand(prompt) {
+  const normalized = normalizeCommand(prompt);
+
+  if (LOCAL_ONBOARDING_COMMANDS.has(normalized)) {
+    showFeedback("`onboarding` es local: hazlo en esta sesion. Usa `onboarding all` si quieres refrescar todo AdmiraNext.", false);
+    return true;
+  }
+
+  if (GLOBAL_ONBOARDING_COMMANDS.has(normalized)) {
+    await sendOnboardingAll();
+    return true;
+  }
+
+  return false;
+}
+
 function renderHistory(entries) {
   if (!entries.length) {
     historyList.innerHTML = '<p class="tw-empty">Sin comandos enviados todavía.</p>';
@@ -172,6 +227,8 @@ async function loadMachines() {
       renderMachineApproveList(null);
       sendAllBtn.textContent = "Solo lectura";
       sendAllBtn.disabled = true;
+      onboardingAllBtn.textContent = "Solo lectura";
+      onboardingAllBtn.disabled = true;
     } catch {
       // no machines
     }
@@ -385,16 +442,26 @@ quickInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     const prompt = quickInput.value.trim();
-    if (prompt) sendToAll(prompt);
+    if (prompt) {
+      handleQuickCommand(prompt).then((handled) => {
+        if (!handled) sendToAll(prompt);
+      });
+    }
     else showFeedback("Escribe un prompt", false);
   }
 });
 
 sendAllBtn.addEventListener("click", () => {
   const prompt = quickInput.value.trim();
-  if (prompt) sendToAll(prompt);
+  if (prompt) {
+    handleQuickCommand(prompt).then((handled) => {
+      if (!handled) sendToAll(prompt);
+    });
+  }
   else showFeedback("Escribe un prompt", false);
 });
+
+onboardingAllBtn.addEventListener("click", () => sendOnboardingAll());
 
 approveClaudeBtn.addEventListener("click", () => approveAll("claude", approveClaudeBtn, approveClaudeResult));
 approveCodexBtn.addEventListener("click", () => approveAll("codex", approveCodexBtn, approveCodexResult));
