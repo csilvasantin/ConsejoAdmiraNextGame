@@ -1,6 +1,6 @@
 {
   "team": "AdmiraNext Team",
-  "updatedAt": "2026-03-31T18:48:00Z",
+  "updatedAt": "2026-03-31T19:05:00Z",
   "tailnet": "tail48b61c.ts.net",
   "machines": [
     {
@@ -274,14 +274,15 @@
       "location": "Sitges",
       "platform": "Windows",
       "status": "offline",
-      "lastSeen": "2026-03-31T18:48:00Z",
-      "currentFocus": "Pendiente de conexion real al hub para tareas rutinarias desde puesto multi-monitor",
-      "note": "Primer worker real identificado para Sitges. Host previsto: pcsitges3monitores.tail48b61c.ts.net. Aun no resuelve desde esta sesion.",
+      "lastSeen": "2026-03-31T19:05:00Z",
+      "currentFocus": "Pendiente de reconexion real al hub. Identificado tambien como PCSitges en LAN historica 192.168.0.122",
+      "note": "Primer worker real identificado para Sitges. Host previsto: pcsitges3monitores.tail48b61c.ts.net. Alias historico en LAN: PCSitges (192.168.0.122). No responde por Tailscale ni por LAN en esta sesion.",
       "ssh": {
         "enabled": false,
         "user": "csilvasantin",
         "host": "pcsitges3monitores.tail48b61c.ts.net",
         "ip_tailscale": "",
+        "ip_lan": "192.168.0.122",
         "connect_tailscale": "ssh csilvasantin@pcsitges3monitores.tail48b61c.ts.net",
         "hostAlias": "pcsitges3monitores"
       }
