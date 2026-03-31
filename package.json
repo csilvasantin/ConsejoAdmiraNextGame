@@ -1,6 +1,6 @@
 {
   "name": "admiranext-team",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Panel simple para controlar el estado de los ordenadores del equipo AdmiraNext Team.",
   "type": "module",
   "scripts": {

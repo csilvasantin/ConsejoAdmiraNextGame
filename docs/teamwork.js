@@ -231,54 +231,32 @@ function formatTimeShort(iso) {
   catch { return ""; }
 }
 
-function renderMachineApproveList(snapshots) {
-  const filtered = machines;
-  if (!filtered.length) {
-    machineApproveList.innerHTML = '<p class="tw-empty">Sin equipos disponibles.</p>';
-    return;
+function renderMachineRow(m, snapshots) {
+  const group = m.unitType || "council";
+  const snap = snapshots?.[m.id];
+  const remoteReady = !isStaticMode && Boolean(m.ssh?.enabled || m.automation?.enabled);
+  const defaultTarget = m.platform === "Windows" ? "terminal" : "claude";
+  let monitorContent;
+  const multiLabels = ["Claude", "Studio", "Codex"];
+
+  if (snap && snap.type === "images") {
+    const t = Date.now();
+    const orients = snap.orientations || snap.images.map(() => "portrait");
+    monitorContent = `<div class="tw-multi-monitor">${snap.images.map((imgPath, i) => {
+      const src = (imgPath.startsWith("/") ? apiUrl(imgPath) : imgPath) + `?t=${t}`;
+      return `<div class="tw-multi-screen ${orients[i]}"><img src="${src}" alt="${multiLabels[i]}"><span class="tw-screen-label">${multiLabels[i]}</span></div>`;
+    }).join("")}</div><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+  } else if (snap && snap.type === "image") {
+    const imgSrc = snap.image.startsWith("/") ? apiUrl(snap.image) : snap.image;
+    const cacheBust = imgSrc.includes("?") ? `&t=${Date.now()}` : `?t=${Date.now()}`;
+    monitorContent = `<img src="${imgSrc}${cacheBust}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+  } else if (snap && snap.text) {
+    monitorContent = `<pre>${snap.text.replace(/</g, "&lt;")}</pre><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+  } else {
+    monitorContent = `<div class="tw-machine-monitor-empty">Sin señal</div>`;
   }
 
-  const sortWithinGroup = (items) => [...items].sort((a, b) => {
-    const aOnline = snapshots?.[a.id] ? 1 : 0;
-    const bOnline = snapshots?.[b.id] ? 1 : 0;
-    return bOnline - aOnline;
-  });
-
-  const grouped = {
-    council: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "council")),
-    worker: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "worker"))
-  };
-
-  machineApproveList.innerHTML = ["council", "worker"].map((group) => {
-    const items = grouped[group];
-    if (!items.length) return "";
-    return `
-      <div class="tw-group-block tw-group-block-${group}">
-        <div class="tw-group-title tw-group-${group}">${GROUP_LABELS[group] || group}</div>
-        ${items.map((m) => {
-    const group = m.unitType || "council";
-    const snap = snapshots?.[m.id];
-    const remoteReady = !isStaticMode && Boolean(m.ssh?.enabled || m.automation?.enabled);
-    const defaultTarget = m.platform === "Windows" ? "terminal" : "claude";
-    let monitorContent;
-    const multiLabels = ["Claude", "Studio", "Codex"];
-    if (snap && snap.type === "images") {
-      const t = Date.now();
-      const orients = snap.orientations || snap.images.map(() => "portrait");
-      monitorContent = `<div class="tw-multi-monitor">${snap.images.map((imgPath, i) => {
-        const src = (imgPath.startsWith("/") ? apiUrl(imgPath) : imgPath) + `?t=${t}`;
-        return `<div class="tw-multi-screen ${orients[i]}"><img src="${src}" alt="${multiLabels[i]}"><span class="tw-screen-label">${multiLabels[i]}</span></div>`;
-      }).join("")}</div><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-    } else if (snap && snap.type === "image") {
-      const imgSrc = snap.image.startsWith("/") ? apiUrl(snap.image) : snap.image;
-      const cacheBust = imgSrc.includes("?") ? `&t=${Date.now()}` : `?t=${Date.now()}`;
-      monitorContent = `<img src="${imgSrc}${cacheBust}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-    } else if (snap && snap.text) {
-      monitorContent = `<pre>${snap.text.replace(/</g, "&lt;")}</pre><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-    } else {
-      monitorContent = `<div class="tw-machine-monitor-empty">Sin señal</div>`;
-    }
-    return `
+  return `
     <div class="tw-machine-row tw-machine-row-${group}" data-id="${m.id}">
       <div class="tw-machine-monitor small" data-monitor="${m.id}">${monitorContent}</div>
       <div class="tw-machine-label">
@@ -300,9 +278,40 @@ function renderMachineApproveList(snapshots) {
       <button class="tw-machine-approve" data-machine-approve="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Aprobar" : "Sin canal"}</button>
       <span class="tw-auto-badge ${remoteReady ? "" : "tw-auto-badge-off"}" data-watchdog-machine="${m.id}">${remoteReady ? "🤖 0" : "offline"}</span>
     </div>`;
-        }).join("")}
-      </div>`;
-  }).join("");
+}
+
+function renderMachineApproveList(snapshots) {
+  const filtered = machines;
+  if (!filtered.length) {
+    machineApproveList.innerHTML = '<p class="tw-empty">Sin equipos disponibles.</p>';
+    return;
+  }
+
+  const sortWithinGroup = (items) => [...items].sort((a, b) => {
+    const aOnline = snapshots?.[a.id] ? 1 : 0;
+    const bOnline = snapshots?.[b.id] ? 1 : 0;
+    return bOnline - aOnline;
+  });
+
+  const grouped = {
+    council: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "council")),
+    worker: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "worker"))
+  };
+
+  const sections = [];
+  for (const group of ["council", "worker"]) {
+    const items = grouped[group];
+    if (!items.length) continue;
+    sections.push(`
+      <section class="tw-group-block tw-group-block-${group}">
+        <div class="tw-group-title tw-group-${group}">${GROUP_LABELS[group] || group}</div>
+        <div class="tw-group-rows">
+          ${items.map((m) => renderMachineRow(m, snapshots)).join("")}
+        </div>
+      </section>
+    `);
+  }
+  machineApproveList.innerHTML = sections.join("");
 
   // Per-machine send prompt
   machineApproveList.querySelectorAll(".tw-machine-send").forEach((btn) => {
