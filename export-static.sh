@@ -83,12 +83,8 @@ with open('$OUT/snapshots.json', 'w') as f:
     json.dump(snaps, f, indent=2, ensure_ascii=False)
 "
 
-# 5. Copy static HTML/CSS/JS
-cp public/index.html "$OUT/"
+# 5. Copy only styles (shared). HTML/JS in docs/ are adapted for static mode — don't overwrite.
 cp public/styles.css "$OUT/"
-cp public/app.js "$OUT/"
-cp public/teamwork.html "$OUT/"
-cp public/teamwork.js "$OUT/"
 
 echo ""
 echo "Export complete -> $OUT/"

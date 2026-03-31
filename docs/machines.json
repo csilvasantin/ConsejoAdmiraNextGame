@@ -130,11 +130,11 @@
       }
     },
     {
-      "id": "admira-macbookair-ceo",
+      "id": "admira-macbookairblanco",
       "color": "plata",
       "member": "Cesar",
       "role": "CEO",
-      "name": "MacBook Air CEO",
+      "name": "MacBook Air Blanco (Cesar)",
       "machineRole": "Direccion",
       "location": "Madrid",
       "platform": "macOS",

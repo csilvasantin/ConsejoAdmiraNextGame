@@ -1,28 +1,28 @@
 {
-  "admira-macbookair-ceo": {
+  "admira-macbookairblanco": {
     "type": "images",
     "images": [
-      "snapshots/admira-macbookair-ceo-center.jpg"
+      "snapshots/admira-macbookairblanco-center.jpg"
     ],
     "orientations": [
       "landscape"
     ],
     "claudeState": "no-window",
     "codexState": "no-window",
-    "updatedAt": "2026-03-31T11:52:42.529Z"
+    "updatedAt": "2026-03-31T12:29:19.478Z"
   },
   "admira-macbookpronegro14": {
     "type": "image",
     "image": "snapshots/admira-macbookpronegro14.jpg",
     "claudeState": "Claude",
     "codexState": "Codex",
-    "updatedAt": "2026-03-31T11:52:42.913Z"
+    "updatedAt": "2026-03-31T12:29:19.925Z"
   },
   "admira-macbookair16": {
     "type": "image",
     "image": "snapshots/admira-macbookair16.jpg",
-    "claudeState": "no-window",
-    "codexState": "no-window",
-    "updatedAt": "2026-03-31T11:52:44.062Z"
+    "claudeState": "Claude",
+    "codexState": "Codex",
+    "updatedAt": "2026-03-31T12:29:19.991Z"
   }
 }
