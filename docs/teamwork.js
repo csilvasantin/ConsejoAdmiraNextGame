@@ -302,16 +302,33 @@ function renderMachineApproveList(snapshots) {
   for (const group of ["council", "worker"]) {
     const items = grouped[group];
     if (!items.length) continue;
+    const expanded = group === "council" ? "true" : "false";
+    const hidden = group === "council" ? "" : "hidden";
     sections.push(`
       <section class="tw-group-block tw-group-block-${group}">
-        <div class="tw-group-title tw-group-${group}">${GROUP_LABELS[group] || group}</div>
-        <div class="tw-group-rows">
+        <button class="tw-group-toggle tw-group-${group}" data-group-toggle="${group}" aria-expanded="${expanded}" type="button">
+          <span>${GROUP_LABELS[group] || group}</span>
+          <span class="tw-group-toggle-icon">${group === "council" ? "−" : "+"}</span>
+        </button>
+        <div class="tw-group-rows" data-group-panel="${group}" ${hidden}>
           ${items.map((m) => renderMachineRow(m, snapshots)).join("")}
         </div>
       </section>
     `);
   }
   machineApproveList.innerHTML = sections.join("");
+
+  machineApproveList.querySelectorAll("[data-group-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = btn.dataset.groupToggle;
+      const panel = machineApproveList.querySelector(`[data-group-panel="${group}"]`);
+      const expanded = btn.getAttribute("aria-expanded") === "true";
+      btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+      const icon = btn.querySelector(".tw-group-toggle-icon");
+      if (icon) icon.textContent = expanded ? "+" : "−";
+      if (panel) panel.hidden = expanded;
+    });
+  });
 
   // Per-machine send prompt
   machineApproveList.querySelectorAll(".tw-machine-send").forEach((btn) => {
