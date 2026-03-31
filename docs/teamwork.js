@@ -238,22 +238,28 @@ function renderMachineApproveList(snapshots) {
     return;
   }
 
-  const sorted = [...filtered].sort((a, b) => {
-    const aGroup = (a.unitType || "council") === "worker" ? 1 : 0;
-    const bGroup = (b.unitType || "council") === "worker" ? 1 : 0;
-    if (aGroup !== bGroup) {
-      return aGroup - bGroup;
-    }
+  const sortWithinGroup = (items) => [...items].sort((a, b) => {
     const aOnline = snapshots?.[a.id] ? 1 : 0;
     const bOnline = snapshots?.[b.id] ? 1 : 0;
     return bOnline - aOnline;
   });
 
-  let currentGroup = null;
-  machineApproveList.innerHTML = sorted.map((m) => {
+  const grouped = {
+    council: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "council")),
+    worker: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "worker"))
+  };
+
+  machineApproveList.innerHTML = ["council", "worker"].map((group) => {
+    const items = grouped[group];
+    if (!items.length) return "";
+    return `
+      <div class="tw-group-block tw-group-block-${group}">
+        <div class="tw-group-title tw-group-${group}">${GROUP_LABELS[group] || group}</div>
+        ${items.map((m) => {
     const group = m.unitType || "council";
     const snap = snapshots?.[m.id];
     const remoteReady = !isStaticMode && Boolean(m.ssh?.enabled || m.automation?.enabled);
+    const defaultTarget = m.platform === "Windows" ? "terminal" : "claude";
     let monitorContent;
     const multiLabels = ["Claude", "Studio", "Codex"];
     if (snap && snap.type === "images") {
@@ -272,10 +278,8 @@ function renderMachineApproveList(snapshots) {
     } else {
       monitorContent = `<div class="tw-machine-monitor-empty">Sin señal</div>`;
     }
-    const intro = group !== currentGroup ? `<div class="tw-group-title tw-group-${group}">${GROUP_LABELS[group] || group}</div>` : "";
-    currentGroup = group;
-    return `${intro}
-    <div class="tw-machine-row" data-id="${m.id}">
+    return `
+    <div class="tw-machine-row tw-machine-row-${group}" data-id="${m.id}">
       <div class="tw-machine-monitor small" data-monitor="${m.id}">${monitorContent}</div>
       <div class="tw-machine-label">
         <span class="tw-machine-name">${m.name}</span><br>
@@ -288,14 +292,16 @@ function renderMachineApproveList(snapshots) {
       </div>
       <input class="tw-machine-input" data-machine="${m.id}" type="text" placeholder="Prompt para ${m.member}..." ${remoteReady ? "" : "disabled"}>
       <select class="tw-approve-sm" data-machine-target="${m.id}" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:8px 6px;font-size:11px;border-radius:10px;">
-        <option value="claude">Claude</option>
-        <option value="codex">Codex</option>
-        <option value="terminal">Terminal</option>
+        <option value="claude" ${defaultTarget === "claude" ? "selected" : ""}>Claude</option>
+        <option value="codex" ${defaultTarget === "codex" ? "selected" : ""}>Codex</option>
+        <option value="terminal" ${defaultTarget === "terminal" ? "selected" : ""}>Terminal</option>
       </select>
       <button class="tw-machine-send" data-machine-send="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Enviar" : "Pendiente"}</button>
       <button class="tw-machine-approve" data-machine-approve="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Aprobar" : "Sin canal"}</button>
       <span class="tw-auto-badge ${remoteReady ? "" : "tw-auto-badge-off"}" data-watchdog-machine="${m.id}">${remoteReady ? "🤖 0" : "offline"}</span>
     </div>`;
+        }).join("")}
+      </div>`;
   }).join("");
 
   // Per-machine send prompt

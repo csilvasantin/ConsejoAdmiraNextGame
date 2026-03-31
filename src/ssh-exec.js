@@ -94,7 +94,7 @@ function toPowerShellString(value) {
 const WINDOWS_TARGET_APPS = {
   terminal: {
     processNames: ["WindowsTerminal", "Terminal", "pwsh", "powershell", "cmd"],
-    titleHints: ["Terminal", "PowerShell", "Command Prompt", "Claude Code", "Codex"]
+    titleHints: ["Terminal", "PowerShell", "Command Prompt", "AdmiraNext Automation", "Windows PowerShell"]
   },
   claude: {
     processNames: ["Claude"],
