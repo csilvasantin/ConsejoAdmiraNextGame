@@ -5,8 +5,10 @@ import { join } from "node:path";
 import { readMachines } from "./store.js";
 
 const SSH_IDENTITY = join(homedir(), ".ssh", "admiranext_ed25519");
+const WINDOWS_SCREENSHOT_PYTHON = join(homedir(), "Documents", "Codex", "ClaudeBot", ".venv", "Scripts", "python.exe");
 
 const LOCAL_HOSTNAME = hostname().replace(/\.local$/, "").toLowerCase();
+const IS_WINDOWS = process.platform === "win32";
 
 const TIMEOUT_MS = 15_000;
 const CAPTURE_DELAY_MS = 4000;
@@ -23,6 +25,26 @@ function isLocalMachine(machine) {
   return host === LOCAL_HOSTNAME;
 }
 
+function isWindowsMachine(machine) {
+  return (machine.platform || "").toLowerCase().includes("windows");
+}
+
+function isLocalWindowsMachine(machine) {
+  return IS_WINDOWS && isWindowsMachine(machine) && isLocalMachine(machine);
+}
+
+function isLocalMacMachine(machine) {
+  return !IS_WINDOWS && isLocalMachine(machine);
+}
+
+function hasWindowsAutomationChannel(machine) {
+  return machine.automation?.enabled && machine.automation?.channel === "windows-local" && isLocalWindowsMachine(machine);
+}
+
+function isAutomationReady(machine) {
+  return Boolean(machine.ssh?.enabled || hasWindowsAutomationChannel(machine));
+}
+
 function execLocal(script, timeout = 10_000) {
   return new Promise((resolve) => {
     execFile("osascript", ["-e", script], { timeout }, (error, stdout) => {
@@ -37,6 +59,164 @@ function execLocalMulti(args, timeout = 10_000) {
       resolve({ error, stdout: stdout?.trim() || "" });
     });
   });
+}
+
+function execWindows(script, timeout = 10_000) {
+  return new Promise((resolve) => {
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-STA", "-Command", script],
+      { timeout, windowsHide: true, maxBuffer: 20 * 1024 * 1024 },
+      (error, stdout) => {
+        resolve({ error, stdout: stdout?.trim() || "" });
+      }
+    );
+  });
+}
+
+function execPython(pythonBin, script, timeout = 10_000) {
+  return new Promise((resolve) => {
+    execFile(
+      pythonBin,
+      ["-"],
+      { timeout, windowsHide: true, maxBuffer: 20 * 1024 * 1024 },
+      (error, stdout) => {
+        resolve({ error, stdout: stdout?.trim() || "" });
+      }
+    ).stdin.end(script);
+  });
+}
+
+function toPowerShellString(value) {
+  return `'${String(value || "").replace(/'/g, "''")}'`;
+}
+
+const WINDOWS_TARGET_APPS = {
+  terminal: {
+    processNames: ["WindowsTerminal", "Terminal", "pwsh", "powershell", "cmd"],
+    titleHints: ["Terminal", "PowerShell", "Command Prompt", "Claude Code", "Codex"]
+  },
+  claude: {
+    processNames: ["Claude"],
+    titleHints: ["Claude"]
+  },
+  codex: {
+    processNames: ["Codex", "codex"],
+    titleHints: ["Codex"]
+  }
+};
+
+function getWindowsTarget(target) {
+  return WINDOWS_TARGET_APPS[target] || WINDOWS_TARGET_APPS.terminal;
+}
+
+function toPowerShellArray(items) {
+  return `@(${items.map((item) => toPowerShellString(item)).join(", ")})`;
+}
+
+function buildWindowsAutomationPrelude(target) {
+  const config = getWindowsTarget(target);
+  return `
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+if (-not ([System.Management.Automation.PSTypeName]'AdmiraNext.Win32').Type) {
+  Add-Type -Namespace AdmiraNext -Name Win32 -MemberDefinition @"
+    using System;
+    using System.Runtime.InteropServices;
+    using System.Text;
+    public static class Win32 {
+      [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+      [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+      [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+      [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+      [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    }
+"@ | Out-Null
+}
+function Get-AdmiraWindow {
+  param([string[]]$Names, [string[]]$TitleHints)
+  $visible = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -or $_.MainWindowTitle }
+  $matches = foreach ($proc in $visible) {
+    $name = [string]$proc.ProcessName
+    $title = [string]$proc.MainWindowTitle
+    $nameHit = $false
+    foreach ($candidate in $Names) {
+      if ($name -ieq $candidate) { $nameHit = $true; break }
+    }
+    $titleHit = $false
+    foreach ($hint in $TitleHints) {
+      if ($title -like "*$hint*" -or $name -like "*$hint*") { $titleHit = $true; break }
+    }
+    if ($nameHit -or $titleHit) { $proc }
+  }
+  $matches |
+    Sort-Object @{ Expression = { if ($_.MainWindowTitle) { 0 } else { 1 } } }, @{ Expression = { $_.StartTime } } -Descending |
+    Select-Object -First 1
+}
+function Set-AdmiraForeground {
+  param([System.Diagnostics.Process]$Proc)
+  if (-not $Proc) { return [IntPtr]::Zero }
+  $hwnd = [IntPtr]$Proc.MainWindowHandle
+  if ($hwnd -eq [IntPtr]::Zero) { return [IntPtr]::Zero }
+  if ([AdmiraNext.Win32]::IsIconic($hwnd)) {
+    [AdmiraNext.Win32]::ShowWindow($hwnd, 9) | Out-Null
+    Start-Sleep -Milliseconds 150
+  }
+  [AdmiraNext.Win32]::SetForegroundWindow($hwnd) | Out-Null
+  Start-Sleep -Milliseconds 250
+  return $hwnd
+}
+$targetNames = ${toPowerShellArray(config.processNames)}
+$titleHints = ${toPowerShellArray(config.titleHints)}
+$proc = Get-AdmiraWindow -Names $targetNames -TitleHints $titleHints
+if (-not $proc) { Write-Output "__ADMIRA_ERR__:window-not-found"; exit 2 }
+$previousWindow = [AdmiraNext.Win32]::GetForegroundWindow()
+$targetWindow = Set-AdmiraForeground -Proc $proc
+if ($targetWindow -eq [IntPtr]::Zero) { Write-Output "__ADMIRA_ERR__:window-no-handle"; exit 3 }
+`.trim();
+}
+
+async function sendPromptToLocalWindows(target, prompt) {
+  const safePrompt = toPowerShellString(prompt);
+  const script = `
+${buildWindowsAutomationPrelude(target)}
+[System.Windows.Forms.Clipboard]::SetText(${safePrompt})
+Start-Sleep -Milliseconds 80
+[System.Windows.Forms.SendKeys]::SendWait("^v")
+Start-Sleep -Milliseconds 140
+[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+Start-Sleep -Milliseconds 120
+if ($previousWindow -ne [IntPtr]::Zero) {
+  [AdmiraNext.Win32]::SetForegroundWindow($previousWindow) | Out-Null
+}
+Write-Output "OK"
+`.trim();
+  const { error, stdout } = await execWindows(script, TIMEOUT_MS);
+  if (error || stdout.includes("__ADMIRA_ERR__")) {
+    return { ok: false, error: error?.message || stdout.replace("__ADMIRA_ERR__:", "") || "Automatizacion Windows no disponible" };
+  }
+  return { ok: true };
+}
+
+async function sendApproveToLocalWindows(target) {
+  const sendKeys =
+    target === "codex"
+      ? ['"2"', '"{ENTER}"']
+      : ['"^{ENTER}"'];
+  const body = sendKeys.map((keys) => `[System.Windows.Forms.SendKeys]::SendWait(${keys})\nStart-Sleep -Milliseconds 140`).join("\n");
+  const script = `
+${buildWindowsAutomationPrelude(target)}
+${body}
+if ($previousWindow -ne [IntPtr]::Zero) {
+  [AdmiraNext.Win32]::SetForegroundWindow($previousWindow) | Out-Null
+}
+Write-Output "OK"
+`.trim();
+  const { error, stdout } = await execWindows(script, 8_000);
+  if (error || stdout.includes("__ADMIRA_ERR__")) {
+    return { ok: false, error: error?.message || stdout.replace("__ADMIRA_ERR__:", "") || "No se pudo aprobar en Windows" };
+  }
+  return { ok: true };
 }
 
 function sanitizePrompt(text) {
@@ -176,12 +356,13 @@ export async function sendPromptToMachine(machineId, prompt, target = "terminal"
     return { ok: false, error: `Máquina '${machineId}' no encontrada` };
   }
 
-  if (!machine.ssh?.enabled) {
-    return { ok: false, error: `SSH no habilitado en '${machine.name}'` };
+  const targetKey = TARGET_APPS[target] ? target : "terminal";
+  if (!isAutomationReady(machine)) {
+    return { ok: false, error: `Canal de automatizacion no habilitado en '${machine.name}'` };
   }
 
   const safe = sanitizePrompt(prompt);
-  const appName = TARGET_APPS[target] || TARGET_APPS.terminal;
+  const appName = TARGET_APPS[targetKey] || TARGET_APPS.terminal;
   const osascriptLines = [
     `tell application "${appName}" to activate`,
     `tell application "System Events" to keystroke "${safe}"`,
@@ -192,7 +373,13 @@ export async function sendPromptToMachine(machineId, prompt, target = "terminal"
   let usedLocal = false;
 
   // If this is the local machine, run osascript directly
-  if (isLocalMachine(machine)) {
+  if (hasWindowsAutomationChannel(machine)) {
+    result = await sendPromptToLocalWindows(targetKey, prompt);
+    if (result.ok) {
+      result = { ok: true, machine: machineId, name: machine.name };
+    }
+    usedLocal = true;
+  } else if (isLocalMachine(machine)) {
     const args = osascriptLines.flatMap((line) => ["-e", line]);
     const { error } = await execLocalMulti(args);
     result = error
@@ -229,15 +416,28 @@ export async function sendPromptToMachine(machineId, prompt, target = "terminal"
 
     // Start capture after delay (async) — stored in memory, no disk writes
     setTimeout(async () => {
-      try {
-        const buf = await captureScreenshot(machine, usedLocal);
-        imageBuffers.set(captureId, buf);
-        captures.set(captureId, { type: "image", path: `/api/screenshots/${captureId}` });
-      } catch {
-        // Fallback to text capture
-        const text = await captureTerminalText(machine, usedLocal, appName);
-        if (text) {
-          captures.set(captureId, { type: "text", text });
+      if (hasWindowsAutomationChannel(machine)) {
+        const buf = await captureDesktopScreenshot(machine);
+        if (buf) {
+          imageBuffers.set(captureId, buf);
+          captures.set(captureId, { type: "image", path: `/api/screenshots/${captureId}` });
+        } else {
+          const text = await captureTextFallback(machine);
+          if (text) {
+            captures.set(captureId, { type: "text", text });
+          }
+        }
+      } else {
+        try {
+          const buf = await captureScreenshot(machine, usedLocal);
+          imageBuffers.set(captureId, buf);
+          captures.set(captureId, { type: "image", path: `/api/screenshots/${captureId}` });
+        } catch {
+          // Fallback to text capture
+          const text = await captureTerminalText(machine, usedLocal, appName);
+          if (text) {
+            captures.set(captureId, { type: "text", text });
+          }
         }
       }
 
@@ -281,11 +481,16 @@ tell application "System Events" to key code 36 using control down`;
 }
 
 function sendKeystroke(machine, useLocal, appName) {
+  const targetKey = Object.entries(TARGET_APPS).find(([, value]) => value === appName)?.[0] || "terminal";
   const script = buildApproveScript(appName);
 
   // Local machine: run directly
+  if (hasWindowsAutomationChannel(machine)) {
+    return sendApproveToLocalWindows(targetKey).then((result) => ({
+      machine: machine.name, id: machine.id, ok: result.ok, error: result.error
+    }));
+  }
   if (isLocalMachine(machine)) {
-    const args = script.split("\n").flatMap((line) => ["-e", line.trim()]).filter((_, i) => i % 2 === 1 ? _ !== "" : true);
     return execLocal(script).then(({ error }) => ({
       machine: machine.name, id: machine.id, ok: !error, error: error?.message
     }));
@@ -321,9 +526,9 @@ export async function approveAll(target) {
   const appName = TARGET_APPS[target] || TARGET_APPS.claude;
 
   // ONLY send to reachable (online) machines — skip offline immediately
-  const sshEnabled = data.machines.filter((m) => m.ssh?.enabled);
-  const reachable = sshEnabled.filter((m) => isReachable(m) || isLocalMachine(m));
-  const unreachable = sshEnabled.filter((m) => !isReachable(m) && !isLocalMachine(m));
+  const automationEnabled = data.machines.filter((m) => isAutomationReady(m));
+  const reachable = automationEnabled.filter((m) => hasWindowsAutomationChannel(m) || isReachable(m) || isLocalMachine(m));
+  const unreachable = automationEnabled.filter((m) => !hasWindowsAutomationChannel(m) && !isReachable(m) && !isLocalMachine(m));
 
   const results = await Promise.allSettled(
     reachable.map(async (machine) => {
@@ -358,12 +563,12 @@ export async function approveAll(target) {
 export async function approveMachine(machineId, target) {
   const data = await readMachines();
   const machine = data.machines.find((m) => m.id === machineId);
-  if (!machine || !machine.ssh?.enabled) {
-    return { machine: machineId, ok: false, error: "No encontrada o SSH deshabilitado" };
+  if (!machine || !isAutomationReady(machine)) {
+    return { machine: machineId, ok: false, error: "No encontrada o automatizacion deshabilitada" };
   }
 
   // Check if machine is reachable before trying
-  if (!isReachable(machine) && !isLocalMachine(machine)) {
+  if (!hasWindowsAutomationChannel(machine) && !isReachable(machine) && !isLocalMachine(machine)) {
     return { machine: machine.name, id: machine.id, ok: false, error: "offline" };
   }
 
@@ -406,7 +611,7 @@ export function getMachineSnapshot(machineId) {
 
 export async function getReachableMachines() {
   const data = await readMachines();
-  return data.machines.filter((m) => m.ssh?.enabled && (isReachable(m) || isLocalMachine(m)));
+  return data.machines.filter((m) => isAutomationReady(m) && (hasWindowsAutomationChannel(m) || isReachable(m) || isLocalMachine(m)));
 }
 
 export function getAllSnapshots() {
@@ -437,9 +642,9 @@ function pickOnboardingTarget(machine) {
 
 export async function sendOnboardingToAll(prompt) {
   const data = await readMachines();
-  const sshEnabled = data.machines.filter((m) => m.ssh?.enabled);
-  const reachable = sshEnabled.filter((m) => isReachable(m) || isLocalMachine(m));
-  const unreachable = sshEnabled.filter((m) => !isReachable(m) && !isLocalMachine(m));
+  const automationEnabled = data.machines.filter((m) => isAutomationReady(m));
+  const reachable = automationEnabled.filter((m) => hasWindowsAutomationChannel(m) || isReachable(m) || isLocalMachine(m));
+  const unreachable = automationEnabled.filter((m) => !hasWindowsAutomationChannel(m) && !isReachable(m) && !isLocalMachine(m));
 
   const results = await Promise.allSettled(
     reachable.map(async (machine) => {
@@ -501,7 +706,7 @@ python3 /tmp/tw_snap.py 2>/dev/null && sips -Z 960 /tmp/tw_screen.jpg --out /tmp
 // Capture desktop screenshot for a machine, save locally
 // Returns a Buffer with the screenshot, or null — no disk writes ever
 async function captureDesktopScreenshot(machine) {
-  if (isLocalMachine(machine)) {
+  if (isLocalMacMachine(machine)) {
     // Local: captura display 2 (pantalla Claude, vertical izquierda)
     // Escribe a /tmp, lee a buffer, borra el tmp
     const tmpPath = join(tmpdir(), `tw_snap_${machine.id}_${Date.now()}.jpg`);
@@ -517,6 +722,25 @@ async function captureDesktopScreenshot(machine) {
         });
       });
     });
+  }
+  if (isLocalWindowsMachine(machine)) {
+    const tmpPath = join(tmpdir(), `tw_snap_${machine.id}_${Date.now()}.jpg`);
+    const script = `
+from PIL import ImageGrab
+img = ImageGrab.grab(all_screens=True)
+img = img.convert("RGB")
+img.save(r"""${tmpPath}""", quality=72)
+print("OK")
+`.trim();
+    const { error, stdout } = await execPython(WINDOWS_SCREENSHOT_PYTHON, script, 12_000);
+    if (error || !stdout.includes("OK")) return null;
+    try {
+      return await readFile(tmpPath);
+    } catch {
+      return null;
+    } finally {
+      unlink(tmpPath).catch(() => {});
+    }
   }
 
   // Remote: captura con Python/Quartz + base64 en el equipo remoto, decode aquí — sin SCP, sin disco local
@@ -546,6 +770,28 @@ async function captureDesktopScreenshot(machine) {
 async function captureTextFallback(machine) {
   const script = 'tell application "System Events"\nset frontApp to name of first process whose frontmost is true\ntry\nset winName to name of front window of first process whose frontmost is true\non error\nset winName to "sin ventana"\nend try\nreturn frontApp & " — " & winName\nend tell';
 
+  if (isLocalWindowsMachine(machine)) {
+    const winScript = `
+Add-Type -AssemblyName System.Windows.Forms
+if (-not ([System.Management.Automation.PSTypeName]'AdmiraNext.Win32').Type) {
+  Add-Type -Namespace AdmiraNext -Name Win32 -MemberDefinition @"
+    using System;
+    using System.Runtime.InteropServices;
+    using System.Text;
+    public static class Win32 {
+      [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+      [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    }
+"@ | Out-Null
+}
+$hwnd = [AdmiraNext.Win32]::GetForegroundWindow()
+$title = New-Object System.Text.StringBuilder 1024
+[AdmiraNext.Win32]::GetWindowText($hwnd, $title, $title.Capacity) | Out-Null
+[string]$title
+`.trim();
+    const { error, stdout } = await execWindows(winScript, 6_000);
+    return error ? null : stdout?.trim() || null;
+  }
   if (isLocalMachine(machine)) {
     const { error, stdout } = await execLocal(script);
     return error ? null : stdout?.trim() || null;
@@ -594,7 +840,7 @@ async function captureLocalAllDisplays(machine) {
 }
 
 async function captureOneSnapshot(machine) {
-  if (isLocalMachine(machine)) {
+  if (isLocalMacMachine(machine)) {
     const bufs = await captureLocalAllDisplays(machine);
     const images = [];
     const orientations = [];
@@ -608,6 +854,15 @@ async function captureOneSnapshot(machine) {
       }
     }
     if (images.length > 0) return { type: "images", images, orientations };
+    const text = await captureTextFallback(machine);
+    return text ? { type: "text", text } : null;
+  }
+  if (isLocalWindowsMachine(machine)) {
+    const buf = await captureDesktopScreenshot(machine);
+    if (buf) {
+      imageBuffers.set(machine.id, buf);
+      return { type: "image", image: `/api/screenshots/${machine.id}` };
+    }
     const text = await captureTextFallback(machine);
     return text ? { type: "text", text } : null;
   }
@@ -625,7 +880,7 @@ async function captureOneSnapshot(machine) {
 export async function refreshAllSnapshots() {
   const data = await readMachines();
   // Try ALL SSH-enabled machines, not just cached-reachable
-  const sshEnabled = data.machines.filter((m) => m.ssh?.enabled);
+  const sshEnabled = data.machines.filter((m) => isAutomationReady(m));
   await Promise.allSettled(
     sshEnabled.map(async (machine) => {
       // Skip recently-failed machines (retry every 2 min)
@@ -760,6 +1015,17 @@ tell application "System Events"
 end tell
 return r`;
 
+  if (isLocalWindowsMachine(machine)) {
+    const script = `
+$claude = Get-Process -Name "Claude" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -or $_.MainWindowTitle } | Select-Object -First 1
+$codex = Get-Process -Name "Codex" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -or $_.MainWindowTitle } | Select-Object -First 1
+$claudeTitle = if ($claude) { if ($claude.MainWindowTitle) { $claude.MainWindowTitle } else { "Claude" } } else { "OFF" }
+$codexTitle = if ($codex) { if ($codex.MainWindowTitle) { $codex.MainWindowTitle } else { "Codex" } } else { "OFF" }
+Write-Output ("CLAUDE:{0}|||CODEX:{1}" -f $claudeTitle, $codexTitle)
+`.trim();
+    const { error, stdout } = await execWindows(script, 8_000);
+    return error ? null : stdout?.trim() || null;
+  }
   if (isLocalMachine(machine)) {
     const { error, stdout } = await execLocal(script, 8000);
     return error ? null : stdout?.trim() || null;
@@ -805,6 +1071,10 @@ function parseAppsState(raw) {
 
 // Play a notification sound locally (always on Mac Mini, regardless of which machine triggered)
 function playApprovalSound() {
+  if (IS_WINDOWS) {
+    execWindows("[console]::beep(880,180)", 2000).catch?.(() => {});
+    return;
+  }
   execFile("afplay", ["/System/Library/Sounds/Glass.aiff"], { timeout: 5000 }, () => {});
 }
 
@@ -812,6 +1082,9 @@ function playApprovalSound() {
 // Phase 1: fast direct scan (window/group/sheet) — covers native dialogs.
 // Phase 2: WebArea scan — covers Electron webview buttons (where Claude Code approvals live).
 async function detectClaudeApprovalButtons(machine) {
+  if (isLocalWindowsMachine(machine)) {
+    return "";
+  }
   const script = `tell application "System Events"
   if not (exists process "Claude") then return ""
   tell process "Claude"
@@ -924,6 +1197,9 @@ function hasClaudeToolApproval(buttonsStr) {
 
 // Read text content of the Codex app to detect numbered approval prompts
 async function detectCodexApproval(machine) {
+  if (isLocalWindowsMachine(machine)) {
+    return "";
+  }
   const script = `tell application "System Events"
   if not (exists process "Codex") then return ""
   tell process "Codex"
@@ -985,6 +1261,9 @@ function hasCodexApproval(text) {
 
 // Detect approval prompts by reading terminal content on a remote/local machine
 async function detectTerminalApproval(machine) {
+  if (isLocalWindowsMachine(machine)) {
+    return "";
+  }
   // Read the last 30 lines of every Terminal tab to find approval prompts
   const script = `
 set result to ""
@@ -1041,7 +1320,7 @@ async function watchdogCheck() {
   const data = await readMachines();
   // Try ALL SSH-enabled machines — not just cached-reachable ones.
   // When an offline machine comes back, we'll detect it and start monitoring.
-  const machines = data.machines.filter((m) => m.ssh?.enabled);
+  const machines = data.machines.filter((m) => isAutomationReady(m));
 
   await Promise.allSettled(
     machines.map(async (machine) => {

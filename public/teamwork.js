@@ -14,8 +14,8 @@ const DEFAULT_ONBOARDING_PROMPT =
 const LOCAL_ONBOARDING_COMMANDS = new Set(["onboarding", "haz onboarding"]);
 const GLOBAL_ONBOARDING_COMMANDS = new Set(["onboarding all", "haz onboarding all"]);
 const GROUP_LABELS = {
-  council: "Consejo",
-  worker: "Workers"
+  council: "Consejo de Administracion",
+  worker: "Equipo"
 };
 
 // Redirect GitHub Pages to Funnel
@@ -224,7 +224,7 @@ async function loadMachines() {
     renderMachineApproveList(null);
   } catch {
     try {
-      const res = await fetch("./machines.json?v=20260331-3", { cache: "no-store" });
+      const res = await fetch("./machines.json?v=20260331-4", { cache: "no-store" });
       const data = await res.json();
       machines = data.machines;
       isStaticMode = true;
@@ -269,7 +269,7 @@ function renderMachineApproveList(snapshots) {
   machineApproveList.innerHTML = sorted.map((m) => {
     const group = m.unitType || "council";
     const snap = snapshots?.[m.id];
-    const remoteReady = Boolean(m.ssh?.enabled);
+    const remoteReady = !isStaticMode && Boolean(m.ssh?.enabled || m.automation?.enabled);
     let monitorContent;
     const multiLabels = ["Claude", "Studio", "Codex"];
     if (snap && snap.type === "images") {
@@ -288,7 +288,7 @@ function renderMachineApproveList(snapshots) {
     } else {
       monitorContent = `<div class="tw-machine-monitor-empty">Sin señal</div>`;
     }
-    const intro = group !== currentGroup ? `<div class="tw-group-title">${GROUP_LABELS[group] || group}</div>` : "";
+    const intro = group !== currentGroup ? `<div class="tw-group-title tw-group-${group}">${GROUP_LABELS[group] || group}</div>` : "";
     currentGroup = group;
     return `${intro}
     <div class="tw-machine-row" data-id="${m.id}">
@@ -296,7 +296,7 @@ function renderMachineApproveList(snapshots) {
       <div class="tw-machine-label">
         <span class="tw-machine-name">${m.name}</span><br>
         <span class="tw-machine-member">${m.member} · ${m.platform}</span>
-        ${m.unitType === "worker" ? `<div class="tw-machine-caps">${(m.capabilities || []).map((cap) => `<span class="tw-machine-cap">${cap}</span>`).join("")}</div>` : ""}
+        ${m.unitType === "worker" ? `<div class="tw-machine-caps"><span class="tw-machine-cap tw-machine-cap-kind">PC</span>${(m.capabilities || []).map((cap) => `<span class="tw-machine-cap">${cap}</span>`).join("")}</div>` : ""}
         <span class="tw-app-status">
           ${snap?.claudeState ? `<span class="tw-app-tag claude" title="Claude: ${snap.claudeState}">C</span>` : ""}
           ${snap?.codexState ? `<span class="tw-app-tag codex" title="Codex: ${snap.codexState}">X</span>` : ""}

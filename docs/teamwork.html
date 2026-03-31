@@ -7,7 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link rel="stylesheet" href="./styles.css?v=20260331-3">
+    <link rel="stylesheet" href="./styles.css?v=20260331-4">
     <style>
       .tw-nav { margin-top: 14px; text-align: right; }
       .tw-nav a { color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600; }
@@ -683,14 +683,14 @@
       <header class="hero">
         <div class="hero-inner">
           <div class="hero-text">
-            <p class="eyebrow">Control remoto — v2.2.0</p>
+            <p class="eyebrow">Control remoto — v2.3.0</p>
             <h1>AdmiraNext Control</h1>
-            <p class="subtitle">Envía prompts y aprueba acciones en Claude y Codex de todos los equipos de Admira Next.</p>
+            <p class="subtitle">Opera por separado el Consejo de Administracion en Mac y el Equipo en PC desde un mismo panel.</p>
           </div>
           <div class="hero-pills">
             <div class="pill-glow pill-glow-red"></div>
             <div class="pill-glow pill-glow-blue"></div>
-            <img src="./matrix-pills.jpg?v=20260331-2" alt="Red pill or blue pill?" draggable="false">
+            <img src="./matrix-pills.jpg?v=20260331-4" alt="Red pill or blue pill?" draggable="false">
             <nav class="tw-nav" style="margin-top:10px;text-align:center;"><a href="./new-member.html">Alta nueva</a> · <a href="./index.html">Volver al dashboard</a></nav>
           </div>
         </div>
@@ -700,7 +700,7 @@
         <div class="tw-command">
           <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;">
             <input class="tw-quick" id="quickInput" type="text"
-                   placeholder="Escribe un prompt para todos los equipos..."
+                   placeholder="Escribe un prompt para consejo y equipo..."
                    autocomplete="off" autofocus>
             <select class="tw-select" id="sendAllTarget" style="height:100%;min-width:120px;">
               <option value="all">Claude + Codex</option>
@@ -711,7 +711,7 @@
             <button class="tw-send" id="sendAllBtn" style="height:100%;">Enviar a todos</button>
             <button class="tw-send" id="onboardingAllBtn" style="height:100%;background:#1f8f63;">Onboarding all</button>
           </div>
-          <p style="margin:10px 0 0;color:var(--muted);font-size:12px;">`onboarding` es local para esta sesion. `onboarding all` refresca todos los equipos alcanzables usando una sola IA por maquina.</p>
+          <p style="margin:10px 0 0;color:var(--muted);font-size:12px;">`onboarding` es local para esta sesion. `onboarding all` refresca consejo y equipo alcanzables usando una sola IA por maquina.</p>
         </div>
         <div class="tw-feedback" id="feedback"></div>
       </section>
@@ -719,13 +719,13 @@
       <section class="tw-approve-section">
         <div class="tw-approve-card">
           <h3>Codex</h3>
-          <p>Aprobar en todos los equipos</p>
+          <p>Aprobar en consejo y equipo</p>
           <button class="tw-approve-btn tw-approve-codex" id="approveCodexBtn">Aprobar Codex</button>
           <div class="tw-approve-result" id="approveCodexResult"></div>
         </div>
         <div class="tw-approve-card">
           <h3>Claude</h3>
-          <p>Aprobar en todos los equipos</p>
+          <p>Aprobar en consejo y equipo</p>
           <button class="tw-approve-btn tw-approve-claude" id="approveClaudeBtn">Aprobar Claude</button>
           <div class="tw-approve-result" id="approveClaudeResult"></div>
         </div>
@@ -743,7 +743,7 @@
       </div>
 
       <section class="tw-machines-approve">
-        <h3>Aprobar por equipo</h3>
+        <h3>Consejo y Equipo</h3>
         <div id="machineApproveList"></div>
       </section>
 
@@ -754,7 +754,7 @@
     </main>
 
       <footer style="text-align:center;padding:24px 0 8px;color:var(--muted);font-size:12px;">
-        AdmiraNext Control v2.2.0 — 2026-03-31
+        AdmiraNext Control v2.3.0 — 2026-03-31
       </footer>
 
     <script>
@@ -769,7 +769,7 @@
         }
       });
     </script>
-    <script src="./teamwork.js?v=20260331-3" type="module"></script>
+    <script src="./teamwork.js?v=20260331-4" type="module"></script>
     <script>
       (function() {
         const c = document.getElementById("matrixCanvas");

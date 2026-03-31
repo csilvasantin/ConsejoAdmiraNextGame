@@ -1,6 +1,6 @@
 {
   "team": "AdmiraNext Team",
-  "updatedAt": "2026-03-31T19:22:00Z",
+  "updatedAt": "2026-03-31T20:35:00Z",
   "tailnet": "tail48b61c.ts.net",
   "machines": [
     {
@@ -186,13 +186,13 @@
       "member": "Runner 01",
       "role": "Agente de QA y validacion",
       "name": "PC Runner 01",
-      "machineRole": "Worker rutinario",
+      "machineRole": "PC de validacion rutinaria",
       "location": "Madrid",
       "platform": "Windows",
       "status": "idle",
       "lastSeen": "2026-03-31T18:05:00Z",
       "currentFocus": "Esperando tareas de test, build y comprobacion final",
-      "note": "Worker pensado para pipelines, builds y smoke tests repetitivos. Pendiente de conexion remota real.",
+      "note": "PC pensado para pipelines, builds y smoke tests repetitivos. Pendiente de conexion remota real.",
       "ssh": {
         "enabled": false,
         "user": "",
@@ -214,7 +214,7 @@
       "member": "OCR 01",
       "role": "Agente documental",
       "name": "PC OCR 01",
-      "machineRole": "Worker de backoffice",
+      "machineRole": "PC de backoffice",
       "location": "Madrid",
       "platform": "Windows",
       "status": "idle",
@@ -242,7 +242,7 @@
       "member": "Bot 01",
       "role": "Agente de automatizacion web",
       "name": "PC Bot 01",
-      "machineRole": "Worker operativo",
+      "machineRole": "PC operativo",
       "location": "Madrid",
       "platform": "Windows",
       "status": "maintenance",
@@ -270,13 +270,13 @@
       "member": "PCSitges3Monitores",
       "role": "Agente operativo de Sitges",
       "name": "PC Sitges 3 Monitores",
-      "machineRole": "Worker de operacion continua",
+      "machineRole": "PC de operacion continua",
       "location": "Sitges",
       "platform": "Windows",
       "status": "online",
-      "lastSeen": "2026-03-31T19:22:00Z",
-      "currentFocus": "Worker local de Sitges detectado en esta sesion como equipo Windows activo",
-      "note": "Este mismo ordenador responde como OmenGdG en LAN 192.168.0.118. Se mantiene el nombre funcional PC Sitges 3 Monitores, pero la identidad real detectada en esta sesion es OmenGdG. Pendiente implementar canal de automatizacion Windows equivalente al flujo macOS.",
+      "lastSeen": "2026-03-31T20:35:00Z",
+      "currentFocus": "PC local de Sitges operativo en esta sesion con canal Windows activo desde AdmiraNext Control",
+      "note": "Este mismo ordenador responde como OmenGdG en LAN 192.168.0.118. Se mantiene el nombre funcional PC Sitges 3 Monitores y ya usa un canal de automatizacion Windows local para foco, envio de prompts, aprobacion y captura.",
       "ssh": {
         "enabled": false,
         "user": "csilvasantin",
@@ -285,6 +285,11 @@
         "ip_lan": "192.168.0.118",
         "connect_tailscale": "",
         "hostAlias": "omengdg"
+      },
+      "automation": {
+        "enabled": true,
+        "channel": "windows-local",
+        "mode": "desktop-sendkeys"
       }
     }
   ]

@@ -5,12 +5,12 @@ let isStaticMode = false;
 const STATUS_ORDER = ["online", "idle", "busy", "offline", "maintenance"];
 const GROUP_META = {
   council: {
-    title: "Consejo de direccion",
-    subtitle: "Macs y equipos de decision, coordinacion y supervision."
+    title: "Consejo de Administracion",
+    subtitle: "Todos los Mac del consejo: decision, coordinacion y supervision."
   },
   worker: {
-    title: "Equipo de trabajo",
-    subtitle: "PCs agente para ejecucion rutinaria, validacion y backoffice."
+    title: "Equipo",
+    subtitle: "Todos los PC del equipo: ejecucion, validacion y operativa rutinaria."
   }
 };
 
@@ -26,12 +26,12 @@ function createSummary(data) {
   const machines = data.machines;
   const members = new Set(machines.map((item) => item.member));
   const council = machines.filter((item) => (item.unitType || "council") === "council");
-  const workers = machines.filter((item) => item.unitType === "worker");
+  const pcs = machines.filter((item) => item.unitType === "worker");
   const counts = [
     ["maquinas", machines.length],
     ["miembros", members.size],
     ["consejo", council.length],
-    ["workers", workers.length],
+    ["pcs", pcs.length],
     ...STATUS_ORDER.map((status) => [
       status,
       machines.filter((item) => item.status === status).length
@@ -61,11 +61,11 @@ async function syncMachine(id, status, note, currentFocus) {
 
 function renderSection(groupKey, machines) {
   const section = document.createElement("section");
-  section.className = "fleet-section";
+  section.className = `fleet-section fleet-section-${groupKey}`;
   section.innerHTML = `
     <div class="fleet-head">
       <div>
-        <p class="fleet-kicker">${groupKey === "council" ? "Capa 01" : "Capa 02"}</p>
+        <p class="fleet-kicker">${groupKey === "council" ? "Consejo" : "Equipo"}</p>
         <h2>${GROUP_META[groupKey].title}</h2>
         <p>${GROUP_META[groupKey].subtitle}</p>
       </div>
@@ -110,7 +110,7 @@ function renderSection(groupKey, machines) {
       chips.className = "tag-row";
       const profile = machine.agentProfile ? `<span class="fleet-tag fleet-tag-profile">${machine.agentProfile}</span>` : "";
       const capabilities = (machine.capabilities || []).map((item) => `<span class="fleet-tag">${item}</span>`).join("");
-      chips.innerHTML = `<span class="fleet-tag fleet-tag-type">worker</span>${profile}${capabilities}`;
+      chips.innerHTML = `<span class="fleet-tag fleet-tag-type">pc</span>${profile}${capabilities}`;
       focusBox.before(chips);
     }
 
@@ -168,7 +168,7 @@ async function fetchData() {
     isStaticMode = false;
     return await response.json();
   } catch {
-    const response = await fetch("./machines.json?v=20260331-3", { cache: "no-store" });
+    const response = await fetch("./machines.json?v=20260331-4", { cache: "no-store" });
     isStaticMode = true;
     return await response.json();
   }
