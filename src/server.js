@@ -24,6 +24,11 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type"
 };
 const FRIENDLY_ROUTES = new Map([
+  ["/control", "/teamwork.html"],
+  ["/equipo", "/index.html"],
+  ["/team", "/index.html"],
+  ["/admin", "/consejo.html"],
+  ["/consejo", "/consejo.html"],
   ["/alta", "/new-member.html?preset=ceo-macbook-air-clean"],
   ["/ceo", "/new-member.html?preset=ceo-macbook-air-clean"],
   ["/alta-ceo", "/new-member.html?preset=ceo-macbook-air-clean"],
