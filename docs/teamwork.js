@@ -12,6 +12,10 @@ const isLocal = false;
 const DEFAULT_ONBOARDING_PROMPT = "";
 const LOCAL_ONBOARDING_COMMANDS = new Set();
 const GLOBAL_ONBOARDING_COMMANDS = new Set();
+const GROUP_LABELS = {
+  council: "Consejo",
+  worker: "Workers"
+};
 
 // Static mode — no redirect, no Funnel
 function apiUrl(path) {
@@ -207,9 +211,9 @@ async function loadHistory() {
 
 async function loadMachines() {
   try {
-    const res = await fetch("./machines.json", { cache: "no-store" });
+    const res = await fetch("./machines.json?v=20260331-3", { cache: "no-store" });
     const data = await res.json();
-    machines = data.machines.filter((m) => m.ssh?.enabled);
+    machines = data.machines;
     isStaticMode = true;
     renderMachineApproveList(null);
     if (sendAllBtn) { sendAllBtn.textContent = "Solo lectura"; sendAllBtn.disabled = true; }
@@ -235,13 +239,21 @@ function renderMachineApproveList(snapshots) {
   }
 
   const sorted = [...filtered].sort((a, b) => {
+    const aGroup = (a.unitType || "council") === "worker" ? 1 : 0;
+    const bGroup = (b.unitType || "council") === "worker" ? 1 : 0;
+    if (aGroup !== bGroup) {
+      return aGroup - bGroup;
+    }
     const aOnline = snapshots?.[a.id] ? 1 : 0;
     const bOnline = snapshots?.[b.id] ? 1 : 0;
     return bOnline - aOnline;
   });
 
+  let currentGroup = null;
   machineApproveList.innerHTML = sorted.map((m) => {
+    const group = m.unitType || "council";
     const snap = snapshots?.[m.id];
+    const remoteReady = Boolean(m.ssh?.enabled);
     let monitorContent;
     const multiLabels = ["Claude", "Studio", "Codex"];
     if (snap && snap.type === "images") {
@@ -260,26 +272,29 @@ function renderMachineApproveList(snapshots) {
     } else {
       monitorContent = `<div class="tw-machine-monitor-empty">Sin señal</div>`;
     }
-    return `
+    const intro = group !== currentGroup ? `<div class="tw-group-title">${GROUP_LABELS[group] || group}</div>` : "";
+    currentGroup = group;
+    return `${intro}
     <div class="tw-machine-row" data-id="${m.id}">
       <div class="tw-machine-monitor small" data-monitor="${m.id}">${monitorContent}</div>
       <div class="tw-machine-label">
         <span class="tw-machine-name">${m.name}</span><br>
-        <span class="tw-machine-member">${m.member}</span>
+        <span class="tw-machine-member">${m.member} · ${m.platform}</span>
+        ${m.unitType === "worker" ? `<div class="tw-machine-caps">${(m.capabilities || []).map((cap) => `<span class="tw-machine-cap">${cap}</span>`).join("")}</div>` : ""}
         <span class="tw-app-status">
           ${snap?.claudeState ? `<span class="tw-app-tag claude" title="Claude: ${snap.claudeState}">C</span>` : ""}
           ${snap?.codexState ? `<span class="tw-app-tag codex" title="Codex: ${snap.codexState}">X</span>` : ""}
         </span>
       </div>
-      <input class="tw-machine-input" data-machine="${m.id}" type="text" placeholder="Prompt para ${m.member}...">
+      <input class="tw-machine-input" data-machine="${m.id}" type="text" placeholder="Prompt para ${m.member}..." ${remoteReady ? "" : "disabled"}>
       <select class="tw-approve-sm" data-machine-target="${m.id}" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:8px 6px;font-size:11px;border-radius:10px;">
         <option value="claude">Claude</option>
         <option value="codex">Codex</option>
         <option value="terminal">Terminal</option>
       </select>
-      <button class="tw-machine-send" data-machine-send="${m.id}">Enviar</button>
-      <button class="tw-machine-approve" data-machine-approve="${m.id}">Aprobar</button>
-      <span class="tw-auto-badge" data-watchdog-machine="${m.id}">🤖 0</span>
+      <button class="tw-machine-send" data-machine-send="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Enviar" : "Pendiente"}</button>
+      <button class="tw-machine-approve" data-machine-approve="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Aprobar" : "Sin canal"}</button>
+      <span class="tw-auto-badge ${remoteReady ? "" : "tw-auto-badge-off"}" data-watchdog-machine="${m.id}">${remoteReady ? "🤖 0" : "offline"}</span>
     </div>`;
   }).join("");
 

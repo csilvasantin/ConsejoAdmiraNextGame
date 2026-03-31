@@ -189,6 +189,7 @@ export async function createMachineEntry(payload) {
   const now = new Date().toISOString();
   const machine = {
     id: machineId,
+    unitType: cleanString(payload.unitType, "council"),
     color,
     member,
     role,

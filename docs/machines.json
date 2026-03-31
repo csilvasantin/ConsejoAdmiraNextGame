@@ -1,10 +1,11 @@
 {
   "team": "AdmiraNext Team",
-  "updatedAt": "2026-03-31T06:30:57Z",
+  "updatedAt": "2026-03-31T18:05:00Z",
   "tailnet": "tail48b61c.ts.net",
   "machines": [
     {
       "id": "admira-macmini",
+      "unitType": "council",
       "color": "plata",
       "member": "Carlos",
       "role": "Coordinacion central y automatizacion",
@@ -26,6 +27,7 @@
     },
     {
       "id": "admira-macbookairnines",
+      "unitType": "council",
       "color": "plata",
       "member": "Nines",
       "role": "Operaciones",
@@ -47,6 +49,7 @@
     },
     {
       "id": "admira-macbookpronegro14",
+      "unitType": "council",
       "color": "negro",
       "member": "Carlos",
       "role": "Desarrollo y pruebas",
@@ -68,6 +71,7 @@
     },
     {
       "id": "admira-macbookair16",
+      "unitType": "council",
       "color": "plata",
       "member": "Director General",
       "role": "Direccion",
@@ -89,6 +93,7 @@
     },
     {
       "id": "admira-macbookairluna",
+      "unitType": "council",
       "color": "plata",
       "member": "Cesar",
       "role": "Coordinacion y automatizacion",
@@ -110,6 +115,7 @@
     },
     {
       "id": "admira-macbook-carla",
+      "unitType": "council",
       "color": "gris",
       "member": "Carla",
       "role": "Desarrollo y operaciones",
@@ -131,6 +137,7 @@
     },
     {
       "id": "admira-macbookairblanco",
+      "unitType": "council",
       "color": "plata",
       "member": "Cesar",
       "role": "CEO",
@@ -164,6 +171,90 @@
           "codexBotReady": true,
           "needsHelp": "Ninguna. Perfil CEO operativo."
         }
+      }
+    },
+    {
+      "id": "admira-pc-runner-01",
+      "unitType": "worker",
+      "agentProfile": "qa-runner",
+      "capabilities": [
+        "tests",
+        "builds",
+        "validacion"
+      ],
+      "color": "grafito",
+      "member": "Runner 01",
+      "role": "Agente de QA y validacion",
+      "name": "PC Runner 01",
+      "machineRole": "Worker rutinario",
+      "location": "Madrid",
+      "platform": "Windows",
+      "status": "idle",
+      "lastSeen": "2026-03-31T18:05:00Z",
+      "currentFocus": "Esperando tareas de test, build y comprobacion final",
+      "note": "Worker pensado para pipelines, builds y smoke tests repetitivos. Pendiente de conexion remota real.",
+      "ssh": {
+        "enabled": false,
+        "user": "",
+        "host": "",
+        "ip_tailscale": "",
+        "connect_tailscale": ""
+      }
+    },
+    {
+      "id": "admira-pc-ocr-01",
+      "unitType": "worker",
+      "agentProfile": "document-ops",
+      "capabilities": [
+        "ocr",
+        "pdf",
+        "extraccion"
+      ],
+      "color": "grafito",
+      "member": "OCR 01",
+      "role": "Agente documental",
+      "name": "PC OCR 01",
+      "machineRole": "Worker de backoffice",
+      "location": "Madrid",
+      "platform": "Windows",
+      "status": "idle",
+      "lastSeen": "2026-03-31T18:05:00Z",
+      "currentFocus": "Preparado para OCR, clasificacion y extraccion de datos",
+      "note": "Ideal para lotes de facturas, contratos y tareas de oficina. Pendiente de conexion remota real.",
+      "ssh": {
+        "enabled": false,
+        "user": "",
+        "host": "",
+        "ip_tailscale": "",
+        "connect_tailscale": ""
+      }
+    },
+    {
+      "id": "admira-pc-bot-01",
+      "unitType": "worker",
+      "agentProfile": "browser-automation",
+      "capabilities": [
+        "browser-automation",
+        "reporting",
+        "cms"
+      ],
+      "color": "grafito",
+      "member": "Bot 01",
+      "role": "Agente de automatizacion web",
+      "name": "PC Bot 01",
+      "machineRole": "Worker operativo",
+      "location": "Madrid",
+      "platform": "Windows",
+      "status": "maintenance",
+      "lastSeen": "2026-03-31T18:05:00Z",
+      "currentFocus": "Pendiente de alta para tareas repetitivas de navegador y reporting",
+      "note": "Reservado para automatizaciones web, CMS y actualizaciones de rutina. Aun no conectado al hub.",
+      "ssh": {
+        "enabled": false,
+        "user": "",
+        "host": "",
+        "ip_tailscale": "",
+        "connect_tailscale": ""
       }
     }
   ]

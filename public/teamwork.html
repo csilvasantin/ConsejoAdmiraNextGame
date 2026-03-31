@@ -7,7 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link rel="stylesheet" href="./styles.css?v=20260331-2">
+    <link rel="stylesheet" href="./styles.css?v=20260331-3">
     <style>
       .tw-nav { margin-top: 14px; text-align: right; }
       .tw-nav a { color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600; }
@@ -489,6 +489,38 @@
         color: var(--muted);
       }
 
+      .tw-group-title {
+        margin: 18px 0 8px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #5a9a6a;
+      }
+
+      .tw-machine-caps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      .tw-machine-cap {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(0, 255, 70, 0.08);
+        color: #63d98a;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .tw-auto-badge-off {
+        opacity: 0.7;
+        background: rgba(255,255,255,0.06) !important;
+        color: #8aa393 !important;
+      }
+
       .tw-machine-snapshot {
         width: 280px;
         max-height: 120px;
@@ -642,7 +674,7 @@
       <header class="hero">
         <div class="hero-inner">
           <div class="hero-text">
-            <p class="eyebrow">Control remoto — v2.1.10</p>
+            <p class="eyebrow">Control remoto — v2.2.0</p>
             <h1>AdmiraNext Control</h1>
             <p class="subtitle">Envía prompts y aprueba acciones en Claude y Codex de todos los equipos de Admira Next.</p>
           </div>
@@ -713,10 +745,10 @@
     </main>
 
       <footer style="text-align:center;padding:24px 0 8px;color:var(--muted);font-size:12px;">
-        AdmiraNext Control v2.1.10 — 2026-03-31
+        AdmiraNext Control v2.2.0 — 2026-03-31
       </footer>
 
-    <script src="./teamwork.js?v=20260331-2" type="module"></script>
+    <script src="./teamwork.js?v=20260331-3" type="module"></script>
     <script>
       (function() {
         const c = document.getElementById("matrixCanvas");

@@ -3,6 +3,16 @@ const machinesNode = document.querySelector("#machines");
 const template = document.querySelector("#machine-template");
 let isStaticMode = false;
 const STATUS_ORDER = ["online", "idle", "busy", "offline", "maintenance"];
+const GROUP_META = {
+  council: {
+    title: "Consejo de direccion",
+    subtitle: "Macs y equipos de decision, coordinacion y supervision."
+  },
+  worker: {
+    title: "Equipo de trabajo",
+    subtitle: "PCs agente para ejecucion rutinaria, validacion y backoffice."
+  }
+};
 
 function formatDate(value) {
   try {
@@ -15,9 +25,13 @@ function formatDate(value) {
 function createSummary(data) {
   const machines = data.machines;
   const members = new Set(machines.map((item) => item.member));
+  const council = machines.filter((item) => (item.unitType || "council") === "council");
+  const workers = machines.filter((item) => item.unitType === "worker");
   const counts = [
     ["maquinas", machines.length],
     ["miembros", members.size],
+    ["consejo", council.length],
+    ["workers", workers.length],
     ...STATUS_ORDER.map((status) => [
       status,
       machines.filter((item) => item.status === status).length
@@ -45,10 +59,23 @@ async function syncMachine(id, status, note, currentFocus) {
   });
 }
 
-function renderMachines(data) {
-  machinesNode.innerHTML = "";
+function renderSection(groupKey, machines) {
+  const section = document.createElement("section");
+  section.className = "fleet-section";
+  section.innerHTML = `
+    <div class="fleet-head">
+      <div>
+        <p class="fleet-kicker">${groupKey === "council" ? "Capa 01" : "Capa 02"}</p>
+        <h2>${GROUP_META[groupKey].title}</h2>
+        <p>${GROUP_META[groupKey].subtitle}</p>
+      </div>
+    </div>
+    <div class="grid"></div>
+  `;
 
-  for (const machine of data.machines) {
+  const grid = section.querySelector(".grid");
+
+  for (const machine of machines) {
     const fragment = template.content.cloneNode(true);
     const card = fragment.querySelector(".card");
     const badge = fragment.querySelector(".status-badge");
@@ -56,6 +83,8 @@ function renderMachines(data) {
     const statusSelect = fragment.querySelector(".status-select");
     const noteInput = fragment.querySelector(".note-input");
     const focusInput = fragment.querySelector(".focus-input");
+    const noteNode = fragment.querySelector(".note");
+    const focusBox = fragment.querySelector(".focus-box");
 
     fragment.querySelector(".member").textContent = machine.member;
     fragment.querySelector(".name").textContent = machine.name;
@@ -66,7 +95,7 @@ function renderMachines(data) {
     fragment.querySelector(".platform").textContent = machine.platform;
     fragment.querySelector(".color").textContent = machine.color ?? "—";
     fragment.querySelector(".last-seen").textContent = formatDate(machine.lastSeen);
-    fragment.querySelector(".note").textContent = machine.note;
+    noteNode.textContent = machine.note;
     fragment.querySelector(".current-focus").textContent = machine.currentFocus ?? "Sin foco operativo";
 
     badge.textContent = machine.status;
@@ -74,12 +103,27 @@ function renderMachines(data) {
     statusSelect.value = machine.status;
     noteInput.value = machine.note;
     focusInput.value = machine.currentFocus ?? "";
+    card.classList.add(groupKey === "worker" ? "card-worker" : "card-council");
+
+    if (machine.unitType === "worker") {
+      const chips = document.createElement("div");
+      chips.className = "tag-row";
+      const profile = machine.agentProfile ? `<span class="fleet-tag fleet-tag-profile">${machine.agentProfile}</span>` : "";
+      const capabilities = (machine.capabilities || []).map((item) => `<span class="fleet-tag">${item}</span>`).join("");
+      chips.innerHTML = `<span class="fleet-tag fleet-tag-type">worker</span>${profile}${capabilities}`;
+      focusBox.before(chips);
+    }
+
     if (isStaticMode) {
       statusSelect.disabled = true;
       noteInput.disabled = true;
       focusInput.disabled = true;
       saveButton.disabled = true;
       saveButton.textContent = "Solo lectura";
+    }
+
+    if (machine.ssh?.enabled === false) {
+      noteNode.textContent = `${machine.note} Canal remoto: pendiente.`;
     }
 
     saveButton.addEventListener("click", async () => {
@@ -94,7 +138,23 @@ function renderMachines(data) {
     });
 
     card.dataset.machineId = machine.id;
-    machinesNode.append(fragment);
+    grid.append(fragment);
+  }
+
+  return section;
+}
+
+function renderMachines(data) {
+  machinesNode.innerHTML = "";
+  const grouped = {
+    council: data.machines.filter((machine) => (machine.unitType || "council") === "council"),
+    worker: data.machines.filter((machine) => machine.unitType === "worker")
+  };
+
+  for (const [groupKey, machines] of Object.entries(grouped)) {
+    if (machines.length) {
+      machinesNode.append(renderSection(groupKey, machines));
+    }
   }
 }
 
@@ -108,7 +168,7 @@ async function fetchData() {
     isStaticMode = false;
     return await response.json();
   } catch {
-    const response = await fetch("./machines.json?v=20260330-1", { cache: "no-store" });
+    const response = await fetch("./machines.json?v=20260331-3", { cache: "no-store" });
     isStaticMode = true;
     return await response.json();
   }
