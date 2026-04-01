@@ -55,6 +55,43 @@ Después abre:
 http://127.0.0.1:3030
 ```
 
+## Nodo GUI en macOS
+
+Si un Mac debe actuar como nodo de control con capturas reales, no conviene arrancarlo por SSH en segundo plano. En ese modo macOS suele negar `screencapture` y `System Events`, y el panel cae a texto tipo `sin sesion grafica`.
+
+Ruta recomendada:
+
+```bash
+cd /Users/Carlos/Documents/AdmiraNext-Team
+npm run agent:doctor
+npm run agent:install
+```
+
+Que hace cada comando:
+
+1. `npm run agent:doctor`
+2. comprueba sesion GUI, AppleScript, captura de pantalla y API local;
+3. avisa si faltan permisos de `Accesibilidad` o `Grabacion de pantalla`.
+
+1. `npm run agent:install`
+2. crea `~/Library/LaunchAgents/com.admiranext.control.plist`;
+3. arranca el servidor como `LaunchAgent` dentro de la sesion `Aqua`;
+4. deja logs en `~/Library/Logs/AdmiraNext/control-agent.out.log` y `control-agent.err.log`.
+
+Para retirarlo:
+
+```bash
+npm run agent:uninstall
+```
+
+Validacion recomendada despues de instalar:
+
+```text
+http://127.0.0.1:3030/control.html
+```
+
+Si ese Mac publica el hub por Tailscale Funnel, valida tambien la URL publica con cache-buster.
+
 ## API local
 
 ### Listar máquinas

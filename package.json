@@ -1,9 +1,13 @@
 {
   "name": "admiranext-team",
-  "version": "0.3.10",
+  "version": "0.4.0",
   "description": "Panel simple para controlar el estado de los ordenadores del equipo AdmiraNext Team.",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "start:gui": "bash ./ops/macos/start-control-agent.sh",
+    "agent:doctor": "bash ./ops/macos/doctor-gui-capture.sh",
+    "agent:install": "bash ./ops/macos/install-launchagent.sh",
+    "agent:uninstall": "bash ./ops/macos/uninstall-launchagent.sh"
   }
 }
