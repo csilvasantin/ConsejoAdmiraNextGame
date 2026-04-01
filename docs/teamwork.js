@@ -6,22 +6,38 @@ const feedback = document.querySelector("#feedback");
 const historyList = document.querySelector("#historyList");
 
 let machines = [];
-let isStaticMode = true;
-const FUNNEL_URL = "";
-const FUNNEL_HOST = "";
-const isLocal = false;
-const DEFAULT_ONBOARDING_PROMPT = "";
-const LOCAL_ONBOARDING_COMMANDS = new Set();
-const GLOBAL_ONBOARDING_COMMANDS = new Set();
+let isStaticMode = false;
+const FUNNEL_URL = "https://macmini.tail48b61c.ts.net";
+const FUNNEL_HOST = "macmini.tail48b61c.ts.net";
+const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === FUNNEL_HOST;
+const DEFAULT_ONBOARDING_PROMPT =
+  "Haz onboarding leyendo el repositorio onboarding de Admira Next primero. Carga el contexto compartido, identifica los repositorios activos y queda listo para continuar sin pedir de nuevo el contexto base.";
+const LOCAL_ONBOARDING_COMMANDS = new Set(["onboarding", "haz onboarding"]);
+const GLOBAL_ONBOARDING_COMMANDS = new Set(["onboarding all", "haz onboarding all"]);
 const GROUP_LABELS = {
   council: "Consejo de Administracion",
   worker: "Equipo"
 };
 const LIVE_PREVIEW_WINDOW_MS = 10 * 60 * 1000;
+const SNAPSHOT_REFRESH_MS = 15_000;
+const MACHINE_REFRESH_MS = 30_000;
+const WATCHDOG_REFRESH_MS = 15_000;
+const ACTIVE_MACHINE_STATUSES = new Set(["online", "idle", "busy"]);
+const MACHINE_STATUS_META = {
+  online: { label: "en linea", tone: "ok" },
+  idle: { label: "disponible", tone: "idle" },
+  busy: { label: "ocupado", tone: "busy" },
+  offline: { label: "offline", tone: "off" },
+  maintenance: { label: "mantenimiento", tone: "warn" }
+};
 
-// Static mode — no redirect, no Funnel
+// Redirect GitHub Pages to Funnel
+if (location.hostname === "csilvasantin.github.io") {
+  location.href = FUNNEL_URL + "/teamwork.html";
+}
+
 function apiUrl(path) {
-  return path;
+  return isLocal ? path : `${FUNNEL_URL}${path}`;
 }
 
 function normalizeCommand(text) {
@@ -226,14 +242,24 @@ async function loadHistory() {
 
 async function loadMachines() {
   try {
-      const res = await fetch("./machines.json?v=20260401-2", { cache: "no-store" });
+    const res = await fetch(apiUrl("/api/machines"), { cache: "no-store" });
+    if (!res.ok) throw new Error("api unavailable");
     const data = await res.json();
     machines = data.machines;
-    isStaticMode = true;
+    isStaticMode = false;
     syncTopActionVisibility();
     renderMachineApproveList(null);
   } catch {
-    // no machines
+    try {
+      const res = await fetch("./machines.json?v=20260401-2", { cache: "no-store" });
+      const data = await res.json();
+      machines = data.machines;
+      isStaticMode = true;
+      syncTopActionVisibility();
+      renderMachineApproveList(null);
+    } catch {
+      // no machines
+    }
   }
 }
 
@@ -245,16 +271,106 @@ function formatTimeShort(iso) {
   catch { return ""; }
 }
 
+function hasPreviewPayload(snap) {
+  return Boolean(
+    (snap?.type === "image" && snap.image) ||
+    (snap?.type === "images" && Array.isArray(snap.images) && snap.images.length > 0) ||
+    snap?.text
+  );
+}
+
+function getPreviewAgeMs(snap) {
+  const updatedAt = new Date(snap?.updatedAt || "").getTime();
+  return Number.isFinite(updatedAt) ? Date.now() - updatedAt : Number.POSITIVE_INFINITY;
+}
+
 function hasLivePreview(machine, snapshots) {
   const snap = snapshots?.[machine.id];
-  if (!snap?.updatedAt) return false;
-  const updatedAt = new Date(snap.updatedAt).getTime();
-  if (!Number.isFinite(updatedAt)) return false;
-  const hasVisual =
-    (snap.type === "image" && Boolean(snap.image)) ||
-    (snap.type === "images" && Array.isArray(snap.images) && snap.images.length > 0) ||
-    Boolean(snap.text);
-  return hasVisual && (Date.now() - updatedAt) <= LIVE_PREVIEW_WINDOW_MS;
+  return hasPreviewPayload(snap) && getPreviewAgeMs(snap) <= LIVE_PREVIEW_WINDOW_MS;
+}
+
+function getMachineStatusMeta(machine) {
+  return MACHINE_STATUS_META[machine.status] || { label: machine.status || "sin estado", tone: "off" };
+}
+
+function getPreviewMeta(machine, snap) {
+  if (hasLivePreview(machine, { [machine.id]: snap })) {
+    return { label: "preview vivo", tone: "ok" };
+  }
+  if (hasPreviewPayload(snap)) {
+    return { label: "preview antiguo", tone: "warn" };
+  }
+  if (ACTIVE_MACHINE_STATUSES.has(machine.status)) {
+    return { label: "sin preview", tone: "off" };
+  }
+  if (machine.status === "maintenance") {
+    return { label: "sin preview", tone: "warn" };
+  }
+  return { label: "sin preview", tone: "off" };
+}
+
+function getChannelMeta(machine, remoteReady) {
+  if (remoteReady) {
+    return { label: "🤖 0", tone: "ok", title: "Canal remoto listo. Sin auto-aprobaciones." };
+  }
+  if (isStaticMode) {
+    return { label: "solo lectura", tone: "warn", title: "Esta URL no puede abrir canales remotos." };
+  }
+  if (ACTIVE_MACHINE_STATUSES.has(machine.status)) {
+    return { label: "sin canal", tone: "warn", title: "Equipo activo, pero sin canal remoto configurado." };
+  }
+  if (machine.status === "maintenance") {
+    return { label: "mantenimiento", tone: "warn", title: "Equipo reservado o en preparacion." };
+  }
+  return { label: "offline", tone: "off", title: "Equipo sin conexion remota disponible." };
+}
+
+function renderMonitorContent(machine, snap) {
+  const multiLabels = ["Claude", "Studio", "Codex"];
+
+  if (snap && snap.type === "images") {
+    const t = Date.now();
+    const orients = snap.orientations || snap.images.map(() => "portrait");
+    return `<div class="tw-multi-monitor">${snap.images.map((imgPath, i) => {
+      const src = (imgPath.startsWith("/") ? apiUrl(imgPath) : imgPath) + `?t=${t}`;
+      return `<div class="tw-multi-screen ${orients[i]}"><img src="${src}" alt="${multiLabels[i]}"><span class="tw-screen-label">${multiLabels[i]}</span></div>`;
+    }).join("")}</div><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+  }
+
+  if (snap && snap.type === "image") {
+    const imgSrc = snap.image.startsWith("/") ? apiUrl(snap.image) : snap.image;
+    const cacheBust = imgSrc.includes("?") ? `&t=${Date.now()}` : `?t=${Date.now()}`;
+    return `<img src="${imgSrc}${cacheBust}" alt="${machine.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+  }
+
+  if (snap && snap.text) {
+    return `<pre>${snap.text.replace(/</g, "&lt;")}</pre><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
+  }
+
+  if (ACTIVE_MACHINE_STATUSES.has(machine.status)) {
+    return `<div class="tw-machine-monitor-empty"><strong>Equipo activo</strong><span>Sin preview vivo</span></div>`;
+  }
+
+  if (machine.status === "maintenance") {
+    return `<div class="tw-machine-monitor-empty"><strong>Mantenimiento</strong><span>Sin preview por ahora</span></div>`;
+  }
+
+  return `<div class="tw-machine-monitor-empty"><strong>Equipo offline</strong><span>Sin conexion reciente</span></div>`;
+}
+
+function getMachineSortScore(machine, snapshots) {
+  const snap = snapshots?.[machine.id];
+  const statusRank = {
+    online: 4,
+    busy: 3,
+    idle: 2,
+    maintenance: 1,
+    offline: 0
+  }[machine.status] ?? 0;
+  const livePreviewRank = hasLivePreview(machine, snapshots) ? 3 : 0;
+  const hasPreviewRank = hasPreviewPayload(snap) ? 1 : 0;
+  const remoteRank = machine.ssh?.enabled || machine.automation?.enabled ? 1 : 0;
+  return (livePreviewRank * 100) + (statusRank * 10) + (hasPreviewRank * 5) + remoteRank;
 }
 
 function renderMachineRow(m, snapshots) {
@@ -262,25 +378,10 @@ function renderMachineRow(m, snapshots) {
   const snap = snapshots?.[m.id];
   const remoteReady = !isStaticMode && Boolean(m.ssh?.enabled || m.automation?.enabled);
   const defaultTarget = m.platform === "Windows" ? "terminal" : "claude";
-  let monitorContent;
-  const multiLabels = ["Claude", "Studio", "Codex"];
-
-  if (snap && snap.type === "images") {
-    const t = Date.now();
-    const orients = snap.orientations || snap.images.map(() => "portrait");
-    monitorContent = `<div class="tw-multi-monitor">${snap.images.map((imgPath, i) => {
-      const src = (imgPath.startsWith("/") ? apiUrl(imgPath) : imgPath) + `?t=${t}`;
-      return `<div class="tw-multi-screen ${orients[i]}"><img src="${src}" alt="${multiLabels[i]}"><span class="tw-screen-label">${multiLabels[i]}</span></div>`;
-    }).join("")}</div><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-  } else if (snap && snap.type === "image") {
-    const imgSrc = snap.image.startsWith("/") ? apiUrl(snap.image) : snap.image;
-    const cacheBust = imgSrc.includes("?") ? `&t=${Date.now()}` : `?t=${Date.now()}`;
-    monitorContent = `<img src="${imgSrc}${cacheBust}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-  } else if (snap && snap.text) {
-    monitorContent = `<pre>${snap.text.replace(/</g, "&lt;")}</pre><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-  } else {
-    monitorContent = `<div class="tw-machine-monitor-empty">Sin señal</div>`;
-  }
+  const statusMeta = getMachineStatusMeta(m);
+  const previewMeta = getPreviewMeta(m, snap);
+  const channelMeta = getChannelMeta(m, remoteReady);
+  const monitorContent = renderMonitorContent(m, snap);
 
   return `
     <div class="tw-machine-row tw-machine-row-${group}" data-id="${m.id}">
@@ -288,6 +389,10 @@ function renderMachineRow(m, snapshots) {
       <div class="tw-machine-label">
         <span class="tw-machine-name">${m.name}</span><br>
         <span class="tw-machine-member">${m.member} · ${m.platform}</span>
+        <div class="tw-machine-statuses">
+          <span class="tw-machine-status tw-machine-status-${statusMeta.tone}">${statusMeta.label}</span>
+          <span class="tw-machine-status tw-machine-status-${previewMeta.tone}" data-preview-status="${m.id}">${previewMeta.label}</span>
+        </div>
         ${m.unitType === "worker" ? `<div class="tw-machine-caps"><span class="tw-machine-cap tw-machine-cap-kind">PC</span>${(m.capabilities || []).map((cap) => `<span class="tw-machine-cap">${cap}</span>`).join("")}</div>` : ""}
         <span class="tw-app-status">
           ${snap?.claudeState ? `<span class="tw-app-tag claude" title="Claude: ${snap.claudeState}">C</span>` : ""}
@@ -302,7 +407,7 @@ function renderMachineRow(m, snapshots) {
       </select>
       <button class="tw-machine-send" data-machine-send="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Enviar" : "Pendiente"}</button>
       <button class="tw-machine-approve" data-machine-approve="${m.id}" ${remoteReady ? "" : "disabled"}>${remoteReady ? "Aprobar" : "Sin canal"}</button>
-      <span class="tw-auto-badge ${remoteReady ? "" : "tw-auto-badge-off"}" data-watchdog-machine="${m.id}">${remoteReady ? "🤖 0" : "offline"}</span>
+      <span class="tw-auto-badge ${channelMeta.tone === "ok" ? "" : `tw-auto-badge-${channelMeta.tone}`} ${remoteReady ? "" : "tw-auto-badge-off"}" data-watchdog-machine="${m.id}" data-channel-ready="${remoteReady ? "true" : "false"}" title="${channelMeta.title}">${channelMeta.label}</span>
     </div>`;
 }
 
@@ -313,11 +418,7 @@ function renderMachineApproveList(snapshots) {
     return;
   }
 
-  const sortWithinGroup = (items) => [...items].sort((a, b) => {
-    const aOnline = snapshots?.[a.id] ? 1 : 0;
-    const bOnline = snapshots?.[b.id] ? 1 : 0;
-    return bOnline - aOnline;
-  });
+  const sortWithinGroup = (items) => [...items].sort((a, b) => getMachineSortScore(b, snapshots) - getMachineSortScore(a, snapshots));
 
   const grouped = {
     council: sortWithinGroup(filtered.filter((m) => (m.unitType || "council") === "council")),
@@ -530,51 +631,20 @@ function updateSnapshotsInPlace(snapshots) {
     if (!row) return renderMachineApproveList(snapshots); // first render
     const mon = row.querySelector(".tw-machine-monitor");
     const snap = snapshots?.[m.id];
-    const multiLabels = ["Claude", "Studio", "Codex"];
-    if (snap && snap.type === "images") {
-      const t = Date.now();
-      const imgs = mon.querySelectorAll(".tw-multi-screen img");
-      if (imgs.length === snap.images.length) {
-        snap.images.forEach((imgPath, i) => {
-          const src = (imgPath.startsWith("/") ? apiUrl(imgPath) : imgPath) + `?t=${t}`;
-          const preload = new Image();
-          preload.onload = () => { imgs[i].src = src; };
-          preload.src = src;
-        });
-        const timeEl = mon.querySelector(".tw-machine-monitor-time");
-        if (timeEl) timeEl.textContent = formatTimeShort(snap.updatedAt);
-      } else {
-        const orients = snap.orientations || snap.images.map(() => "portrait");
-        mon.innerHTML = `<div class="tw-multi-monitor">${snap.images.map((imgPath, i) => {
-          const src = (imgPath.startsWith("/") ? apiUrl(imgPath) : imgPath) + `?t=${t}`;
-          return `<div class="tw-multi-screen ${orients[i]}"><img src="${src}" alt="${multiLabels[i]}"><span class="tw-screen-label">${multiLabels[i]}</span></div>`;
-        }).join("")}</div><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-      }
-    } else if (snap && snap.type === "image") {
-      const imgSrc = snap.image.startsWith("/") ? apiUrl(snap.image) : snap.image;
-      const cacheBust = imgSrc.includes("?") ? `&t=${Date.now()}` : `?t=${Date.now()}`;
-      const newSrc = `${imgSrc}${cacheBust}`;
-      const img = mon.querySelector("img");
-      if (img) {
-        const preload = new Image();
-        preload.onload = () => {
-          img.src = newSrc;
-          const timeEl = mon.querySelector(".tw-machine-monitor-time");
-          if (timeEl) timeEl.textContent = formatTimeShort(snap.updatedAt);
-        };
-        preload.src = newSrc;
-      } else {
-        mon.innerHTML = `<img src="${newSrc}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-      }
-    } else if (snap && snap.text) {
-      mon.innerHTML = `<pre>${snap.text.replace(/</g, "&lt;")}</pre><span class="tw-machine-monitor-time">${formatTimeShort(snap.updatedAt)}</span>`;
-    }
+    if (mon) mon.innerHTML = renderMonitorContent(m, snap);
     // Update app badges
     const statusEl = row.querySelector(".tw-app-status");
     if (statusEl) {
       statusEl.innerHTML =
         (snap?.claudeState ? `<span class="tw-app-tag claude" title="Claude: ${snap.claudeState}">C</span>` : "") +
         (snap?.codexState ? `<span class="tw-app-tag codex" title="Codex: ${snap.codexState}">X</span>` : "");
+    }
+    const previewEl = row.querySelector(`[data-preview-status="${m.id}"]`);
+    if (previewEl) {
+      const previewMeta = getPreviewMeta(m, snap);
+      previewEl.textContent = previewMeta.label;
+      previewEl.className = `tw-machine-status tw-machine-status-${previewMeta.tone}`;
+      previewEl.dataset.previewStatus = m.id;
     }
   }
 
@@ -583,7 +653,11 @@ function updateSnapshotsInPlace(snapshots) {
     const panel = machineApproveList.querySelector(`[data-group-panel="${group}"]`);
     if (!panel) continue;
     const rows = [...panel.querySelectorAll(".tw-machine-row")];
-    const sorted = [...rows].sort((a, b) => (snapshots?.[b.dataset.id] ? 1 : 0) - (snapshots?.[a.dataset.id] ? 1 : 0));
+    const sorted = [...rows].sort((a, b) => {
+      const aMachine = machines.find((m) => m.id === a.dataset.id);
+      const bMachine = machines.find((m) => m.id === b.dataset.id);
+      return getMachineSortScore(bMachine, snapshots) - getMachineSortScore(aMachine, snapshots);
+    });
     const orderChanged = rows.some((r, i) => r !== sorted[i]);
     if (orderChanged) sorted.forEach((row) => panel.appendChild(row));
   }
@@ -591,16 +665,30 @@ function updateSnapshotsInPlace(snapshots) {
 
 async function loadSnapshots() {
   try {
-    const res = await fetch("./snapshots.json", { cache: "no-store" });
-    const snapshots = await res.json();
-    const hasRows = machineApproveList.querySelector(".tw-machine-row");
-    if (hasRows) {
-      updateSnapshotsInPlace(snapshots);
-    } else {
-      renderMachineApproveList(snapshots);
+    const res = await fetch(apiUrl("/api/teamwork/snapshots"), { cache: "no-store" });
+    const data = await res.json();
+    if (data.ok) {
+      const hasRows = machineApproveList.querySelector(".tw-machine-row");
+      if (hasRows) {
+        updateSnapshotsInPlace(data.snapshots);
+      } else {
+        renderMachineApproveList(data.snapshots);
+      }
     }
   } catch {
-    // silently fail
+    if (!isStaticMode) return;
+    try {
+      const res = await fetch("./snapshots.json?v=20260401-3", { cache: "no-store" });
+      const snapshots = await res.json();
+      const hasRows = machineApproveList.querySelector(".tw-machine-row");
+      if (hasRows) {
+        updateSnapshotsInPlace(snapshots);
+      } else {
+        renderMachineApproveList(snapshots);
+      }
+    } catch {
+      // silently fail
+    }
   }
 }
 
@@ -637,6 +725,7 @@ async function loadWatchdogStats() {
 
 function updateWatchdogBadges() {
   document.querySelectorAll(".tw-auto-badge").forEach((badge) => {
+    if (badge.dataset.channelReady !== "true") return;
     const machineId = badge.dataset.watchdogMachine;
     const stats = watchdogStats[machineId];
     if (stats) {
@@ -660,6 +749,7 @@ loadMachines();
 loadHistory();
 setTimeout(loadSnapshots, 2000);
 setTimeout(loadWatchdogStats, 3000);
+setInterval(loadMachines, MACHINE_REFRESH_MS);
 setInterval(loadHistory, 10_000);
-setInterval(loadSnapshots, 30_000);
-setInterval(loadWatchdogStats, 15_000);
+setInterval(loadSnapshots, SNAPSHOT_REFRESH_MS);
+setInterval(loadWatchdogStats, WATCHDOG_REFRESH_MS);

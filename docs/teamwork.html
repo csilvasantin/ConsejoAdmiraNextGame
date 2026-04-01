@@ -306,6 +306,15 @@
         border-radius: 12px; white-space: nowrap;
       }
       .tw-auto-badge.has-approvals { color: #2d6a4f; font-weight: 600; }
+      .tw-auto-badge-warn {
+        background: rgba(195, 139, 45, 0.14) !important;
+        color: #c38b2d !important;
+      }
+      .tw-auto-badge-off {
+        opacity: 0.82;
+        background: rgba(255,255,255,0.06) !important;
+        color: #8aa393 !important;
+      }
 
       /* App status tags */
       .tw-app-status { display: inline-flex; gap: 4px; margin-left: 4px; }
@@ -395,11 +404,25 @@
       }
       .tw-machine-monitor-empty {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 4px;
         height: 100%;
         color: #5f7469;
         font-size: 11px;
+        text-align: center;
+        padding: 8px;
+      }
+      .tw-machine-monitor-empty strong {
+        color: #dcefe3;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .tw-machine-monitor-empty span {
+        color: #8fb0a0;
+        font-size: 9px;
       }
       .tw-machine-monitor.small .tw-machine-monitor-empty { font-size: 8px; }
       .tw-machine-monitor-time {
@@ -504,6 +527,40 @@
         font-size: 12px;
         color: var(--muted);
       }
+      .tw-machine-statuses {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .tw-machine-status {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .tw-machine-status-ok {
+        background: rgba(26, 127, 90, 0.12);
+        color: #2d6a4f;
+      }
+      .tw-machine-status-idle {
+        background: rgba(9, 132, 227, 0.12);
+        color: #2471a3;
+      }
+      .tw-machine-status-busy {
+        background: rgba(214, 48, 49, 0.12);
+        color: #d63031;
+      }
+      .tw-machine-status-warn {
+        background: rgba(195, 139, 45, 0.14);
+        color: #c38b2d;
+      }
+      .tw-machine-status-off {
+        background: rgba(95, 116, 105, 0.14);
+        color: #6d8175;
+      }
 
       .tw-group-title {
         margin: 18px 0 8px;
@@ -529,12 +586,6 @@
         color: #63d98a;
         font-size: 10px;
         font-weight: 700;
-      }
-
-      .tw-auto-badge-off {
-        opacity: 0.7;
-        background: rgba(255,255,255,0.06) !important;
-        color: #8aa393 !important;
       }
 
       .tw-machine-snapshot {
@@ -686,28 +737,19 @@
     </style>
   </head>
   <body>
-    <div id="gate" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0a;">
-      <form id="gateForm" style="text-align:center;color:#ccc;font-family:system-ui;">
-        <h2 style="margin-bottom:12px;">AdmiraNext Control</h2>
-        <input id="gateKey" type="password" placeholder="Clave de acceso" autofocus
-          style="padding:10px 16px;border-radius:10px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;width:220px;">
-        <button type="submit" style="margin-left:8px;padding:10px 18px;border-radius:10px;border:none;background:#34d399;color:#000;font-weight:600;cursor:pointer;">Entrar</button>
-        <p id="gateError" style="color:#f87171;margin-top:8px;display:none;">Clave incorrecta</p>
-      </form>
-    </div>
-    <canvas id="matrixCanvas" style="display:none;"></canvas>
-    <main class="app" style="display:none;">
+    <canvas id="matrixCanvas"></canvas>
+    <main class="app">
       <header class="hero">
         <div class="hero-inner">
           <div class="hero-text">
-            <p class="eyebrow">Control remoto — v2.4.0</p>
+            <p class="eyebrow">Control remoto — v2.4.1</p>
             <h1>AdmiraNext Control</h1>
             <p class="subtitle">Opera por separado el Consejo de Administracion en Mac y el Equipo en PC desde un mismo panel.</p>
           </div>
           <div class="hero-pills">
             <div class="pill-glow pill-glow-red"></div>
             <div class="pill-glow pill-glow-blue"></div>
-            <img src="./matrix-pills.jpg?v=20260401-2" alt="Red pill or blue pill?" draggable="false">
+            <img src="./matrix-pills.jpg?v=20260401-3" alt="Red pill or blue pill?" draggable="false">
             <nav class="tw-nav" style="margin-top:10px;text-align:center;"><a href="./new-member.html">Alta nueva</a> · <a href="./index.html">Volver al dashboard</a></nav>
           </div>
         </div>
@@ -761,22 +803,10 @@
     </main>
 
       <footer style="text-align:center;padding:24px 0 8px;color:var(--muted);font-size:12px;">
-          AdmiraNext Control v2.4.0 — 2026-04-01
+          AdmiraNext Control v2.4.1 — 2026-04-01
       </footer>
 
-    <script>
-      document.getElementById("gateForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        if (document.getElementById("gateKey").value === "Nomeacuerd0") {
-          document.getElementById("gate").style.display = "none";
-          document.getElementById("matrixCanvas").style.display = "";
-          document.querySelector(".app").style.display = "";
-        } else {
-          document.getElementById("gateError").style.display = "block";
-        }
-      });
-    </script>
-      <script src="./teamwork.js?v=20260401-2" type="module"></script>
+      <script src="./teamwork.js?v=20260401-3" type="module"></script>
     <script>
       (function() {
         const c = document.getElementById("matrixCanvas");
