@@ -40,6 +40,8 @@ jobs:
           cp docs/equipo.html _site/equipo.html 2>/dev/null || true
           cp docs/admin.html _site/admin.html 2>/dev/null || true
           cp public/alta.html _site/alta.html 2>/dev/null || true
+          cp public/alta-ceo.html _site/alta-ceo.html 2>/dev/null || true
+          cp public/ceo.html _site/ceo.html 2>/dev/null || true
           cp public/consejo.html _site/consejo.html 2>/dev/null || true
           cp public/matrix-pills.jpg _site/matrix-pills.jpg 2>/dev/null || true
           cp public/new-member.html _site/new-member.html 2>/dev/null || true

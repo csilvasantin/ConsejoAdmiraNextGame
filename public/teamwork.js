@@ -233,22 +233,22 @@ async function loadMachines() {
   try {
     const res = await fetch(apiUrl("/api/machines"), { cache: "no-store" });
     if (!res.ok) throw new Error("api unavailable");
+    const data = await res.json();
+    machines = data.machines;
+    isStaticMode = false;
+    syncTopActionVisibility();
+    renderMachineApproveList(null);
+  } catch {
+    try {
+      const res = await fetch("./machines.json?v=20260401-2", { cache: "no-store" });
       const data = await res.json();
       machines = data.machines;
-      isStaticMode = false;
+      isStaticMode = true;
       syncTopActionVisibility();
       renderMachineApproveList(null);
     } catch {
-      try {
-        const res = await fetch("./machines.json?v=20260331-4", { cache: "no-store" });
-        const data = await res.json();
-        machines = data.machines;
-        isStaticMode = true;
-        syncTopActionVisibility();
-        renderMachineApproveList(null);
-      } catch {
-        // no machines
-      }
+      // no machines
+    }
   }
 }
 
@@ -545,7 +545,7 @@ function updateSnapshotsInPlace(snapshots) {
     if (!row) return renderMachineApproveList(snapshots); // first render
     const mon = row.querySelector(".tw-machine-monitor");
     const snap = snapshots?.[m.id];
-    const multiLabels = ["Studio", "Claude", "Codex"];
+    const multiLabels = ["Claude", "Studio", "Codex"];
     if (snap && snap.type === "images") {
       const t = Date.now();
       const imgs = mon.querySelectorAll(".tw-multi-screen img");

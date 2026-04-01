@@ -226,7 +226,7 @@ async function loadHistory() {
 
 async function loadMachines() {
   try {
-      const res = await fetch("./machines.json?v=20260331-4", { cache: "no-store" });
+      const res = await fetch("./machines.json?v=20260401-2", { cache: "no-store" });
     const data = await res.json();
     machines = data.machines;
     isStaticMode = true;
@@ -530,7 +530,7 @@ function updateSnapshotsInPlace(snapshots) {
     if (!row) return renderMachineApproveList(snapshots); // first render
     const mon = row.querySelector(".tw-machine-monitor");
     const snap = snapshots?.[m.id];
-    const multiLabels = ["Studio", "Claude", "Codex"];
+    const multiLabels = ["Claude", "Studio", "Codex"];
     if (snap && snap.type === "images") {
       const t = Date.now();
       const imgs = mon.querySelectorAll(".tw-multi-screen img");

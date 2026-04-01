@@ -7,7 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link rel="stylesheet" href="./styles.css?v=20260331-4">
+    <link rel="stylesheet" href="./styles.css?v=20260401-2">
   </head>
   <body>
     <div id="gate" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0a;">
@@ -21,11 +21,12 @@
     </div>
     <main class="app" style="display:none;">
       <header class="hero">
-          <p class="eyebrow">Control de flota — v2.3.10</p>
+        <p class="eyebrow">Control de flota — v2.4.0</p>
         <h1>AdmiraNext Team</h1>
-        <p class="subtitle">Separa el Consejo de Administracion en Mac del Equipo en PC para coordinar y ejecutar con claridad.</p>
+        <p class="subtitle">Separa el Consejo de Administracion en Mac del Equipo en PC y muestra acceso remoto, onboarding y bloqueos con claridad.</p>
         <nav class="hero-nav">
           <a href="./consejo.html">Primer Consejo</a>
+          <a href="./ceo.html">Alta CEO</a>
           <a href="./new-member.html">Alta nueva</a>
           <a href="./teamwork.html">Control →</a>
         </nav>
@@ -48,14 +49,32 @@
         <dl class="meta">
           <div><dt>ID</dt><dd class="id"></dd></div>
           <div><dt>Rol del equipo</dt><dd class="machine-role"></dd></div>
+          <div><dt>Area</dt><dd class="team-area"></dd></div>
           <div><dt>Ubicación</dt><dd class="location"></dd></div>
           <div><dt>Plataforma</dt><dd class="platform"></dd></div>
+          <div><dt>Acceso</dt><dd class="remote-status"></dd></div>
           <div><dt>Color</dt><dd class="color"></dd></div>
           <div><dt>Última señal</dt><dd class="last-seen"></dd></div>
         </dl>
+        <div class="signal-strip"></div>
         <div class="focus-box">
           <p class="focus-label">Trabajo actual</p>
           <p class="current-focus"></p>
+        </div>
+        <div class="remote-box">
+          <p class="section-label">Acceso remoto</p>
+          <p class="remote-copy"></p>
+        </div>
+        <div class="checklist-box">
+          <div class="section-head">
+            <p class="section-label">Checklist de alta</p>
+            <p class="section-summary"></p>
+          </div>
+          <div class="checklist-badges"></div>
+        </div>
+        <div class="help-box" hidden>
+          <p class="section-label">Siguiente bloqueo</p>
+          <p class="help-text"></p>
         </div>
         <p class="note"></p>
         <div class="actions">
@@ -84,6 +103,6 @@
         }
       });
     </script>
-    <script src="./app.js?v=20260331-4" type="module"></script>
+    <script src="./app.js?v=20260401-2" type="module"></script>
   </body>
 </html>
