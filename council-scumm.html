@@ -13,24 +13,7 @@
             color: #e0e0e0;
             min-height: 100vh;
         }
-        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
-
-        /* 3-column layout: Racional | Ilustración+SCUMM | Creativo */
-        .main-layout {
-            display: grid;
-            grid-template-columns: 240px 1fr 240px;
-            gap: 0.8rem;
-            align-items: start;
-        }
-        .main-layout .council-center {
-            min-width: 0;
-        }
-        .main-layout .side-panel {
-            position: sticky;
-            top: 1rem;
-            max-height: 85vh;
-            overflow-y: auto;
-        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
 
         h1 {
             text-align: center;
@@ -162,9 +145,18 @@
             display: block;
         }
 
-        /* Síntesis panel below main layout */
-        .sintesis-wrap {
-            margin-top: 0.8rem;
+        /* Status grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .status-grid.conversation-mode {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+        }
+        .status-grid.conversation-mode .side-panel.sintesis {
+            grid-column: 1 / -1;
         }
 
         .side-panel {
@@ -179,17 +171,16 @@
             border-color: #daa520;
             display: none;
         }
-        .side-panel.sintesis.visible { display: block; }
+        .status-grid.conversation-mode .side-panel.sintesis { display: block; }
 
         /* Board mode: panel as whiteboard */
         .board-content {
             display: none;
-            max-height: 50vh;
+            max-height: 300px;
             overflow-y: auto;
         }
-        .board-content.active { display: block; }
-        .side-panel.conversation-active .member-row { display: none; }
-        .side-panel.conversation-active .board-content { display: block; }
+        .conversation-mode .board-content { display: block; }
+        .conversation-mode .member-row { display: none; }
         .board-entry {
             padding: 8px 0;
             border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -230,6 +221,7 @@
             transition: all 0.2s;
         }
         .back-status:hover { border-color: #888; color: #aaa; }
+        .conversation-mode ~ .back-status-wrap .back-status { display: inline-block; }
 
         .side-title {
             font-size: 1.1rem;
@@ -720,9 +712,8 @@
             50% { opacity: 0; }
         }
 
-        @media (max-width: 900px) {
-            .main-layout { grid-template-columns: 1fr; }
-            .main-layout .side-panel { position: static; max-height: none; }
+        @media (max-width: 768px) {
+            .status-grid { grid-template-columns: 1fr; }
             .gen-btn { padding: 0.5rem 1.2rem; font-size: 0.85rem; }
             .hack-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); }
         }
@@ -864,69 +855,59 @@
             <div class="summary" id="summary"></div>
         </div>
 
-        <div class="main-layout">
-            <!-- Panel Racional (izquierda) -->
-            <div class="side-panel racional" id="panel-racional">
+        <div class="council-image">
+            <img id="council-img" src="../assets/council-leyendas.jpg?v=5" alt="Consejo AdmiraNext">
+            <div class="nameplates" id="nameplates"></div>
+            <div class="speech-overlay" id="speech-overlay">
+                <div class="speech-bubble" id="speech-bubble">
+                    <div class="speaker"></div>
+                    <div class="speech-text"></div>
+                </div>
+            </div>
+            <div class="round-indicator" id="round-indicator">Ronda: --</div>
+            <button class="np-toggle" id="np-toggle" onclick="toggleNameplates()" title="Mostrar/ocultar nameplates">🏷 Ocultar</button>
+        </div>
+
+        <div class="scumm-bar">
+            <div class="action-line">
+                <input class="action-input" id="action-input" type="text" placeholder="Escribe aquí para hablar con el consejo..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
+                <button class="action-send" onclick="sendMessage()">Enviar</button>
+            </div>
+            <div class="scumm-bottom">
+                <div class="verb-grid">
+                    <button class="verb-btn verb-primary" data-verb="presentar" onclick="selectVerb(this)">Presentar</button>
+                    <button class="verb-btn verb-primary" data-verb="debatir" onclick="selectVerb(this)">Debatir</button>
+                    <button class="verb-btn verb-primary" data-verb="sintetizar" onclick="selectVerb(this)">Sintetizar</button>
+                    <button class="verb-btn" data-verb="mirar" onclick="selectVerb(this)">Mirar</button>
+                    <button class="verb-btn" data-verb="hablar" onclick="selectVerb(this)">Hablar con</button>
+                    <button class="verb-btn" data-verb="leer" onclick="selectVerb(this)">Leer</button>
+                    <button class="verb-btn" data-verb="votar" onclick="selectVerb(this)">Votar</button>
+                    <button class="verb-btn" data-verb="comparar" onclick="selectVerb(this)">Comparar</button>
+                    <button class="verb-btn" data-verb="salir" onclick="selectVerb(this)">Salir</button>
+                </div>
+                <div class="inventory">
+                    <div class="inventory-title">Proyectos</div>
+                    <div class="inventory-list" id="inventory-list">
+                        <div class="inv-item" onclick="selectProject(this)">Brief de ejemplo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-grid" id="status-grid">
+            <div class="side-panel racional">
                 <div class="side-title">🧠 Racional <span class="side-machines">🔴 Sillas rojas</span></div>
                 <div id="racional-members"></div>
                 <div class="board-content" id="board-racional"></div>
             </div>
-
-            <!-- Centro: Ilustración + SCUMM -->
-            <div class="council-center">
-                <div class="council-image">
-                    <img id="council-img" src="../assets/council-leyendas.jpg?v=5" alt="Consejo AdmiraNext">
-                    <div class="nameplates" id="nameplates"></div>
-                    <div class="speech-overlay" id="speech-overlay">
-                        <div class="speech-bubble" id="speech-bubble">
-                            <div class="speaker"></div>
-                            <div class="speech-text"></div>
-                        </div>
-                    </div>
-                    <div class="round-indicator" id="round-indicator">Ronda: --</div>
-                    <button class="np-toggle" id="np-toggle" onclick="toggleNameplates()" title="Mostrar/ocultar nameplates">🏷 Ocultar</button>
-                </div>
-
-                <div class="scumm-bar">
-                    <div class="action-line">
-                        <input class="action-input" id="action-input" type="text" placeholder="Escribe aquí para hablar con el consejo..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
-                        <button class="action-send" onclick="sendMessage()">Enviar</button>
-                    </div>
-                    <div class="scumm-bottom">
-                        <div class="verb-grid">
-                            <button class="verb-btn verb-primary" data-verb="presentar" onclick="selectVerb(this)">Presentar</button>
-                            <button class="verb-btn verb-primary" data-verb="debatir" onclick="selectVerb(this)">Debatir</button>
-                            <button class="verb-btn verb-primary" data-verb="sintetizar" onclick="selectVerb(this)">Sintetizar</button>
-                            <button class="verb-btn" data-verb="mirar" onclick="selectVerb(this)">Mirar</button>
-                            <button class="verb-btn" data-verb="hablar" onclick="selectVerb(this)">Hablar con</button>
-                            <button class="verb-btn" data-verb="leer" onclick="selectVerb(this)">Leer</button>
-                            <button class="verb-btn" data-verb="votar" onclick="selectVerb(this)">Votar</button>
-                            <button class="verb-btn" data-verb="comparar" onclick="selectVerb(this)">Comparar</button>
-                            <button class="verb-btn" data-verb="salir" onclick="selectVerb(this)">Salir</button>
-                        </div>
-                        <div class="inventory">
-                            <div class="inventory-title">Proyectos</div>
-                            <div class="inventory-list" id="inventory-list">
-                                <div class="inv-item" onclick="selectProject(this)">Brief de ejemplo</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Panel Creativo (derecha) -->
-            <div class="side-panel creativo" id="panel-creativo">
+            <div class="side-panel creativo">
                 <div class="side-title">🎨 Creativo <span class="side-machines">🔵 Sillas azules</span></div>
                 <div id="creativo-members"></div>
                 <div class="board-content" id="board-creativo"></div>
             </div>
-        </div>
-
-        <!-- Síntesis (ancho completo debajo) -->
-        <div class="sintesis-wrap">
-            <div class="side-panel sintesis" id="panel-sintesis">
+            <div class="side-panel sintesis">
                 <div class="side-title">⚡ Síntesis <span class="side-machines">🟡 Consenso</span></div>
-                <div class="board-content" id="board-sintesis"></div>
+                <div class="board-content" id="board-sintesis" style="display:block;"></div>
             </div>
         </div>
         <div class="back-status-wrap" style="text-align:center;">
@@ -1621,23 +1602,19 @@
         btn.classList.toggle("off", !nameplatesVisible);
     }
 
-    // Enter conversation mode — side panels become whiteboards
+    // Enter conversation mode — panels become whiteboards
     let conversationMode = false;
     function enterConversation() {
         if (conversationMode) return;
         conversationMode = true;
-        document.getElementById("panel-racional").classList.add("conversation-active");
-        document.getElementById("panel-creativo").classList.add("conversation-active");
-        document.getElementById("panel-sintesis").classList.add("visible");
+        document.getElementById("status-grid").classList.add("conversation-mode");
         document.getElementById("back-status").style.display = "inline-block";
         if (nameplatesVisible) toggleNameplates();
     }
 
     function exitConversation() {
         conversationMode = false;
-        document.getElementById("panel-racional").classList.remove("conversation-active");
-        document.getElementById("panel-creativo").classList.remove("conversation-active");
-        document.getElementById("panel-sintesis").classList.remove("visible");
+        document.getElementById("status-grid").classList.remove("conversation-mode");
         document.getElementById("back-status").style.display = "none";
         document.getElementById("board-racional").innerHTML = "";
         document.getElementById("board-creativo").innerHTML = "";
