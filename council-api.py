@@ -1,6 +1,6 @@
 """
 Council API Bridge — Conecta el frontend SCUMM con los agentes del Consejo AdmiraNext.
-Usa FastAPI + Anthropic SDK para que cada consejero responda como su persona.
+Usa FastAPI + Anthropic SDK + Groq (modelos gratuitos) para que cada consejero responda.
 
 Seguridad:
   - COUNCIL_API_TOKEN: token que el frontend debe enviar en header X-Council-Token
@@ -8,6 +8,12 @@ Seguridad:
   - Rate limiting por IP (máx peticiones por ventana de tiempo)
   - Cloudflare Tunnel para HTTPS sin abrir puertos
   - Presupuesto máximo de €20 con alertas por Telegram y email
+
+Modelos LLM:
+  - Claude Sonnet 4 (Anthropic) — de pago, máxima calidad
+  - Llama 3.3 70B (Groq) — gratuito
+  - DeepSeek R1 (Groq) — gratuito
+  - Gemma 2 9B (Groq) — gratuito
 """
 
 import sys
@@ -51,6 +57,41 @@ try:
     import requests as http_requests
 except ImportError:
     http_requests = None
+
+# ── LLM Models registry ──────────────────────────────────────
+LLM_MODELS = {
+    "claude-sonnet": {
+        "name": "Claude Sonnet 4",
+        "provider": "anthropic",
+        "model_id": "claude-sonnet-4-20250514",
+        "free": False,
+        "icon": "💎",
+    },
+    "llama-70b": {
+        "name": "Llama 3.3 70B",
+        "provider": "groq",
+        "model_id": "llama-3.3-70b-versatile",
+        "free": True,
+        "icon": "🦙",
+    },
+    "deepseek-r1": {
+        "name": "DeepSeek R1",
+        "provider": "groq",
+        "model_id": "deepseek-r1-distill-llama-70b",
+        "free": True,
+        "icon": "🔮",
+    },
+    "gemma-9b": {
+        "name": "Gemma 2 9B",
+        "provider": "groq",
+        "model_id": "gemma2-9b-it",
+        "free": True,
+        "icon": "🌀",
+    },
+}
+
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # ── Config ──────────────────────────────────────────────────
 COUNCIL_API_TOKEN = os.environ.get("COUNCIL_API_TOKEN", "")
@@ -120,13 +161,21 @@ def _save_budget(data: dict):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def track_usage(input_tokens: int, output_tokens: int, agent_name: str):
+def track_usage(input_tokens: int, output_tokens: int, agent_name: str, llm_key: str = "claude-sonnet"):
     """Track API token usage and check budget limits."""
+    model_cfg = LLM_MODELS.get(llm_key, LLM_MODELS["claude-sonnet"])
+    is_free = model_cfg.get("free", False)
+
     with _budget_lock:
         budget = _load_budget()
 
-        cost_usd = (input_tokens * PRICE_INPUT_PER_TOKEN) + (output_tokens * PRICE_OUTPUT_PER_TOKEN)
-        cost_eur = cost_usd * USD_TO_EUR
+        # Free models cost nothing
+        if is_free:
+            cost_usd = 0.0
+            cost_eur = 0.0
+        else:
+            cost_usd = (input_tokens * PRICE_INPUT_PER_TOKEN) + (output_tokens * PRICE_OUTPUT_PER_TOKEN)
+            cost_eur = cost_usd * USD_TO_EUR
 
         budget["total_input_tokens"] += input_tokens
         budget["total_output_tokens"] += output_tokens
@@ -138,6 +187,9 @@ def track_usage(input_tokens: int, output_tokens: int, agent_name: str):
         budget["history"].append({
             "timestamp": datetime.now().isoformat(),
             "agent": agent_name,
+            "llm": llm_key,
+            "llm_name": model_cfg["name"],
+            "free": is_free,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "cost_usd": round(cost_usd, 6),
@@ -269,7 +321,7 @@ def check_budget():
 
 
 # ── App ──────────────────────────────────────────────────────
-app = FastAPI(title="AdmiraNext Council API", version="3.0.0")
+app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -336,6 +388,7 @@ class AskRequest(BaseModel):
     message: str
     generation: str = "leyendas"
     context: Optional[list] = None
+    llm: str = "claude-sonnet"  # LLM model key from LLM_MODELS
 
 
 class AskOneRequest(BaseModel):
@@ -343,6 +396,7 @@ class AskOneRequest(BaseModel):
     agent_name: str  # e.g. "CEO", "CTO", "CCO"...
     generation: str = "leyendas"
     context: Optional[list] = None
+    llm: str = "claude-sonnet"  # LLM model key from LLM_MODELS
 
 
 class AgentReply(BaseModel):
@@ -367,17 +421,15 @@ ICONS = {
 MAX_MESSAGE_LENGTH = 1000
 
 
-def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> tuple:
-    """Call Claude with the agent's persona. Returns (text, input_tokens, output_tokens)."""
+def _build_conversation(agent: CouncilAgent, message: str, context: Optional[list]) -> tuple:
+    """Build system prompt and messages list for any LLM provider."""
     messages = []
-
     if context:
         for msg in context[-6:]:
             messages.append({
                 "role": msg.get("role", "user"),
                 "content": str(msg.get("content", ""))[:MAX_MESSAGE_LENGTH],
             })
-
     messages.append({"role": "user", "content": message[:MAX_MESSAGE_LENGTH]})
 
     conv_system = (
@@ -389,23 +441,71 @@ def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> tup
         "- Si hay otros consejeros en la conversación, puedes referirte a ellos.\n"
         "- Usa tu experiencia y filosofía para dar respuestas genuinas.\n"
     )
+    return conv_system, messages
+
+
+def agent_ask_anthropic(agent: CouncilAgent, message: str, context: Optional[list], model_id: str) -> tuple:
+    """Call Anthropic Claude API. Returns (text, input_tokens, output_tokens)."""
+    conv_system, messages = _build_conversation(agent, message, context)
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=model_id,
         max_tokens=300,
         system=conv_system,
         messages=messages,
     )
-
-    # Extract token usage from response
-    input_tokens = response.usage.input_tokens
-    output_tokens = response.usage.output_tokens
-
-    return response.content[0].text, input_tokens, output_tokens
+    return response.content[0].text, response.usage.input_tokens, response.usage.output_tokens
 
 
-def _send_query_report(question: str, replies: list, cost_eur: float, gen: str):
+def agent_ask_groq(agent: CouncilAgent, message: str, context: Optional[list], model_id: str) -> tuple:
+    """Call Groq API (OpenAI-compatible). Returns (text, input_tokens, output_tokens)."""
+    if not GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY not configured — add it to .env (free at console.groq.com)")
+
+    conv_system, messages = _build_conversation(agent, message, context)
+
+    # Groq uses OpenAI-compatible format: system message + conversation
+    groq_messages = [{"role": "system", "content": conv_system}] + messages
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model_id,
+        "messages": groq_messages,
+        "max_tokens": 300,
+        "temperature": 0.7,
+    }
+
+    resp = http_requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=30)
+    if resp.status_code != 200:
+        raise ValueError(f"Groq API error {resp.status_code}: {resp.text[:200]}")
+
+    data = resp.json()
+    text = data["choices"][0]["message"]["content"]
+    usage = data.get("usage", {})
+    return text, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
+
+
+def agent_ask(agent: CouncilAgent, message: str, context: Optional[list], llm_key: str = "claude-sonnet") -> tuple:
+    """Route to the correct LLM provider. Returns (text, input_tokens, output_tokens)."""
+    model_cfg = LLM_MODELS.get(llm_key, LLM_MODELS["claude-sonnet"])
+
+    if model_cfg["provider"] == "anthropic":
+        return agent_ask_anthropic(agent, message, context, model_cfg["model_id"])
+    elif model_cfg["provider"] == "groq":
+        return agent_ask_groq(agent, message, context, model_cfg["model_id"])
+    else:
+        raise ValueError(f"Unknown provider: {model_cfg['provider']}")
+
+
+def _send_query_report(question: str, replies: list, cost_eur: float, gen: str, llm_key: str = "claude-sonnet"):
     """Send a usage report with full responses to Telegram for historical record."""
+    model_cfg = LLM_MODELS.get(llm_key, LLM_MODELS["claude-sonnet"])
+    model_label = f"{model_cfg['icon']} {model_cfg['name']}"
+    cost_label = "FREE" if model_cfg["free"] else f"€{cost_eur:.4f}"
+
     responses_txt = "\n\n".join(
         f"💬 *{r.icon} {r.name} ({r.persona})*:\n{r.content}"
         for r in replies
@@ -413,10 +513,11 @@ def _send_query_report(question: str, replies: list, cost_eur: float, gen: str):
     budget = _load_budget()
     msg = (
         f"📋 *Consejo AdmiraNext — Consulta*\n\n"
+        f"🤖 Motor: {model_label}\n"
         f"❓ _{question[:300]}_\n\n"
         f"{responses_txt}\n\n"
         f"───────────────\n"
-        f"💰 Coste: €{cost_eur:.4f} · "
+        f"💰 Coste: {cost_label} · "
         f"Acumulado: €{budget['total_cost_eur']:.4f} / €{BUDGET_LIMIT_EUR:.2f} "
         f"({budget['total_cost_eur']/BUDGET_LIMIT_EUR*100:.1f}%) · {gen}"
     )
@@ -431,7 +532,12 @@ async def council_ask(
     _auth=Depends(verify_token),
 ):
     """Send a message to the council. 1 racional + 1 creativo (random) by default."""
-    check_budget()
+    llm_key = req.llm if req.llm in LLM_MODELS else "claude-sonnet"
+    model_cfg = LLM_MODELS[llm_key]
+
+    # Only check budget for paid models
+    if not model_cfg["free"]:
+        check_budget()
 
     gen = req.generation if req.generation in AGENTS else "leyendas"
     group = AGENTS[gen]
@@ -447,9 +553,9 @@ async def council_ask(
     async def run_agent(cls):
         agent = get_agent(cls)
         content, inp_tok, out_tok = await loop.run_in_executor(
-            None, agent_ask, agent, req.message, req.context
+            None, agent_ask, agent, req.message, req.context, llm_key
         )
-        track_usage(inp_tok, out_tok, agent.name)
+        track_usage(inp_tok, out_tok, agent.name, llm_key)
         return AgentReply(
             name=agent.name,
             role=agent.role,
@@ -469,7 +575,7 @@ async def council_ask(
     # Calculate cost of this query and send report to Telegram
     cost_after = _load_budget()["total_cost_eur"]
     query_cost = cost_after - cost_before
-    _send_query_report(req.message, list(all_replies), query_cost, gen)
+    _send_query_report(req.message, list(all_replies), query_cost, gen, llm_key)
 
     return AskResponse(racional=racional_replies, creativo=creativo_replies)
 
@@ -481,7 +587,12 @@ async def council_ask_one(
     _auth=Depends(verify_token),
 ):
     """Ask a single specific agent. Used by 'Preguntar' verb."""
-    check_budget()
+    llm_key = req.llm if req.llm in LLM_MODELS else "claude-sonnet"
+    model_cfg = LLM_MODELS[llm_key]
+
+    # Only check budget for paid models
+    if not model_cfg["free"]:
+        check_budget()
 
     gen = req.generation if req.generation in AGENTS else "leyendas"
     group = AGENTS[gen]
@@ -503,9 +614,9 @@ async def council_ask_one(
 
     loop = asyncio.get_event_loop()
     content, inp_tok, out_tok = await loop.run_in_executor(
-        None, agent_ask, agent, req.message, req.context
+        None, agent_ask, agent, req.message, req.context, llm_key
     )
-    track_usage(inp_tok, out_tok, agent.name)
+    track_usage(inp_tok, out_tok, agent.name, llm_key)
 
     reply = AgentReply(
         name=agent.name,
@@ -519,9 +630,28 @@ async def council_ask_one(
     # Report to Telegram
     cost_after = _load_budget()["total_cost_eur"]
     query_cost = cost_after - cost_before
-    _send_query_report(req.message, [reply], query_cost, gen)
+    _send_query_report(req.message, [reply], query_cost, gen, llm_key)
 
     return reply
+
+
+@app.get("/api/council/models")
+async def list_models():
+    """List available LLM models."""
+    models = []
+    for key, cfg in LLM_MODELS.items():
+        available = True
+        if cfg["provider"] == "groq" and not GROQ_API_KEY:
+            available = False
+        models.append({
+            "key": key,
+            "name": cfg["name"],
+            "icon": cfg["icon"],
+            "free": cfg["free"],
+            "provider": cfg["provider"],
+            "available": available,
+        })
+    return {"models": models}
 
 
 @app.get("/api/council/health")
@@ -570,7 +700,7 @@ async def budget_status(request: Request, _auth=Depends(verify_token)):
 if __name__ == "__main__":
     import uvicorn
     budget = _load_budget()
-    print("🏛️  AdmiraNext Council API v3.0 — http://localhost:8420")
+    print("🏛️  AdmiraNext Council API v4.0 — http://localhost:8420")
     print(f"🔐 Token required: {bool(COUNCIL_API_TOKEN)}")
     print(f"🌐 Allowed origins: {ALLOWED_ORIGINS}")
     print(f"⏱️  Rate limit: {RATE_LIMIT_MAX} req / {RATE_LIMIT_WINDOW}s")
@@ -578,4 +708,6 @@ if __name__ == "__main__":
           f"({budget['total_cost_eur']/BUDGET_LIMIT_EUR*100:.1f}% used)")
     print(f"📱 Telegram alerts: {'✅' if TELEGRAM_BOT_TOKEN else '❌'}")
     print(f"📧 Email alerts: {'✅' if SMTP_USER else '⚠️ Set SMTP_USER/SMTP_PASS in .env'}")
+    print(f"🤖 LLM Models: Claude {'✅' if os.environ.get('ANTHROPIC_API_KEY') else '❌'} | "
+          f"Groq (Llama/DeepSeek/Gemma) {'✅' if GROQ_API_KEY else '⚠️ Set GROQ_API_KEY in .env (free at console.groq.com)'}")
     uvicorn.run(app, host="0.0.0.0", port=8420)

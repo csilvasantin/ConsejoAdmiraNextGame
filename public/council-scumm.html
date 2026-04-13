@@ -930,6 +930,8 @@
         .inv-item { font-size: 7px; color: #3498db; padding: 3px 6px; cursor: pointer; border-radius: 3px; transition: all 0.15s; }
         .inv-item:hover { background: rgba(52,152,219,0.1); color: #5dade2; }
         .inv-item.selected { background: rgba(52,152,219,0.15); color: #fff; }
+        .inv-item.llm-option.selected { background: rgba(52,152,219,0.25); color: #fff; border-left: 2px solid #3498db; padding-left: 4px; }
+        .llm-free { font-size: 5px; background: #27ae60; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; letter-spacing: 0.5px; }
 
         /* Speech bubble */
         .speech-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10; }
@@ -992,7 +994,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>AdmiraNext Consejo <span style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;">v26.13.04.4</span></h1>
+        <h1>AdmiraNext Consejo <span style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;">v26.13.04.5</span></h1>
 
         <div class="top-bar">
             <div class="gen-toggle">
@@ -1057,9 +1059,12 @@
                     <button class="verb-btn" data-verb="salir" onclick="selectVerb(this)">Salir</button>
                 </div>
                 <div class="inventory">
-                    <div class="inventory-title">Proyectos</div>
-                    <div class="inventory-list" id="inventory-list">
-                        <div class="inv-item" onclick="selectProject(this)">Brief de ejemplo</div>
+                    <div class="inventory-title">Motor LLM</div>
+                    <div class="inventory-list" id="llm-list">
+                        <div class="inv-item llm-option selected" data-llm="claude-sonnet" onclick="selectLLM(this)">💎 Claude Sonnet 4</div>
+                        <div class="inv-item llm-option" data-llm="llama-70b" onclick="selectLLM(this)">🦙 Llama 3.3 70B <span class="llm-free">FREE</span></div>
+                        <div class="inv-item llm-option" data-llm="deepseek-r1" onclick="selectLLM(this)">🔮 DeepSeek R1 <span class="llm-free">FREE</span></div>
+                        <div class="inv-item llm-option" data-llm="gemma-9b" onclick="selectLLM(this)">🌀 Gemma 2 9B <span class="llm-free">FREE</span></div>
                     </div>
                 </div>
             </div>
@@ -1744,6 +1749,16 @@
     let debateRunning = false;
     let selectedAgent = null; // { name, persona, side, icon } of selected agent for "Preguntar"
     let preguntarMode = false;
+    let selectedLLM = "claude-sonnet"; // Active LLM model key
+
+    function selectLLM(el) {
+        document.querySelectorAll('.llm-option').forEach(i => i.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedLLM = el.dataset.llm;
+        const name = el.textContent.trim().replace('FREE', '').trim();
+        const isFree = el.querySelector('.llm-free') !== null;
+        console.log("LLM selected:", selectedLLM, name, isFree ? "(FREE)" : "(PAID)");
+    }
 
     function selectVerb(btn) {
         document.querySelectorAll('.verb-btn').forEach(b => b.classList.remove('active'));
@@ -1819,7 +1834,9 @@
         npEl.classList.add('selected');
         selectedAgent = agent;
 
-        setActionLine("❓ Pregunta a " + agent.icon + " " + agent.persona + " (" + agent.name + ") — escribe y pulsa Enviar");
+        const llmEl = document.querySelector('.llm-option.selected');
+        const llmShort = llmEl ? llmEl.textContent.trim().replace('FREE','').trim().split(' ').slice(1).join(' ') : 'Claude';
+        setActionLine("❓ Pregunta a " + agent.icon + " " + agent.persona + " (" + agent.name + ") via " + llmShort + " — escribe y pulsa Enviar");
         showSpeechBubble(agent.persona, agent.name, agent.persona + " espera tu pregunta...");
     }
 
@@ -1939,6 +1956,7 @@
                         message: message,
                         generation: currentGen,
                         context: conversationHistory.slice(-6),
+                        llm: selectedLLM,
                     }),
                 });
                 if (res.status === 402) {
@@ -1984,6 +2002,7 @@
                         agent_name: agentName,
                         generation: currentGen,
                         context: conversationHistory.slice(-6),
+                        llm: selectedLLM,
                     }),
                 });
                 if (res.status === 402) { setActionLine("💰 Presupuesto agotado"); return null; }
@@ -2004,10 +2023,12 @@
         /** Ask a single selected agent via the API. */
         const panelId = agent.side === "racional" ? "conv-racional" : "conv-creativo";
 
-        // Show thinking
+        // Show thinking — include LLM name
+        const llmEl = document.querySelector('.llm-option.selected');
+        const llmLabel = llmEl ? llmEl.textContent.trim().replace('FREE','').trim() : 'Claude';
         showSpeechBubble(agent.persona, agent.name, agent.persona + " está pensando...");
         highlightNameplate(agent.persona);
-        setActionLine("🧠 " + agent.persona + " está pensando...");
+        setActionLine("🧠 " + agent.persona + " está pensando con " + llmLabel + "...");
 
         conversationHistory.push({ role: "user", content: question });
 
