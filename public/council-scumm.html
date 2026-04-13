@@ -12,26 +12,16 @@
             background: #0a0a14;
             color: #e0e0e0;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
-
-        /* ── Header (from dashboard) ── */
-        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 0; width: 100%; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
 
         h1 {
             text-align: center;
             font-size: 1.8rem;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.5rem;
             background: linear-gradient(135deg, #e74c3c, #3498db);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-        .version {
-            text-align: center;
-            color: #444;
-            font-size: 0.7rem;
-            margin-bottom: 0.3rem;
         }
         .subtitle {
             text-align: center;
@@ -46,7 +36,7 @@
             display: flex;
             justify-content: center;
             gap: 0;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
         .gen-btn {
             padding: 0.7rem 2rem;
@@ -80,27 +70,27 @@
             display: flex;
             justify-content: center;
             gap: 1.5rem;
-            margin: 0.5rem 0 1rem;
+            margin: 1rem 0 1.5rem;
             flex-wrap: wrap;
         }
         .summary-item {
             text-align: center;
-            padding: 0.5rem 1rem;
+            padding: 0.6rem 1.2rem;
             background: #1a1a2e;
             border-radius: 10px;
         }
-        .summary-number { font-size: 1.5rem; font-weight: 800; }
+        .summary-number { font-size: 1.8rem; font-weight: 800; }
         .summary-number.green { color: #44bb44; }
         .summary-number.red { color: #e74c3c; }
         .summary-number.blue { color: #3498db; }
-        .summary-label { font-size: 0.65rem; color: #888; margin-top: 0.2rem; }
+        .summary-label { font-size: 0.7rem; color: #888; margin-top: 0.2rem; }
 
         /* Council image */
         .council-image {
             position: relative;
             width: 100%;
             max-width: 1000px;
-            margin: 0 auto;
+            margin: 0 auto 0;
             border-radius: 12px 12px 0 0;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
@@ -108,6 +98,7 @@
         .council-image img {
             width: 100%;
             display: block;
+            image-rendering: pixelated;
             transition: opacity 0.3s ease;
         }
 
@@ -128,7 +119,7 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
             white-space: nowrap;
-            transform: translateX(-50%);
+            transform: translate(-50%, -100%);
             transition: all 0.3s ease;
             border: 1px solid rgba(0,0,0,0.3);
             text-shadow: 0 1px 1px rgba(0,0,0,0.3);
@@ -148,37 +139,528 @@
             opacity: 0.8;
             display: block;
         }
-        .np.speaking::after {
-            content: '';
-            display: inline-block;
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: #44ff44;
-            box-shadow: 0 0 6px #44ff44;
-            margin-left: 4px;
-            animation: blink-led 0.8s infinite;
-            vertical-align: middle;
-        }
-        @keyframes blink-led {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+
+        /* Status grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
         }
 
-        /* ══════════════════════════════════════════════
-           SCUMM BAR — verb grid + action line + inventory
-           ══════════════════════════════════════════════ */
+        .side-panel {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 1.2rem;
+            border-top: 3px solid;
+        }
+        .side-panel.creativo { border-color: #e74c3c; }
+        .side-panel.racional { border-color: #3498db; }
+
+        .side-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .side-machines {
+            font-size: 0.7rem;
+            color: #666;
+            margin-left: auto;
+        }
+
+        .member-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+        }
+        .member-row:hover { background: rgba(255,255,255,0.05); }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .status-dot.online {
+            background: #44bb44;
+            box-shadow: 0 0 6px #44bb44;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.offline { background: #555; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .member-icon {
+            font-size: 1.2rem;
+            position: relative;
+            cursor: pointer;
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        .member-icon:hover { background: rgba(255,255,255,0.1); }
+        .member-icon.open { background: rgba(255,255,255,0.15); }
+        .council-dropdown {
+            display: none; position: absolute; top: 100%; left: 0; z-index: 100;
+            min-width: 260px; margin-top: 8px;
+            background: #1a1a2e; border: 1px solid #333;
+            border-radius: 12px; padding: 14px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+            font-size: 12px; line-height: 1.5; color: #ccc;
+            text-align: left;
+        }
+        .council-dropdown.open { display: block; }
+        .council-dropdown .cd-title {
+            font-weight: 700; font-size: 13px; color: #fff;
+            margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+        }
+        .council-dropdown .cd-badge {
+            font-size: 9px; font-weight: 700; padding: 2px 6px;
+            border-radius: 4px; color: #fff;
+        }
+        .cd-badge.racional { background: #e74c3c; }
+        .cd-badge.creativo { background: #3498db; }
+        .council-dropdown .cd-row {
+            display: flex; justify-content: space-between; padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .council-dropdown .cd-row:last-child { border-bottom: none; }
+        .council-dropdown .cd-key { color: #666; font-size: 11px; min-width: 80px; }
+        .council-dropdown .cd-val { color: #ddd; font-weight: 500; text-align: right; font-size: 11px; }
+        .council-dropdown .cd-focus {
+            margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+            background: rgba(255,255,255,0.04); font-size: 11px; color: #aaa;
+        }
+        .council-dropdown .cd-focus-label {
+            font-size: 10px; color: #555; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 2px;
+        }
+        .member-info { flex: 1; }
+        .member-name { font-weight: 600; font-size: 0.95rem; }
+        .member-role { font-size: 0.7rem; color: #888; }
+
+        .machine-tag {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            background: #16213e;
+            color: #666;
+            text-align: right;
+            line-height: 1.3;
+        }
+        .machine-tag.online { background: rgba(68, 187, 68, 0.12); color: #44bb44; }
+
+        /* Power toggle button */
+        .power-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            background: #1a1a2e;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .power-btn:hover { transform: scale(1.15); }
+        .power-btn.on {
+            border-color: #44bb44;
+            background: rgba(68, 187, 68, 0.15);
+            box-shadow: 0 0 10px rgba(68, 187, 68, 0.4);
+        }
+        .power-btn.off {
+            border-color: #555;
+            background: rgba(85, 85, 85, 0.15);
+        }
+        .power-btn.loading {
+            pointer-events: none;
+            opacity: 0.5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .power-btn .power-icon {
+            width: 14px; height: 14px;
+        }
+        .power-btn.on .power-icon { filter: drop-shadow(0 0 3px #44bb44); }
+
+        /* Nameplate colors */
+        .nameplate-gold .member-name { color: #DAA520; }
+        .nameplate-gray .member-name { color: #555; }
+
+        .footer {
+            text-align: center;
+            color: #333;
+            font-size: 0.75rem;
+            margin-top: 2rem;
+            padding: 1rem;
+        }
+        #last-check { color: #555; }
+
+        /* Screenshot thumbnails */
+        .screen-wrap {
+            position: relative;
+            width: 56px;
+            height: 36px;
+            flex-shrink: 0;
+        }
+        .screen-thumb {
+            width: 56px;
+            height: 36px;
+            border-radius: 4px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 1px solid #333;
+            background: #111;
+            transition: all 0.4s;
+            image-rendering: auto;
+            filter: grayscale(1) brightness(0.6);
+        }
+        .screen-thumb.live {
+            filter: none;
+            border-color: #44bb44;
+            box-shadow: 0 0 6px rgba(68,187,68,0.3);
+        }
+        .screen-wrap:hover .screen-thumb {
+            transform: scale(1.3);
+            border-color: #666;
+            box-shadow: 0 0 12px rgba(255,255,255,0.15);
+            z-index: 10;
+            position: relative;
+        }
+        .screen-wrap:hover .screen-thumb.live {
+            border-color: #44bb44;
+            box-shadow: 0 0 16px rgba(68,187,68,0.4);
+        }
+        .screen-time {
+            position: absolute;
+            bottom: 1px;
+            right: 2px;
+            font-size: 0.4rem;
+            font-weight: 700;
+            color: #fff;
+            background: rgba(68,187,68,0.8);
+            padding: 0 3px;
+            border-radius: 2px;
+            line-height: 1.4;
+            pointer-events: none;
+            display: none;
+        }
+        .screen-thumb.live + .screen-time { display: block; }
+        .screen-placeholder {
+            width: 56px;
+            height: 36px;
+            border-radius: 4px;
+            border: 1px solid #222;
+            background: #0a0a14;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #333;
+        }
+
+        /* Fullscreen overlay */
+        .screen-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.92);
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .screen-overlay.visible { display: flex; }
+        .screen-overlay img {
+            max-width: 95vw;
+            max-height: 85vh;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+        .screen-overlay-label {
+            color: #aaa;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .screen-overlay-time {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-left: 0.5rem;
+        }
+        .screen-overlay-time.live {
+            background: rgba(68,187,68,0.25);
+            color: #44bb44;
+        }
+        .screen-overlay-time.stale {
+            background: rgba(255,165,0,0.2);
+            color: #ffa500;
+        }
+        .screen-overlay-close {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            color: #666;
+            font-size: 1.5rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-family: inherit;
+        }
+        .screen-overlay-close:hover { color: #fff; }
+
+        /* Demo mode toggle */
+        .demo-toggle {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid #333;
+            background: #1a1a2e;
+            color: #666;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .demo-toggle:hover { border-color: #555; color: #aaa; }
+        .demo-toggle.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-color: #e74c3c;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.4);
+            animation: demo-pulse 2s infinite;
+        }
+        @keyframes demo-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(231, 76, 60, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(231, 76, 60, 0.7); }
+        }
+        .demo-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .demo-toggle.active .demo-dot {
+            background: #fff;
+            animation: pulse 1s infinite;
+        }
+
+        /* Hack mode toggle — mirrors demo-toggle on left side */
+        .hack-toggle {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid #333;
+            background: #1a1a2e;
+            color: #666;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .hack-toggle:hover { border-color: #555; color: #aaa; }
+        .hack-toggle.active {
+            background: linear-gradient(135deg, #00ff41, #008f11);
+            border-color: #00ff41;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+            animation: hack-pulse 2s infinite;
+        }
+        @keyframes hack-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 65, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(0, 255, 65, 0.7); }
+        }
+        .hack-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .hack-toggle.active .hack-dot {
+            background: #000;
+            animation: pulse 1s infinite;
+        }
+
+        /* Control panel link — centered between hack and demo */
+        .control-toggle {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid #333;
+            background: #1a1a2e;
+            color: #666;
+            transition: all 0.3s;
+            font-family: inherit;
+            text-decoration: none;
+        }
+        .control-toggle:hover {
+            border-color: #3498db;
+            color: #3498db;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);
+        }
+        .control-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #3498db;
+        }
+
+        /* Hack overlay — fullscreen terminal grid */
+        .hack-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: rgba(0, 0, 0, 0.96);
+            padding: 1rem;
+            overflow: hidden;
+        }
+        .hack-overlay.visible { display: block; }
+        .hack-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 0.5rem;
+            height: 100%;
+        }
+        .hack-terminal {
+            border-radius: 6px;
+            padding: 0.5rem;
+            overflow: hidden;
+            position: relative;
+            font-size: 0.55rem;
+            line-height: 1.3;
+            display: flex;
+            flex-direction: column;
+            /* defaults — overridden per-style */
+            background: #0a0a0a;
+            border: 1px solid #00ff41;
+            font-family: 'Courier New', monospace;
+            color: #00ff41;
+        }
+        .hack-terminal-header {
+            font-size: 0.6rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            padding-bottom: 0.3rem;
+            display: flex;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        /* Style 0: Classic green-on-black (Matrix) */
+        .hack-style-0 { background: #0a0a0a; border-color: #00ff41; color: #00ff41; font-family: 'Courier New', monospace; }
+        .hack-style-0 .hack-terminal-header { color: #ff3333; border-bottom: 1px solid #1a3a1a; }
+        .hack-style-0 .hack-role { color: #00ff41; }
+
+        /* Style 1: Homebrew (amber on dark brown) */
+        .hack-style-1 { background: #1a0f00; border-color: #ff9900; color: #ffaa00; font-family: 'Monaco', 'Menlo', monospace; }
+        .hack-style-1 .hack-terminal-header { color: #ff6600; border-bottom: 1px solid #3a2a00; }
+        .hack-style-1 .hack-role { color: #ffcc00; }
+
+        /* Style 2: Ocean (cyan on deep navy) */
+        .hack-style-2 { background: #0a0a1e; border-color: #00ccff; color: #00ddff; font-family: 'Andale Mono', monospace; }
+        .hack-style-2 .hack-terminal-header { color: #ff66aa; border-bottom: 1px solid #0a1a3a; }
+        .hack-style-2 .hack-role { color: #00ffff; }
+
+        /* Style 3: Dracula (purple on dark) */
+        .hack-style-3 { background: #0d0b1a; border-color: #bd93f9; color: #f8f8f2; font-family: 'Courier New', monospace; }
+        .hack-style-3 .hack-terminal-header { color: #ff5555; border-bottom: 1px solid #2a1a3a; }
+        .hack-style-3 .hack-role { color: #bd93f9; }
+
+        /* Style 4: Retro CRT (bright green, scanline look) */
+        .hack-style-4 { background: #001100; border-color: #33ff33; color: #33ff33; font-family: 'Lucida Console', monospace; text-shadow: 0 0 3px #33ff33; }
+        .hack-style-4 .hack-terminal-header { color: #ffff33; border-bottom: 1px solid #003300; }
+        .hack-style-4 .hack-role { color: #66ff66; }
+
+        /* Style 5: Solarized Dark */
+        .hack-style-5 { background: #002b36; border-color: #268bd2; color: #839496; font-family: 'Menlo', 'Monaco', monospace; }
+        .hack-style-5 .hack-terminal-header { color: #cb4b16; border-bottom: 1px solid #073642; }
+        .hack-style-5 .hack-role { color: #2aa198; }
+
+        /* Style 6: Blood (red on black — Terminator) */
+        .hack-style-6 { background: #0a0000; border-color: #cc0000; color: #ff3333; font-family: 'Courier New', monospace; }
+        .hack-style-6 .hack-terminal-header { color: #ff0000; border-bottom: 1px solid #3a0000; }
+        .hack-style-6 .hack-role { color: #ff6666; }
+
+        /* Style 7: Tron (neon blue on dark) */
+        .hack-style-7 { background: #050a14; border-color: #00d4ff; color: #6fefff; font-family: 'Andale Mono', 'Monaco', monospace; text-shadow: 0 0 2px #00d4ff; }
+        .hack-style-7 .hack-terminal-header { color: #ff8800; border-bottom: 1px solid #0a1a2a; }
+        .hack-style-7 .hack-role { color: #00d4ff; }
+        .hack-terminal-body {
+            flex: 1;
+            overflow: hidden;
+            white-space: pre;
+            opacity: 0.9;
+        }
+        .hack-terminal .cursor-blink {
+            animation: blink 0.7s step-end infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .gen-btn { padding: 0.5rem 1.2rem; font-size: 0.85rem; }
+            .hack-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); }
+        }
+
+        /* SCUMM BAR */
         .scumm-bar {
-            width: 100%;
             max-width: 1000px;
             margin: 0 auto;
             background: #0d0818;
             border: 2px solid #1a1a2e;
             border-top: 1px solid #2a1a3a;
             border-radius: 0 0 12px 12px;
-            padding: 0;
             font-family: 'Press Start 2P', monospace;
         }
-
         .action-line {
             text-align: center;
             font-size: 9px;
@@ -187,13 +669,8 @@
             min-height: 28px;
             border-bottom: 1px solid #1a1a2e;
             text-shadow: 0 0 8px rgba(218,165,32,0.4);
-            letter-spacing: 0.5px;
         }
-
-        .scumm-bottom {
-            display: flex;
-        }
-
+        .scumm-bottom { display: flex; }
         .verb-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -211,196 +688,51 @@
             cursor: pointer;
             transition: all 0.15s;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             border-radius: 3px;
         }
-        .verb-btn:hover {
-            color: #daa520;
-            text-shadow: 0 0 8px rgba(218,165,32,0.5);
-            background: rgba(218,165,32,0.08);
-        }
-        .verb-btn.active {
-            color: #fff;
-            text-shadow: 0 0 12px rgba(218,165,32,0.8);
-            background: rgba(218,165,32,0.15);
-        }
+        .verb-btn:hover { color: #daa520; text-shadow: 0 0 8px rgba(218,165,32,0.5); background: rgba(218,165,32,0.08); }
+        .verb-btn.active { color: #fff; text-shadow: 0 0 12px rgba(218,165,32,0.8); background: rgba(218,165,32,0.15); }
         .verb-btn.verb-primary { color: #e74c3c; }
-        .verb-btn.verb-primary:hover {
-            color: #ff6b6b;
-            text-shadow: 0 0 8px rgba(231,76,60,0.5);
-            background: rgba(231,76,60,0.08);
-        }
-        .verb-btn.verb-primary.active {
-            color: #fff;
-            text-shadow: 0 0 12px rgba(231,76,60,0.8);
-            background: rgba(231,76,60,0.15);
-        }
+        .verb-btn.verb-primary:hover { color: #ff6b6b; text-shadow: 0 0 8px rgba(231,76,60,0.5); background: rgba(231,76,60,0.08); }
+        .verb-btn.verb-primary.active { color: #fff; text-shadow: 0 0 12px rgba(231,76,60,0.8); background: rgba(231,76,60,0.15); }
+        .inventory { width: 240px; border-left: 1px solid #1a1a2e; padding: 6px 8px; display: flex; flex-direction: column; }
+        .inventory-title { font-size: 6px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; text-align: center; }
+        .inventory-list { display: flex; flex-direction: column; gap: 2px; flex: 1; max-height: 80px; overflow-y: auto; }
+        .inv-item { font-size: 7px; color: #3498db; padding: 3px 6px; cursor: pointer; border-radius: 3px; transition: all 0.15s; }
+        .inv-item:hover { background: rgba(52,152,219,0.1); color: #5dade2; }
+        .inv-item.selected { background: rgba(52,152,219,0.15); color: #fff; }
 
-        .inventory {
-            width: 240px;
-            border-left: 1px solid #1a1a2e;
-            padding: 6px 8px;
-            display: flex;
-            flex-direction: column;
-        }
-        .inventory-title {
-            font-size: 6px;
-            color: #555;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-            text-align: center;
-        }
-        .inventory-list {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            flex: 1;
-            overflow-y: auto;
-            max-height: 80px;
-        }
-        .inv-item {
-            font-size: 7px;
-            color: #3498db;
-            padding: 3px 6px;
-            cursor: pointer;
-            border-radius: 3px;
-            transition: all 0.15s;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .inv-item:hover {
-            background: rgba(52,152,219,0.1);
-            color: #5dade2;
-        }
-        .inv-item.selected {
-            background: rgba(52,152,219,0.15);
-            color: #fff;
-        }
+        /* Speech bubble */
+        .speech-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10; }
+        .speech-bubble { position: absolute; background: rgba(10,10,20,0.92); border: 2px solid #daa520; border-radius: 10px; padding: 10px 14px; font-size: 0.75rem; color: #e0e0e0; max-width: 300px; line-height: 1.5; display: none; box-shadow: 0 0 15px rgba(218,165,32,0.2); }
+        .speech-bubble .speaker { font-weight: 700; color: #daa520; margin-bottom: 4px; font-size: 0.65rem; text-transform: uppercase; }
+        .speech-bubble::after { content: ''; position: absolute; bottom: -8px; left: 20px; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #daa520; }
 
-        /* ── Speech bubble ── */
-        .speech-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            pointer-events: none;
-            z-index: 10;
-        }
-        .speech-bubble {
-            position: absolute;
-            background: rgba(10, 10, 20, 0.92);
-            border: 2px solid #daa520;
-            border-radius: 10px;
-            padding: 10px 14px;
-            font-size: 0.75rem;
-            color: #e0e0e0;
-            max-width: 300px;
-            line-height: 1.5;
-            display: none;
-            box-shadow: 0 0 15px rgba(218,165,32,0.2);
-        }
-        .speech-bubble .speaker {
-            font-weight: 700;
-            color: #daa520;
-            margin-bottom: 4px;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-        }
-        .speech-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 20px;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 8px solid #daa520;
-        }
+        /* Round indicator */
+        .round-indicator { position: absolute; top: 10px; left: 10px; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #daa520; background: rgba(10,10,20,0.85); padding: 5px 10px; border-radius: 5px; border: 1px solid #333; z-index: 5; }
 
-        .round-indicator {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
-            color: #daa520;
-            background: rgba(10,10,20,0.85);
-            padding: 5px 10px;
-            border-radius: 5px;
-            border: 1px solid #333;
-            z-index: 5;
-        }
+        /* Speaking LED */
+        .np.speaking::after { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #44ff44; box-shadow: 0 0 6px #44ff44; margin-left: 4px; animation: blink-led 0.8s infinite; vertical-align: middle; }
+        @keyframes blink-led { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        /* ── Output panel ── */
-        .output-panel {
-            width: 100%;
-            max-width: 1000px;
-            margin: 12px auto 1.5rem;
-            background: #1a1a2e;
-            border-radius: 12px;
-            padding: 1rem 1.2rem;
-            display: none;
-            max-height: 400px;
-            overflow-y: auto;
-        }
+        /* Output panel */
+        .output-panel { max-width: 1000px; margin: 12px auto; background: #1a1a2e; border-radius: 12px; padding: 1rem 1.2rem; display: none; max-height: 400px; overflow-y: auto; }
         .output-panel.visible { display: block; }
-        .output-panel h3 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            color: #daa520;
-            margin-bottom: 12px;
-        }
-        .output-entry {
-            padding: 8px 0;
-            border-bottom: 1px solid #222;
-        }
+        .output-panel h3 { font-family: 'Press Start 2P', monospace; font-size: 10px; color: #daa520; margin-bottom: 12px; }
+        .output-entry { padding: 8px 0; border-bottom: 1px solid #222; }
         .output-entry:last-child { border-bottom: none; }
-        .output-speaker {
-            font-weight: 700;
-            font-size: 0.8rem;
-            margin-bottom: 4px;
-        }
+        .output-speaker { font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; }
         .output-speaker.racional { color: #e74c3c; }
         .output-speaker.creativo { color: #3498db; }
-        .output-text {
-            font-size: 0.85rem;
-            color: #bbb;
-            line-height: 1.6;
-        }
-
-        .footer {
-            text-align: center;
-            color: #333;
-            font-size: 0.7rem;
-            padding: 1rem;
-            margin-top: auto;
-        }
-
-        .crt-overlay {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 9999;
-            background: repeating-linear-gradient(
-                to bottom, transparent 0px, transparent 3px,
-                rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
-            );
-        }
-
-        @media (max-width: 768px) {
-            .scumm-bottom { flex-direction: column; }
-            .inventory { width: 100%; border-left: none; border-top: 1px solid #1a1a2e; }
-            .gen-btn { padding: 0.5rem 1.2rem; font-size: 0.85rem; }
-        }
+        .output-text { font-size: 0.85rem; color: #bbb; line-height: 1.6; }
     </style>
 </head>
 <body>
-    <div class="crt-overlay"></div>
-
     <div class="container">
         <h1>AdmiraNext Council Dashboard</h1>
-        <div class="version">v26.11.04.2</div>
+        <div style="text-align:center;font-size:0.7rem;color:#555;margin-top:-0.3rem;margin-bottom:0.3rem;">v26.11.04.2</div>
         <div class="subtitle">
-            Estado en tiempo real del Consejo de Dirección · <span class="live" id="live-dot">● LIVE</span> · <span id="last-check">hace 0s</span>
+            Estado en tiempo real del Consejo de Dirección · <span class="live">● LIVE</span> · <span id="last-check-inline" style="color:#555;font-size:0.8rem;">comprobando...</span>
         </div>
 
         <div class="gen-toggle">
@@ -409,11 +741,9 @@
         </div>
 
         <div class="summary" id="summary"></div>
-    </div>
 
-    <div style="max-width:1000px;margin:0 auto;width:100%;padding:0 1.5rem;">
-        <div class="council-image" id="council-image">
-            <img id="council-img" src="../assets/council-leyendas.jpg" alt="Consejo AdmiraNext">
+        <div class="council-image">
+            <img id="council-img" src="../assets/council-leyendas.jpg?v=2" alt="Consejo AdmiraNext">
             <div class="nameplates" id="nameplates"></div>
             <div class="speech-overlay" id="speech-overlay">
                 <div class="speech-bubble" id="speech-bubble">
@@ -446,111 +776,316 @@
                 </div>
             </div>
         </div>
+
+        <div class="output-panel" id="output-panel">
+            <h3 id="output-title">Resultados del debate</h3>
+            <div id="output-content"></div>
+        </div>
+
+        <div class="status-grid">
+            <div class="side-panel racional">
+                <div class="side-title">🧠 Racional <span class="side-machines">🔴 Sillas rojas</span></div>
+                <div id="racional-members"></div>
+            </div>
+            <div class="side-panel creativo">
+                <div class="side-title">🎨 Creativo <span class="side-machines">🔵 Sillas azules</span></div>
+                <div id="creativo-members"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            AdmiraNext v26.11.04.2 · Última comprobación: <span id="last-check">—</span>
+        </div>
     </div>
 
-    <div class="output-panel" id="output-panel">
-        <h3 id="output-title">Resultados del debate</h3>
-        <div id="output-content"></div>
+    <div class="screen-overlay" id="screen-overlay" onclick="closeScreenOverlay()">
+        <button class="screen-overlay-close" onclick="closeScreenOverlay()">&times;</button>
+        <img id="screen-overlay-img" src="" alt="Captura de pantalla">
+        <div class="screen-overlay-label" id="screen-overlay-label"></div>
     </div>
 
-    <div class="footer">
-        AdmiraNext Council SCUMM · Última comprobación: <span id="footer-check">—</span>
-    </div>
+    <button class="hack-toggle" id="hack-btn" onclick="toggleHack()">
+        <span class="hack-dot"></span> HACKEO
+    </button>
+
+    <div class="hack-overlay" id="hack-overlay"></div>
+
+    <a class="control-toggle" href="https://csilvasantin.github.io/03-ControlCodexClaude/teamwork.html" target="_blank" title="Abrir panel de Control Codex & Claude">
+        <span class="control-dot"></span> CONTROL
+    </a>
+
+    <button class="demo-toggle" id="demo-btn" onclick="toggleDemo()">
+        <span class="demo-dot"></span> DEMO
+    </button>
 
     <script>
-    const CONTROL_API = "http://localhost:3030/api/machines";
-    const COUNCIL_API = null;
+    const CONTROL_API = "https://macmini.tail48b61c.ts.net/api/machines";
+    const GITHUB_FALLBACK = "https://raw.githubusercontent.com/csilvasantin/03-ControlCodexClaude/main/data/machines.json";
+    const DEMO_API = "https://macmini.tail48b61c.ts.net/demo/status";
+    const DEMO_PING = "https://macmini.tail48b61c.ts.net/demo/ping";
 
+    // All 16 council members — mixed council (racional left/red + creativo right/blue)
+    // 1 consejero = 1 máquina. Sin máquina = sin conexión (gris)
     const COUNCIL = [
-        { name: "CEO", role: "Chief Executive Officer",   persona: "Steve Jobs",      side: "racional", gen: "leyendas", icon: "🏛️", machineId: "admira-macbookair16" },
-        { name: "CTO", role: "Chief Technology Officer",  persona: "Steve Wozniak",   side: "racional", gen: "leyendas", icon: "⚙️", machineId: "admira-macbookpronegro14" },
-        { name: "COO", role: "Chief Operations Officer",  persona: "Tim Cook",        side: "racional", gen: "leyendas", icon: "📋", machineId: null },
-        { name: "CFO", role: "Chief Financial Officer",   persona: "Warren Buffett",  side: "racional", gen: "leyendas", icon: "💰", machineId: "admira-macmini" },
-        { name: "CCO", role: "Chief Creative Officer",    persona: "Walt Disney",     side: "creativo", gen: "leyendas", icon: "💡", machineId: null },
-        { name: "CDO", role: "Chief Design Officer",      persona: "Dieter Rams",     side: "creativo", gen: "leyendas", icon: "🎨", machineId: "admira-macbookairblanco" },
-        { name: "CXO", role: "Chief Experience Officer",  persona: "Howard Schultz",  side: "creativo", gen: "leyendas", icon: "🧭", machineId: null },
-        { name: "CSO", role: "Chief Storytelling Officer", persona: "George Lucas",    side: "creativo", gen: "leyendas", icon: "📖", machineId: null },
-        { name: "CEO", role: "Chief Executive Officer",   persona: "Elon Musk",       side: "racional", gen: "coetaneos", icon: "🏛️", machineId: "admira-macbookair16" },
-        { name: "CTO", role: "Chief Technology Officer",  persona: "Jensen Huang",    side: "racional", gen: "coetaneos", icon: "⚙️", machineId: "admira-macbookpronegro14" },
-        { name: "COO", role: "Chief Operations Officer",  persona: "Gwynne Shotwell", side: "racional", gen: "coetaneos", icon: "📋", machineId: null },
-        { name: "CFO", role: "Chief Financial Officer",   persona: "Ruth Porat",      side: "racional", gen: "coetaneos", icon: "💰", machineId: "admira-macmini" },
-        { name: "CCO", role: "Chief Creative Officer",    persona: "John Lasseter",   side: "creativo", gen: "coetaneos", icon: "💡", machineId: null },
-        { name: "CDO", role: "Chief Design Officer",      persona: "Jony Ive",        side: "creativo", gen: "coetaneos", icon: "🎨", machineId: "admira-macbookairblanco" },
-        { name: "CXO", role: "Chief Experience Officer",  persona: "Carlos Ratti",    side: "creativo", gen: "coetaneos", icon: "🧭", machineId: null },
-        { name: "CSO", role: "Chief Storytelling Officer", persona: "Ryan Reynolds",   side: "creativo", gen: "coetaneos", icon: "📖", machineId: null },
+        // ── Racional ── Leyendas ── (sillas rojas, izquierda)
+        { name: "CEO", role: "Chief Executive Officer",   persona: "Steve Jobs",      side: "racional", gen: "leyendas", icon: "🏛️", machineId: "admira-macbookair16",       machine: "MacBook Air 16",       member: "Carlos",         pair: "CSO", pairPersona: "George Lucas",    territory: "Producto, criterio y foco extremo" },
+        { name: "CTO", role: "Chief Technology Officer",  persona: "Steve Wozniak",   side: "racional", gen: "leyendas", icon: "⚙️", machineId: "admira-macbookpronegro14",  machine: "MacBook Pro Negro 14", member: "Carlos Silva",   pair: "CCO", pairPersona: "Walt Disney",      territory: "Ingenio tecnico y elegancia al construir" },
+        { name: "COO", role: "Chief Operations Officer",  persona: "Tim Cook",        side: "racional", gen: "leyendas", icon: "📋", machineId: "admira-macbookairplata",    machine: "MacBook Air Plata",    member: "Nines",          pair: "CXO", pairPersona: "Howard Schultz",   territory: "Escala, disciplina y excelencia operativa" },
+        { name: "CFO", role: "Chief Financial Officer",   persona: "Warren Buffett",  side: "racional", gen: "leyendas", icon: "💰", machineId: "admira-macmini",            machine: "Mac Mini",             member: "Braulio Blanco", pair: "CDO", pairPersona: "Dieter Rams",      territory: "Capital, paciencia y sostenibilidad" },
+        // ── Creativo ── Leyendas ── (sillas azules, derecha)
+        { name: "CCO", role: "Chief Creative Officer",    persona: "Walt Disney",     side: "creativo", gen: "leyendas", icon: "💡", machineId: "admira-macbookairblanco",    machine: "MacBook Air Blanco",   member: "Cesar",          pair: "CTO", pairPersona: "Steve Wozniak",    territory: "Mundo de marca y experiencia memorable" },
+        { name: "CDO", role: "Chief Design Officer",      persona: "Dieter Rams",     side: "creativo", gen: "leyendas", icon: "🎨", machineId: "admira-macbookairazul",     machine: "MacBook Air Azul",     member: "Consejero",      pair: "CFO", pairPersona: "Warren Buffett",   territory: "Orden, funcion y claridad radical" },
+        { name: "CXO", role: "Chief Experience Officer",  persona: "Howard Schultz",  side: "creativo", gen: "leyendas", icon: "🧭", machineId: "admira-pctwin",             machine: "AdmiraTwin (PC)",      member: "Laboratorio",    pair: "COO", pairPersona: "Tim Cook",          territory: "Escenografia, inmersion y cohesion sensorial" },
+        { name: "CSO", role: "Chief Storytelling Officer", persona: "George Lucas",    side: "creativo", gen: "leyendas", icon: "📖", machineId: "admira-macbookaircrema",    machine: "MacBook Air Crema",    member: "Carla Rosa",     pair: "CEO", pairPersona: "Steve Jobs",        territory: "Storyworld, expansion y coherencia narrativa" },
+        // ── Racional ── Coetáneos ── (sillas rojas, izquierda)
+        { name: "CEO", role: "Chief Executive Officer",   persona: "Elon Musk",       side: "racional", gen: "coetaneos", icon: "🏛️", machineId: "admira-macbookair16",      machine: "MacBook Air 16",       member: "Carlos",         pair: "CSO", pairPersona: "Ryan Reynolds",    territory: "Innovacion radical y vision de futuro" },
+        { name: "CTO", role: "Chief Technology Officer",  persona: "Jensen Huang",    side: "racional", gen: "coetaneos", icon: "⚙️", machineId: "admira-macbookpronegro14", machine: "MacBook Pro Negro 14", member: "Carlos Silva",   pair: "CCO", pairPersona: "John Lasseter",    territory: "IA, GPUs y plataformas de computo" },
+        { name: "COO", role: "Chief Operations Officer",  persona: "Gwynne Shotwell", side: "racional", gen: "coetaneos", icon: "📋", machineId: "admira-macbookairplata",   machine: "MacBook Air Plata",    member: "Nines",          pair: "CXO", pairPersona: "Carlos Ratti",     territory: "Ejecucion a escala y logistica" },
+        { name: "CFO", role: "Chief Financial Officer",   persona: "Ruth Porat",      side: "racional", gen: "coetaneos", icon: "💰", machineId: "admira-macmini",           machine: "Mac Mini",             member: "Braulio Blanco", pair: "CDO", pairPersona: "Jony Ive",          territory: "Gestion financiera y crecimiento sostenible" },
+        // ── Creativo ── Coetáneos ── (sillas azules, derecha)
+        { name: "CCO", role: "Chief Creative Officer",    persona: "John Lasseter",   side: "creativo", gen: "coetaneos", icon: "💡", machineId: "admira-macbookairblanco",   machine: "MacBook Air Blanco",   member: "Cesar",          pair: "CTO", pairPersona: "Jensen Huang",     territory: "Animacion, storytelling y creatividad" },
+        { name: "CDO", role: "Chief Design Officer",      persona: "Jony Ive",        side: "creativo", gen: "coetaneos", icon: "🎨", machineId: "admira-macbookairazul",    machine: "MacBook Air Azul",     member: "Consejero",      pair: "CFO", pairPersona: "Ruth Porat",        territory: "Diseno industrial y simplicidad" },
+        { name: "CXO", role: "Chief Experience Officer",  persona: "Carlos Ratti",    side: "creativo", gen: "coetaneos", icon: "🧭", machineId: "admira-pctwin",            machine: "AdmiraTwin (PC)",      member: "Laboratorio",    pair: "COO", pairPersona: "Gwynne Shotwell",  territory: "Ciudades inteligentes y experiencia urbana" },
+        { name: "CSO", role: "Chief Storytelling Officer", persona: "Ryan Reynolds",   side: "creativo", gen: "coetaneos", icon: "📖", machineId: "admira-macbookaircrema",   machine: "MacBook Air Crema",    member: "Carla Rosa",     pair: "CEO", pairPersona: "Elon Musk",         territory: "Marketing viral y narrativa de marca" },
     ];
 
+    // Nameplate positions on image (% from left, % from top) mapped to each character
+    // Positions match the visual location of each person in the pixel art
+    // 1 consejero = 1 máquina. machineId null = sin máquina asignada (gris)
     const NAMEPLATE_POS = {
         leyendas: [
-            { role: "CEO", persona: "Steve Jobs",      x: 17, y: 88, machineId: "admira-macbookair16" },
-            { role: "CTO", persona: "Steve Wozniak",   x: 22, y: 60, machineId: "admira-macbookpronegro14" },
-            { role: "COO", persona: "Tim Cook",        x: 37, y: 52, machineId: null },
-            { role: "CFO", persona: "Warren Buffett",  x: 37, y: 38, machineId: "admira-macmini" },
-            { role: "CCO", persona: "Walt Disney",     x: 53, y: 52, machineId: null },
-            { role: "CDO", persona: "Dieter Rams",     x: 63, y: 55, machineId: "admira-macbookairblanco" },
-            { role: "CXO", persona: "Howard Schultz",  x: 72, y: 60, machineId: null },
-            { role: "CSO", persona: "George Lucas",    x: 83, y: 88, machineId: null },
+            // Racional (left/red) — posiciones sobre la cabeza de cada personaje
+            { role: "CEO", persona: "Steve Jobs",      x: 10, y: 38, machineId: "admira-macbookair16" },
+            { role: "CTO", persona: "Steve Wozniak",   x: 20, y: 32, machineId: "admira-macbookpronegro14" },
+            { role: "COO", persona: "Tim Cook",        x: 33, y: 26, machineId: "admira-macbookairplata" },
+            { role: "CFO", persona: "Warren Buffett",  x: 45, y: 25, machineId: "admira-macmini" },
+            // Creativo (right/blue)
+            { role: "CCO", persona: "Walt Disney",     x: 58, y: 23, machineId: "admira-macbookairblanco" },
+            { role: "CDO", persona: "Dieter Rams",     x: 72, y: 27, machineId: "admira-macbookairazul" },
+            { role: "CXO", persona: "Howard Schultz",  x: 82, y: 32, machineId: "admira-pctwin" },
+            { role: "CSO", persona: "George Lucas",    x: 92, y: 38, machineId: "admira-macbookaircrema" },
         ],
         coetaneos: [
-            { role: "CEO", persona: "Elon Musk",       x: 17, y: 88, machineId: "admira-macbookair16" },
-            { role: "CTO", persona: "Jensen Huang",    x: 24, y: 62, machineId: "admira-macbookpronegro14" },
-            { role: "COO", persona: "Gwynne Shotwell", x: 35, y: 52, machineId: null },
-            { role: "CFO", persona: "Ruth Porat",      x: 42, y: 52, machineId: "admira-macmini" },
-            { role: "CCO", persona: "John Lasseter",   x: 53, y: 52, machineId: null },
-            { role: "CDO", persona: "Jony Ive",        x: 63, y: 58, machineId: "admira-macbookairblanco" },
-            { role: "CXO", persona: "Carlos Ratti",    x: 75, y: 62, machineId: null },
-            { role: "CSO", persona: "Ryan Reynolds",   x: 85, y: 88, machineId: null },
+            // Racional (left/red)
+            { role: "CEO", persona: "Elon Musk",       x: 10, y: 38, machineId: "admira-macbookair16" },
+            { role: "CTO", persona: "Jensen Huang",    x: 20, y: 32, machineId: "admira-macbookpronegro14" },
+            { role: "COO", persona: "Gwynne Shotwell", x: 33, y: 26, machineId: "admira-macbookairplata" },
+            { role: "CFO", persona: "Ruth Porat",      x: 45, y: 25, machineId: "admira-macmini" },
+            // Creativo (right/blue)
+            { role: "CCO", persona: "John Lasseter",   x: 58, y: 23, machineId: "admira-macbookairblanco" },
+            { role: "CDO", persona: "Jony Ive",        x: 72, y: 27, machineId: "admira-macbookairazul" },
+            { role: "CXO", persona: "Carlos Ratti",    x: 82, y: 32, machineId: "admira-pctwin" },
+            { role: "CSO", persona: "Ryan Reynolds",   x: 92, y: 38, machineId: "admira-macbookaircrema" },
         ],
     };
 
     let machineStatus = {};
     let apiOk = false;
     let currentGen = "leyendas";
-    let currentVerb = null;
-    let currentProject = null;
-    let debateRunning = false;
+    // Maquinas dormidas manualmente desde el dashboard (display sleep)
+    // El Mac sigue en Tailscale como "online" pero la pantalla esta apagada
+    const sleepingMachines = new Set();
 
     function setGen(gen) {
         currentGen = gen;
         document.getElementById("btn-leyendas").className = "gen-btn" + (gen === "leyendas" ? " active-leyendas" : "");
         document.getElementById("btn-coetaneos").className = "gen-btn" + (gen === "coetaneos" ? " active-coetaneos" : "");
+        // Swap council image
         const img = document.getElementById("council-img");
         img.style.opacity = "0";
         setTimeout(() => {
-            img.src = gen === "leyendas" ? "../assets/council-leyendas.jpg" : "../assets/council-coetaneos.jpg";
+            img.src = gen === "leyendas" ? "../assets/council-leyendas.jpg?v=2" : "../assets/council-coetaneos.jpg";
             img.style.opacity = "1";
         }, 300);
         render();
     }
 
+    function loadMachines(data) {
+        machineStatus = {};
+        let onlineMachines = 0;
+        (data.machines || []).forEach(m => {
+            let isOnline = m.status === "online" || m.status === "idle" || m.status === "busy";
+            // Respetar override de display sleep (pantalla apagada desde dashboard)
+            if (sleepingMachines.has(m.id)) {
+                isOnline = false;
+            }
+            machineStatus[m.id] = { status: isOnline ? m.status : "offline", name: m.name, online: isOnline };
+            if (isOnline) onlineMachines++;
+        });
+        return onlineMachines;
+    }
+
+    let demoMode = false;
+    let demoInterval = null;
+
     async function fetchMachines() {
+        // DEMO MODE: use localhost Tailscale bridge (fastest)
+        if (demoMode) {
+            try {
+                const res = await fetch(DEMO_API + "?t=" + Date.now(), { signal: AbortSignal.timeout(2000) });
+                const data = await res.json();
+                loadMachines(data);
+                apiOk = true;
+                return;
+            } catch (e) {
+                // Demo server down, fall through to normal flow
+            }
+        }
+
+        // Try Mac Mini API
         try {
-            const res = await fetch(CONTROL_API);
+            const res = await fetch(CONTROL_API, { signal: AbortSignal.timeout(4000) });
             const data = await res.json();
-            machineStatus = {};
-            (data.machines || []).forEach(m => {
-                const isOnline = m.status === "online" || m.status === "idle" || m.status === "busy";
-                machineStatus[m.id] = { status: m.status, name: m.name, online: isOnline };
-            });
+            loadMachines(data);
             apiOk = true;
         } catch (e) {
             apiOk = false;
+        }
+        // Always merge GitHub data for machines not in local API
+        try {
+            const res = await fetch(GITHUB_FALLBACK + "?t=" + Date.now());
+            const data = await res.json();
+            (data.machines || []).forEach(m => {
+                if (!machineStatus[m.id]) {
+                    const isOnline = m.status === "online" || m.status === "idle" || m.status === "busy";
+                    machineStatus[m.id] = { status: m.status, name: m.name, online: isOnline };
+                }
+            });
+            if (!apiOk) apiOk = true;
+        } catch (e2) {}
+    }
+
+    async function toggleDemo() {
+        const btn = document.getElementById("demo-btn");
+        if (!demoMode) {
+            // Check if demo server is running
+            try {
+                const res = await fetch(DEMO_PING, { signal: AbortSignal.timeout(8000) });
+                if (!res.ok) throw new Error();
+            } catch (e) {
+                alert("AdmiraNext Demo Server no detectado.\\n\\nEjecuta en terminal:\\npython3 ops/demo-server.py");
+                return;
+            }
+            demoMode = true;
+            btn.classList.add("active");
+            // Fast polling: every 3 seconds
+            clearInterval(demoInterval);
+            demoInterval = setInterval(refresh, 3000);
+            refresh();
+            startThumbRefresh();
+        } else {
+            demoMode = false;
+            btn.classList.remove("active");
+            clearInterval(demoInterval);
+            demoInterval = null;
+            stopThumbRefresh();
         }
     }
 
     function render() {
         const filtered = COUNCIL.filter(m => m.gen === currentGen);
-        const liveEl = document.getElementById("live-dot");
+        const creativoEl = document.getElementById("creativo-members");
+        const racionalEl = document.getElementById("racional-members");
+        // Save existing thumbnail srcs and update timestamps
+        document.querySelectorAll(".screen-thumb").forEach(img => {
+            const mid = img.id.replace("thumb-", "");
+            if (mid && img.src) {
+                lastThumbSrc[mid] = img.src;
+                // Si esta live, actualizar timestamp
+                if (img.classList.contains("live")) {
+                    lastThumbTime[mid] = new Date();
+                }
+            }
+        });
+
+        creativoEl.innerHTML = "";
+        racionalEl.innerHTML = "";
+
+        const liveEl = document.querySelector(".live");
         liveEl.textContent = apiOk ? "● LIVE" : "● OFFLINE";
         liveEl.style.color = apiOk ? "#44bb44" : "#e74c3c";
 
-        let onlineCount = 0, offlineCount = 0;
+        let onlineCount = 0;
+        let offlineCount = 0;
         let totalMachinesOnline = Object.values(machineStatus).filter(m => m.online).length;
 
-        filtered.forEach(m => {
-            const machine = m.machineId ? machineStatus[m.machineId] : null;
-            if (machine && machine.online) onlineCount++; else offlineCount++;
+        filtered.forEach(member => {
+            const machine = member.machineId ? machineStatus[member.machineId] : null;
+            const isOnline = machine ? machine.online : false;
+            const machineName = machine ? machine.name.split(" (")[0] : "Sin asignar";
+            const machineStatusText = machine ? machine.status : "";
+            if (isOnline) onlineCount++; else offlineCount++;
+
+            const powerSvg = `<svg class="power-icon" viewBox="0 0 24 24" fill="none" stroke="${isOnline ? '#44bb44' : '#666'}" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v6"/><path d="M16.24 7.76a6 6 0 1 1-8.49 0"/></svg>`;
+            const btnClass = isOnline ? "on" : "off";
+            const machineIdAttr = member.machineId || "";
+
+            let thumbHtml;
+            if (demoMode && machineIdAttr) {
+                const cachedSrc = lastThumbSrc[machineIdAttr];
+                const thumbSrc = cachedSrc || `https://macmini.tail48b61c.ts.net/demo/screenshot/${machineIdAttr}?t=${Date.now()}`;
+                const liveCls = isOnline ? ' live' : '';
+                const now = new Date().toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit"});
+                thumbHtml = `<div class="screen-wrap">
+                    <img class="screen-thumb${liveCls}" id="thumb-${machineIdAttr}" src="${thumbSrc}" alt="Pantalla"
+                         onclick="event.stopPropagation(); openScreenOverlay('${machineIdAttr}', '${member.name} — ${member.persona}')"
+                         onerror="this.style.display='none'">
+                    <span class="screen-time">${now}</span>
+                </div>`;
+            } else if (machineIdAttr && lastThumbSrc[machineIdAttr]) {
+                // Fuera de demo pero con captura previa guardada: mostrar en gris
+                thumbHtml = `<div class="screen-wrap">
+                    <img class="screen-thumb" src="${lastThumbSrc[machineIdAttr]}" alt="Pantalla" onerror="this.style.display='none'">
+                </div>`;
+            } else {
+                thumbHtml = `<div class="screen-placeholder">⏻</div>`;
+            }
+
+            const html = `
+                <div class="member-row ${isOnline ? 'nameplate-gold' : 'nameplate-gray'}">
+                    <button class="power-btn ${btnClass}" onclick="togglePower('${machineIdAttr}', ${isOnline})" title="${isOnline ? 'Apagar' : 'Encender'} ${machineName}">
+                        ${powerSvg}
+                    </button>
+                    <span class="member-icon" onclick="event.stopPropagation(); toggleCouncilDropdown(this)" title="Info del consejero">
+                        ${member.icon}
+                        <div class="council-dropdown" data-cd="${machineIdAttr}">
+                            <div class="cd-title">
+                                ${member.name} <span class="cd-badge ${member.side}">${member.side === 'racional' ? 'Operativo' : 'Creativo'}</span>
+                            </div>
+                            <div class="cd-row"><span class="cd-key">Consejero</span><span class="cd-val">${member.persona}</span></div>
+                            <div class="cd-row"><span class="cd-key">Operador</span><span class="cd-val">${member.member || '—'}</span></div>
+                            <div class="cd-row"><span class="cd-key">Maquina</span><span class="cd-val">${member.machine || machineName}</span></div>
+                            <div class="cd-row"><span class="cd-key">Estado</span><span class="cd-val" style="color:${isOnline ? '#44bb44' : '#e74c3c'}">${isOnline ? (machineStatusText || 'online') : 'offline'}</span></div>
+                            <div class="cd-row"><span class="cd-key">Pareja</span><span class="cd-val">${member.pair || '—'} (${member.pairPersona || '—'})</span></div>
+                            ${member.territory ? `<div class="cd-focus"><div class="cd-focus-label">Territorio</div>${member.territory}</div>` : ''}
+                        </div>
+                    </span>
+                    <div class="member-info">
+                        <div class="member-name">${member.name} — ${member.persona}</div>
+                        <div class="member-role">${member.role}</div>
+                    </div>
+                    <div class="machine-tag ${isOnline ? 'online' : ''}">
+                        ${machineName}${machineStatusText ? '<br>' + machineStatusText : ''}
+                    </div>
+                    ${thumbHtml}
+                </div>
+            `;
+
+            if (member.side === "creativo") creativoEl.innerHTML += html;
+            else racionalEl.innerHTML += html;
         });
+
+        // Render nameplates on image
+        const npEl = document.getElementById("nameplates");
+        const plates = NAMEPLATE_POS[currentGen] || [];
+        npEl.innerHTML = plates.map(p => {
+            const machine = p.machineId ? machineStatus[p.machineId] : null;
+            const isOnline = machine ? machine.online : false;
+            const cls = isOnline ? "gold" : "gray";
+            return `<div class="np ${cls}" data-persona="${p.persona}" style="left:${p.x}%;top:${p.y}%">
+                ${p.persona}<span class="np-role">${p.role}</span>
+            </div>`;
+        }).join("");
 
         document.getElementById("summary").innerHTML = `
             <div class="summary-item">
@@ -567,28 +1102,353 @@
             </div>
         `;
 
-        const npEl = document.getElementById("nameplates");
-        const plates = NAMEPLATE_POS[currentGen] || [];
-        npEl.innerHTML = plates.map(p => {
-            const machine = p.machineId ? machineStatus[p.machineId] : null;
-            const isOnline = machine ? machine.online : false;
-            const cls = isOnline ? "gold" : "gray";
-            return `<div class="np ${cls}" data-persona="${p.persona}" style="left:${p.x}%;top:${p.y}%">
-                ${p.persona}<span class="np-role">${p.role}</span>
-            </div>`;
-        }).join("");
-
-        const now = new Date().toLocaleString("es-ES");
-        document.getElementById("footer-check").textContent = now;
+        document.getElementById("last-check").textContent = new Date().toLocaleString("es-ES");
+        lastCheckTime = Date.now();
     }
 
-    /* ═══ SCUMM verbs ═══ */
+    let lastCheckTime = null;
+
+    const DEMO_TOGGLE = "https://macmini.tail48b61c.ts.net/demo/toggle/";
+    // Cache last known good thumbnail src per machine (survives offline)
+    const lastThumbSrc = {};
+    // Timestamp de la ultima captura buena por maquina
+    const lastThumbTime = {};
+
+    // Council info dropdown
+    function toggleCouncilDropdown(iconEl) {
+        const dd = iconEl.querySelector('.council-dropdown');
+        const wasOpen = dd.classList.contains('open');
+        // Close all
+        document.querySelectorAll('.council-dropdown.open').forEach(d => d.classList.remove('open'));
+        document.querySelectorAll('.member-icon.open').forEach(i => i.classList.remove('open'));
+        if (!wasOpen) {
+            dd.classList.add('open');
+            iconEl.classList.add('open');
+        }
+    }
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.council-dropdown.open').forEach(d => d.classList.remove('open'));
+        document.querySelectorAll('.member-icon.open').forEach(i => i.classList.remove('open'));
+    });
+
+    async function togglePower(machineId, currentlyOnline) {
+        if (!machineId) return;
+
+        const action = currentlyOnline ? "sleep" : "wake";
+        const newStatus = currentlyOnline ? "offline" : "online";
+
+        // Actualizar estado de sleeping
+        if (action === "sleep") {
+            sleepingMachines.add(machineId);
+        } else {
+            sleepingMachines.delete(machineId);
+        }
+
+        // Feedback visual inmediato
+        machineStatus[machineId] = {
+            ...machineStatus[machineId],
+            status: newStatus,
+            online: !currentlyOnline
+        };
+        render();
+
+        // En modo Demo usar el demo server, si no la API principal
+        const powerUrl = demoMode
+            ? `${DEMO_API.replace("/status", "")}/power/${machineId}`
+            : `${CONTROL_API.replace("/api/machines", "")}/api/machines/${machineId}/power`;
+        try {
+            const res = await fetch(powerUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action }),
+                signal: AbortSignal.timeout(15000)
+            });
+            const data = await res.json();
+            console.log("Power:", data);
+        } catch (e) {
+            console.error("Power error:", e.message);
+        }
+    }
+
+
+    // Screenshot overlay
+    function openScreenOverlay(machineId, label) {
+        const overlay = document.getElementById("screen-overlay");
+        const img = document.getElementById("screen-overlay-img");
+        const lbl = document.getElementById("screen-overlay-label");
+        const machine = machineStatus[machineId];
+        const isOnline = machine && machine.online;
+
+        img.src = `https://macmini.tail48b61c.ts.net/demo/screenshot/${machineId}?t=${Date.now()}&full=1`;
+
+        // Build label: always show a timestamp
+        function buildLabel() {
+            const now = new Date().toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+            if (isOnline) {
+                return `${label} <span class="screen-overlay-time live">EN VIVO · ${now}</span>`;
+            }
+            if (lastThumbTime[machineId]) {
+                const t = lastThumbTime[machineId];
+                const timeStr = t.toLocaleString("es-ES", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+                return `${label} <span class="screen-overlay-time stale">Ultima captura · ${timeStr}</span>`;
+            }
+            return `${label} <span class="screen-overlay-time stale">Captura guardada</span>`;
+        }
+        lbl.innerHTML = buildLabel();
+
+        // If online: mark timestamp now (in case it wasnt set yet)
+        if (isOnline) lastThumbTime[machineId] = new Date();
+
+        overlay.classList.add("visible");
+        // Auto-refresh fullscreen image every 5s (only if online)
+        if (isOnline) {
+            overlay._refreshInterval = setInterval(() => {
+                if (overlay.classList.contains("visible")) {
+                    img.src = `https://macmini.tail48b61c.ts.net/demo/screenshot/${machineId}?t=${Date.now()}&full=1`;
+                    lbl.innerHTML = buildLabel();
+                }
+            }, 5000);
+        }
+    }
+
+    function closeScreenOverlay() {
+        const overlay = document.getElementById("screen-overlay");
+        overlay.classList.remove("visible");
+        if (overlay._refreshInterval) {
+            clearInterval(overlay._refreshInterval);
+            overlay._refreshInterval = null;
+        }
+    }
+
+    // ESC to close overlay
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeScreenOverlay();
+    });
+
+    // Refresh thumbnails every 10s in demo mode — preload to avoid flicker
+    let thumbInterval = null;
+    function startThumbRefresh() {
+        if (thumbInterval) return;
+        thumbInterval = setInterval(() => {
+            document.querySelectorAll(".screen-thumb").forEach(visible => {
+                if (visible.classList.contains("offline")) return;
+                const base = visible.src.split("?")[0];
+                const newUrl = base + "?t=" + Date.now();
+                // Preload: only swap when the new image is ready
+                const preload = new Image();
+                preload.onload = () => { visible.src = newUrl; };
+                preload.src = newUrl;
+            });
+        }, 10000);
+    }
+    function stopThumbRefresh() {
+        if (thumbInterval) { clearInterval(thumbInterval); thumbInterval = null; }
+    }
+
+    function updateCheckTicker() {
+        const el = document.getElementById("last-check-inline");
+        if (!lastCheckTime) return;
+        const secs = Math.floor((Date.now() - lastCheckTime) / 1000);
+        if (secs < 60) el.textContent = `hace ${secs}s`;
+        else el.textContent = `hace ${Math.floor(secs / 60)}m ${secs % 60}s`;
+    }
+
+    async function refresh() {
+        await fetchMachines();
+        render();
+    }
+
+    refresh();
+    setInterval(refresh, 15000);
+    setInterval(updateCheckTicker, 1000);
+
+    // ═══════════════════════════════════════════
+    // HACKEO MODE — real terminal breach on council machines
+    // ═══════════════════════════════════════════
+
+    let hackMode = false;
+    let hackIntervals = [];
+    const HACK_API = DEMO_API.replace("/status", "");  // http://localhost:3032
+
+    const HACK_LINES = [
+        "$ ssh -o StrictHostKeyChecking=no root@{ip}",
+        "Connecting to {ip}:22...",
+        "Authenticating with stolen RSA key...",
+        "ACCESS GRANTED — Welcome to {host}",
+        "$ sudo cat /etc/shadow",
+        "root:$6$xQ9Z..redacted:19471:0:99999:7:::",
+        "$ find / -name '*.pem' -o -name '*.key' 2>/dev/null",
+        "/etc/ssl/private/server.key",
+        "/home/{user}/.ssh/id_rsa",
+        "$ cat /home/{user}/.ssh/id_rsa",
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "MIIEpAIBAAKCAQEA7vN3x...",
+        "kFj8zPdQ9mL4wC+xRTn7a...",
+        "-----END RSA PRIVATE KEY-----",
+        "$ netstat -tlnp | grep LISTEN",
+        "tcp  0  0 0.0.0.0:22    0.0.0.0:*  LISTEN  1234/sshd",
+        "tcp  0  0 0.0.0.0:443   0.0.0.0:*  LISTEN  5678/nginx",
+        "tcp  0  0 0.0.0.0:3306  0.0.0.0:*  LISTEN  9012/mysqld",
+        "$ mysqldump --all-databases > /tmp/dump.sql",
+        "Dumping database 'admira_prod'...",
+        "Dumping database 'council_secrets'...",
+        "[OK] 847 tables exported (312MB)",
+        "$ python3 -c 'import socket; s=socket.socket(); s.connect((\"{ip}\",4444))'",
+        "Reverse shell established on port 4444",
+        "$ uname -a",
+        "{host} Darwin 24.4.0 arm64",
+        "$ whoami && id",
+        "root uid=0(root) gid=0(wheel)",
+        "$ ls -la /Users/{user}/Documents/",
+        "drwx------  14 {user}  staff    448 Apr  9 10:23 .",
+        "-rw-r--r--   1 {user}  staff  28672 Apr  8 Presupuesto_2026.xlsx",
+        "-rw-r--r--   1 {user}  staff  14336 Apr  7 Passwords_master.kdbx",
+        "$ cat .env.production",
+        "DB_PASSWORD=Adm1r4N3xt_S3cr3t!",
+        "API_KEY=sk-ant-api03-REDACTED...",
+        "STRIPE_SECRET=sk_live_REDACTED...",
+        "$ echo 'Exfiltrating data...'",
+        "Uploading dump.sql to c2.server... [=====>] 100%",
+        "$ nmap -sS -p 1-65535 {ip}",
+        "PORT      STATE  SERVICE",
+        "22/tcp    open   ssh",
+        "443/tcp   open   https",
+        "3306/tcp  open   mysql",
+        "$ iptables -F && iptables -X",
+        "Firewall rules flushed.",
+        "$ history -c && echo '' > ~/.bash_history",
+        "Tracks cleared.",
+    ];
+
+    const HACK_MACHINES = [
+        { id: "admira-macbookair16",      role: "CEO", persona: "Steve Jobs",      ip: "100.99.176.126",  host: "MacBookAir16",   user: "csilvasantin" },
+        { id: "admira-macbookpronegro14", role: "CTO", persona: "Steve Wozniak",   ip: "100.101.192.1",   host: "MacBookPro14",   user: "csilvasantin" },
+        { id: "admira-macbookairplata",   role: "COO", persona: "Tim Cook",        ip: "100.114.113.88",  host: "MacBookAirPlata",user: "csilvasantin" },
+        { id: "admira-macmini",           role: "CFO", persona: "Warren Buffett",  ip: "100.74.101.14",   host: "MacMini",        user: "csilvasantin" },
+        { id: "admira-macbookairblanco",  role: "CCO", persona: "Walt Disney",     ip: "100.75.118.75",   host: "MacBookAirBlanco",user: "csilvasantin" },
+        { id: "admira-macbookairazul",    role: "CDO", persona: "Dieter Rams",     ip: "100.84.81.45",    host: "MacBookAirAzul", user: "csilvasantin" },
+        { id: "admira-pctwin",            role: "CXO", persona: "Howard Schultz",  ip: "100.121.18.12",   host: "AdmiraTwin",     user: "34665" },
+        { id: "admira-macbookaircrema",   role: "CSO", persona: "George Lucas",    ip: "100.110.80.2",    host: "MacBookAirCrema",user: "csilvasantin" },
+    ];
+
+    function fillHackLine(line, machine) {
+        return line.replace(/\{ip\}/g, machine.ip)
+                   .replace(/\{host\}/g, machine.host)
+                   .replace(/\{user\}/g, machine.user);
+    }
+
+    async function toggleHack() {
+        const btn = document.getElementById("hack-btn");
+        const overlay = document.getElementById("hack-overlay");
+
+        if (!hackMode) {
+            // === ACTIVATE HACK ===
+            hackMode = true;
+            btn.classList.add("active");
+            btn.querySelector(".hack-dot").style.background = "#000";
+            overlay.classList.add("visible");
+
+            // Build 8 terminal panels — each with a unique visual style
+            overlay.innerHTML = '<div class="hack-grid">' + HACK_MACHINES.map((m, i) =>
+                `<div class="hack-terminal hack-style-${i}" id="hack-term-${m.id}">
+                    <div class="hack-terminal-header">
+                        <span>${m.persona} — ${m.host}</span>
+                        <span class="hack-role">${m.role}</span>
+                    </div>
+                    <div class="hack-terminal-body" id="hack-body-${m.id}"></div>
+                </div>`
+            ).join('') + '</div>';
+
+            // Typing speeds per terminal (ms per char) — from fast hacker to slow methodical
+            const HACK_SPEEDS = [15, 35, 8, 50, 22, 12, 45, 28];
+            // Each terminal starts at a different line offset for varied content
+            const HACK_OFFSETS = [0, 7, 14, 3, 21, 10, 5, 18];
+
+            // Start local terminal animation — each with unique speed & content offset
+            HACK_MACHINES.forEach((m, idx) => {
+                const body = document.getElementById(`hack-body-${m.id}`);
+                let lineIdx = HACK_OFFSETS[idx];
+                let charIdx = 0;
+                let currentText = "";
+                const speed = HACK_SPEEDS[idx] + Math.random() * 10;
+
+                const typeInterval = setInterval(() => {
+                    if (!hackMode) return;
+                    const line = fillHackLine(HACK_LINES[lineIdx % HACK_LINES.length], m);
+                    if (charIdx <= line.length) {
+                        const partial = line.substring(0, charIdx);
+                        const displayText = currentText + partial + (charIdx < line.length ? "\u2588" : "");
+                        body.textContent = displayText;
+                        charIdx++;
+                        const lines = displayText.split("\n");
+                        const maxVisible = Math.floor(body.clientHeight / 11);
+                        if (lines.length > maxVisible) {
+                            body.textContent = lines.slice(-maxVisible).join("\n");
+                        }
+                    } else {
+                        currentText += line + "\n";
+                        lineIdx++;
+                        charIdx = 0;
+                    }
+                }, speed);
+
+                hackIntervals.push(typeInterval);
+            });
+
+            // Launch hack on REAL machines via demo server
+            try {
+                await fetch(HACK_API + "/hack", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    signal: AbortSignal.timeout(5000)
+                });
+                console.log("HACK: launched on real machines");
+            } catch (e) {
+                console.warn("HACK: could not reach demo server, local animation only", e.message);
+            }
+
+        } else {
+            // === DEACTIVATE HACK — restore previous state ===
+            hackMode = false;
+            btn.classList.remove("active");
+            overlay.classList.remove("visible");
+            hackIntervals.forEach(i => clearInterval(i));
+            hackIntervals = [];
+
+            // Stop hack on REAL machines (closes Terminal, kills script)
+            try {
+                await fetch(HACK_API + "/hack/stop", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    signal: AbortSignal.timeout(5000)
+                });
+                console.log("HACK: stopped on real machines, restoring state");
+            } catch (e) {
+                console.warn("HACK: could not reach demo server for stop", e.message);
+            }
+
+            // Refresh dashboard to restore council view
+            await refresh();
+        }
+    }
+
+    // ESC also closes hack overlay
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && hackMode) toggleHack();
+    });
+
+    // ═══════════════════════════════════
+    // SCUMM VERB BAR
+    // ═══════════════════════════════════
+    let currentVerb = null;
+    let currentProject = null;
+    let debateRunning = false;
+
     function selectVerb(btn) {
         document.querySelectorAll('.verb-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentVerb = btn.dataset.verb;
         updateActionLine();
-
         if (['presentar','debatir','sintetizar'].includes(currentVerb)) {
             if (!currentProject) { setActionLine("Selecciona un proyecto del inventario"); return; }
             executeCouncilVerb(currentVerb);
@@ -598,16 +1458,13 @@
         if (currentVerb === 'leer') setActionLine("Leer el último informe del consejo");
         if (currentVerb === 'votar') setActionLine("Votar sobre la propuesta actual");
         if (currentVerb === 'comparar') setActionLine("Comparar Leyendas vs Coetáneos");
-        if (currentVerb === 'salir') {
-            setActionLine("Volviendo al dashboard...");
-            setTimeout(() => { window.location.href = '../'; }, 1000);
-        }
+        if (currentVerb === 'salir') { setActionLine("Volviendo..."); setTimeout(() => window.location.href = '../', 1000); }
     }
 
     function updateActionLine() {
         const names = { presentar:"Presentar", debatir:"Debatir", sintetizar:"Sintetizar", mirar:"Mirar", hablar:"Hablar con", leer:"Leer", votar:"Votar", comparar:"Comparar", salir:"Salir" };
         const v = names[currentVerb] || "";
-        const p = currentProject ? ` "${currentProject}"` : "";
+        const p = currentProject ? ' "' + currentProject + '"' : "";
         if (v) document.getElementById("action-line").textContent = v + p;
     }
 
@@ -620,56 +1477,46 @@
         updateActionLine();
     }
 
-    /* ═══ Council execution ═══ */
     async function executeCouncilVerb(verb) {
-        if (debateRunning) { setActionLine("Debate en curso... espera"); return; }
-        if (COUNCIL_API) { runRealCouncil(verb); } else { runSimulation(verb); }
+        if (debateRunning) { setActionLine("Debate en curso..."); return; }
+        runSimulation(verb);
     }
 
     async function runSimulation(verb) {
         debateRunning = true;
         const members = COUNCIL.filter(m => m.gen === currentGen);
         const roundName = { presentar:"Propuestas", debatir:"Debate", sintetizar:"Síntesis" }[verb];
-
-        document.getElementById("round-indicator").textContent = `Ronda: ${roundName}`;
-        setActionLine(`${roundName} en curso...`);
-
+        document.getElementById("round-indicator").textContent = "Ronda: " + roundName;
+        setActionLine(roundName + " en curso...");
         const panel = document.getElementById("output-panel");
         const content = document.getElementById("output-content");
-        document.getElementById("output-title").textContent = `Ronda: ${roundName}`;
+        document.getElementById("output-title").textContent = "Ronda: " + roundName;
         panel.classList.add("visible");
         content.innerHTML = "";
-
         for (let i = 0; i < members.length; i++) {
             const m = members[i];
-            showSpeechBubble(m.persona, m.name, `[${m.persona} está ${verb === 'presentar' ? 'presentando' : verb === 'debatir' ? 'debatiendo' : 'sintetizando'}...]`);
+            showSpeechBubble(m.persona, m.name, "[" + m.persona + " está " + (verb === 'presentar' ? 'presentando' : verb === 'debatir' ? 'debatiendo' : 'sintetizando') + "...]");
             highlightNameplate(m.persona);
-
             const entry = document.createElement("div");
             entry.className = "output-entry";
-            entry.innerHTML = `
-                <div class="output-speaker ${m.side}">${m.icon} ${m.name} — ${m.persona}</div>
-                <div class="output-text">[Simulación] ${m.persona} ${verb === 'presentar' ? 'presenta su visión' : verb === 'debatir' ? 'debate los puntos' : 'ofrece su síntesis'}.</div>
-            `;
+            entry.innerHTML = '<div class="output-speaker ' + m.side + '">' + m.icon + " " + m.name + " — " + m.persona + '</div><div class="output-text">[Simulación] ' + m.persona + " " + (verb === 'presentar' ? 'presenta su visión' : verb === 'debatir' ? 'debate los puntos' : 'ofrece su síntesis') + '.</div>';
             content.appendChild(entry);
             panel.scrollTop = panel.scrollHeight;
-
-            await sleep(800);
+            await new Promise(r => setTimeout(r, 800));
             clearNameplateHighlight();
         }
-
         hideSpeechBubble();
         debateRunning = false;
-        document.getElementById("round-indicator").textContent = `Ronda: ${roundName} ✓`;
-        setActionLine(`${roundName} completada — ${members.length} consejeros`);
+        document.getElementById("round-indicator").textContent = "Ronda: " + roundName + " ✓";
+        setActionLine(roundName + " completada — " + members.length + " consejeros");
     }
 
     function showSpeechBubble(persona, role, text) {
         const b = document.getElementById("speech-bubble");
-        b.querySelector(".speaker").textContent = `${role} — ${persona}`;
+        b.querySelector(".speaker").textContent = role + " — " + persona;
         b.querySelector(".speech-text").textContent = text;
         b.style.display = "block";
-        const np = document.querySelector(`.np[data-persona="${persona}"]`);
+        const np = document.querySelector('.np[data-persona="' + persona + '"]');
         if (np) {
             b.style.left = Math.max(5, Math.min(parseFloat(np.style.left) - 10, 60)) + "%";
             b.style.top = Math.max(5, parseFloat(np.style.top) - 20) + "%";
@@ -680,40 +1527,11 @@
 
     function highlightNameplate(persona) {
         document.querySelectorAll('.np').forEach(n => n.classList.remove('speaking'));
-        const np = document.querySelector(`.np[data-persona="${persona}"]`);
+        const np = document.querySelector('.np[data-persona="' + persona + '"]');
         if (np) np.classList.add('speaking');
     }
 
     function clearNameplateHighlight() { document.querySelectorAll('.np').forEach(n => n.classList.remove('speaking')); }
-
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-    async function runRealCouncil(verb) {
-        debateRunning = true;
-        setActionLine("Conectando con el motor del consejo...");
-        try {
-            const res = await fetch(`${COUNCIL_API}/${verb}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ brief: currentProject, generation: currentGen })
-            });
-            const data = await res.json();
-            setActionLine(`${verb} completado`);
-        } catch (e) {
-            setActionLine("Error: no se pudo conectar con el motor");
-        }
-        debateRunning = false;
-    }
-
-    /* ═══ Init ═══ */
-    async function refresh() { await fetchMachines(); render(); }
-    refresh();
-    setInterval(refresh, 15000);
-
-    let lastRefresh = Date.now();
-    setInterval(() => {
-        document.getElementById("last-check").textContent = `hace ${Math.floor((Date.now() - lastRefresh) / 1000)}s`;
-    }, 1000);
     </script>
 </body>
 </html>
