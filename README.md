@@ -6,7 +6,7 @@
 
 ## 🎮 Demo en vivo
 
-**[→ Jugar ahora](https://csilvasantin.github.io/ConsejoAdmiraNextGame)**
+**[→ Jugar ahora](https://csilvasantin.github.io/ConsejoAdmiraNextGame/council-scumm.html)**
 
 ---
 
