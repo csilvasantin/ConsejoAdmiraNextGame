@@ -667,14 +667,63 @@
             font-family: 'Press Start 2P', monospace;
         }
         .action-line {
-            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            min-height: 32px;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        .action-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Press Start 2P', monospace;
             font-size: 9px;
             color: #daa520;
-            padding: 8px 12px;
-            min-height: 28px;
-            border-bottom: 1px solid #1a1a2e;
             text-shadow: 0 0 8px rgba(218,165,32,0.4);
+            caret-color: #daa520;
         }
+        .action-input::placeholder {
+            color: #665520;
+            text-shadow: none;
+        }
+        .action-send {
+            background: none;
+            border: 1px solid #333;
+            color: #daa520;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .action-send:hover {
+            border-color: #daa520;
+            background: rgba(218,165,32,0.1);
+        }
+        /* Toggle nameplates button */
+        .np-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(10,10,20,0.85);
+            border: 1px solid #333;
+            color: #888;
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 5;
+            transition: all 0.2s;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .np-toggle:hover { border-color: #666; color: #ccc; }
+        .np-toggle.off { color: #daa520; border-color: #daa520; }
+        .nameplates.hidden { opacity: 0; pointer-events: none; }
         .scumm-bottom { display: flex; }
         .verb-grid {
             display: grid;
@@ -754,10 +803,14 @@
                 </div>
             </div>
             <div class="round-indicator" id="round-indicator">Ronda: --</div>
+            <button class="np-toggle" id="np-toggle" onclick="toggleNameplates()" title="Mostrar/ocultar nameplates">🏷 Ocultar</button>
         </div>
 
         <div class="scumm-bar">
-            <div class="action-line" id="action-line">Bienvenido al Consejo AdmiraNext</div>
+            <div class="action-line">
+                <input class="action-input" id="action-input" type="text" placeholder="Escribe aquí para hablar con el consejo..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMessage()">
+                <button class="action-send" onclick="sendMessage()">Enviar</button>
+            </div>
             <div class="scumm-bottom">
                 <div class="verb-grid">
                     <button class="verb-btn verb-primary" data-verb="presentar" onclick="selectVerb(this)">Presentar</button>
@@ -1471,10 +1524,67 @@
         const names = { presentar:"Presentar", debatir:"Debatir", sintetizar:"Sintetizar", mirar:"Mirar", hablar:"Hablar con", leer:"Leer", votar:"Votar", comparar:"Comparar", salir:"Salir" };
         const v = names[currentVerb] || "";
         const p = currentProject ? ' "' + currentProject + '"' : "";
-        if (v) document.getElementById("action-line").textContent = v + p;
+        if (v) document.getElementById("action-input").placeholder = v + p + "...";
     }
 
-    function setActionLine(text) { document.getElementById("action-line").textContent = text; }
+    function setActionLine(text) { document.getElementById("action-input").placeholder = text; }
+
+    // Toggle nameplates visibility
+    let nameplatesVisible = true;
+    function toggleNameplates() {
+        const np = document.getElementById("nameplates");
+        const btn = document.getElementById("np-toggle");
+        nameplatesVisible = !nameplatesVisible;
+        np.classList.toggle("hidden", !nameplatesVisible);
+        btn.textContent = nameplatesVisible ? "🏷 Ocultar" : "🏷 Mostrar";
+        btn.classList.toggle("off", !nameplatesVisible);
+    }
+
+    // Send message to council
+    function sendMessage() {
+        const input = document.getElementById("action-input");
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = "";
+
+        // Auto-hide nameplates on first message
+        if (nameplatesVisible) toggleNameplates();
+
+        // Show user message in output panel
+        const panel = document.getElementById("output-panel");
+        const content = document.getElementById("output-content");
+        document.getElementById("output-title").textContent = "Conversación";
+        panel.classList.add("visible");
+
+        const userEntry = document.createElement("div");
+        userEntry.className = "output-entry";
+        userEntry.innerHTML = '<div class="output-speaker" style="color:#daa520;">👤 Tú</div><div class="output-text">' + text.replace(/</g,'&lt;') + '</div>';
+        content.appendChild(userEntry);
+
+        // Simulate council response
+        simulateCouncilResponse(text, content, panel);
+    }
+
+    async function simulateCouncilResponse(question, content, panel) {
+        const members = COUNCIL.filter(m => m.gen === currentGen);
+        // Pick 2-3 random members to respond
+        const responders = members.sort(() => Math.random() - 0.5).slice(0, 2 + Math.floor(Math.random() * 2));
+
+        for (const m of responders) {
+            showSpeechBubble(m.persona, m.name, "[" + m.persona + " está pensando...]");
+            highlightNameplate(m.persona);
+            await new Promise(r => setTimeout(r, 1000));
+
+            const entry = document.createElement("div");
+            entry.className = "output-entry";
+            entry.innerHTML = '<div class="output-speaker ' + m.side + '">' + m.icon + " " + m.name + " — " + m.persona + '</div><div class="output-text">[Simulación] ' + m.persona + ' responde a tu mensaje.</div>';
+            content.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+            clearNameplateHighlight();
+        }
+        hideSpeechBubble();
+        setActionLine("Escribe para seguir la conversación...");
+    }
 
     function selectProject(el) {
         document.querySelectorAll('.inv-item').forEach(i => i.classList.remove('selected'));
