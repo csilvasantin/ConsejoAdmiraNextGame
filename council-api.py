@@ -9,7 +9,7 @@ import asyncio
 from typing import Optional
 
 from dotenv import load_dotenv
-load_dotenv()  # Load .env file if present
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +41,7 @@ app.add_middleware(
 )
 
 # ── Shared Anthropic client ─────────────────────────────────
-client = anthropic.Anthropic()
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 # ── Agent registry ───────────────────────────────────────────
 AGENTS = {
@@ -136,7 +136,8 @@ async def council_ask(req: AskRequest):
     gen = req.generation if req.generation in AGENTS else "leyendas"
     group = AGENTS[gen]
 
-    # Run all agents in parallel using asyncio
+    # Run agents in batches to respect rate limits (5 req/min on free tier)
+    # Batch size of 4 with a pause between batches
     loop = asyncio.get_event_loop()
 
     async def run_agent(cls):
@@ -153,11 +154,19 @@ async def council_ask(req: AskRequest):
             content=content,
         )
 
-    # Run racional and creativo in parallel
-    racional_tasks = [run_agent(cls) for cls in group["racional"]]
-    creativo_tasks = [run_agent(cls) for cls in group["creativo"]]
+    all_agents = list(group["racional"]) + list(group["creativo"])
+    all_replies = []
+    BATCH_SIZE = 4
+    BATCH_DELAY = 65  # seconds between batches to respect 5 req/min
 
-    all_replies = await asyncio.gather(*racional_tasks, *creativo_tasks)
+    for i in range(0, len(all_agents), BATCH_SIZE):
+        batch = all_agents[i:i + BATCH_SIZE]
+        tasks = [run_agent(cls) for cls in batch]
+        batch_replies = await asyncio.gather(*tasks)
+        all_replies.extend(batch_replies)
+        # Wait between batches if there are more to process
+        if i + BATCH_SIZE < len(all_agents):
+            await asyncio.sleep(BATCH_DELAY)
 
     racional_replies = [r for r in all_replies if r.side == "racional"]
     creativo_replies = [r for r in all_replies if r.side == "creativo"]
