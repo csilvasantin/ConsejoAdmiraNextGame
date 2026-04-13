@@ -1833,6 +1833,11 @@
                         context: conversationHistory.slice(-6),
                     }),
                 });
+                if (res.status === 402) {
+                    console.error("Council API: budget exceeded");
+                    setActionLine("💰 Presupuesto agotado — contacta con el administrador para añadir crédito");
+                    return null;
+                }
                 if (res.status === 403) {
                     console.error("Council API: invalid token");
                     setActionLine("🔒 Error de autenticación con la API");

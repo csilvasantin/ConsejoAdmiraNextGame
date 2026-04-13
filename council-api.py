@@ -7,14 +7,22 @@ Seguridad:
   - CORS restringido a orígenes autorizados
   - Rate limiting por IP (máx peticiones por ventana de tiempo)
   - Cloudflare Tunnel para HTTPS sin abrir puertos
+  - Presupuesto máximo de €20 con alertas por Telegram y email
 """
 
 import sys
 import os
+import json
 import asyncio
 import time
+import smtplib
+import threading
 from typing import Optional
 from collections import defaultdict
+from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
@@ -38,6 +46,11 @@ from admiranext.agents.creativo.coetaneos import (
 
 import anthropic
 
+try:
+    import requests as http_requests
+except ImportError:
+    http_requests = None
+
 # ── Config ──────────────────────────────────────────────────
 COUNCIL_API_TOKEN = os.environ.get("COUNCIL_API_TOKEN", "")
 ALLOWED_ORIGINS = [
@@ -51,8 +64,211 @@ ALLOWED_ORIGINS = [
 RATE_LIMIT_MAX = 10       # max requests
 RATE_LIMIT_WINDOW = 300   # per 5 minutes
 
+# ── Budget config ────────────────────────────────────────────
+# Claude Sonnet 4 pricing (USD per token)
+PRICE_INPUT_PER_TOKEN = 3.0 / 1_000_000    # $3 per 1M input tokens
+PRICE_OUTPUT_PER_TOKEN = 15.0 / 1_000_000  # $15 per 1M output tokens
+USD_TO_EUR = 0.92  # Conservative conversion rate
+
+BUDGET_LIMIT_EUR = 20.0        # Hard cap in euros
+BUDGET_WARN_PCT = 0.80         # Alert at 80% = €16
+BUDGET_CRITICAL_PCT = 0.95     # Critical alert at 95% = €19
+
+# Alert config
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8753533419:AAHrZSbJhYZu4EZjCw7HSFuv4p-vactPTvc")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "8663681")
+ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "csilvasantin@gmail.com")
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+
+# Budget tracking file
+BUDGET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "budget.json")
+
+# ── Budget tracker ───────────────────────────────────────────
+_budget_lock = threading.Lock()
+_alert_sent = {"warn": False, "critical": False, "blocked": False}
+
+
+def _load_budget() -> dict:
+    """Load budget tracking data from disk."""
+    if Path(BUDGET_FILE).exists():
+        try:
+            with open(BUDGET_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {
+        "total_input_tokens": 0,
+        "total_output_tokens": 0,
+        "total_cost_usd": 0.0,
+        "total_cost_eur": 0.0,
+        "total_requests": 0,
+        "history": [],
+        "alerts_sent": [],
+        "created": datetime.now().isoformat(),
+        "last_updated": datetime.now().isoformat(),
+    }
+
+
+def _save_budget(data: dict):
+    """Save budget tracking data to disk."""
+    data["last_updated"] = datetime.now().isoformat()
+    with open(BUDGET_FILE, "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def track_usage(input_tokens: int, output_tokens: int, agent_name: str):
+    """Track API token usage and check budget limits."""
+    with _budget_lock:
+        budget = _load_budget()
+
+        cost_usd = (input_tokens * PRICE_INPUT_PER_TOKEN) + (output_tokens * PRICE_OUTPUT_PER_TOKEN)
+        cost_eur = cost_usd * USD_TO_EUR
+
+        budget["total_input_tokens"] += input_tokens
+        budget["total_output_tokens"] += output_tokens
+        budget["total_cost_usd"] += cost_usd
+        budget["total_cost_eur"] += cost_eur
+        budget["total_requests"] += 1
+
+        # Keep last 100 entries in history
+        budget["history"].append({
+            "timestamp": datetime.now().isoformat(),
+            "agent": agent_name,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": round(cost_usd, 6),
+            "cost_eur": round(cost_eur, 6),
+        })
+        if len(budget["history"]) > 100:
+            budget["history"] = budget["history"][-100:]
+
+        _save_budget(budget)
+
+        # Check thresholds and send alerts
+        total_eur = budget["total_cost_eur"]
+        _check_alerts(total_eur, budget)
+
+
+def _check_alerts(total_eur: float, budget: dict):
+    """Check budget thresholds and fire alerts."""
+    pct = total_eur / BUDGET_LIMIT_EUR
+
+    if pct >= BUDGET_CRITICAL_PCT and not _alert_sent["critical"]:
+        _alert_sent["critical"] = True
+        msg = (
+            f"🚨 CRÍTICO — Presupuesto Consejo AdmiraNext al {pct*100:.1f}%\n"
+            f"Gastado: €{total_eur:.2f} / €{BUDGET_LIMIT_EUR:.2f}\n"
+            f"Tokens: {budget['total_input_tokens']:,} in + {budget['total_output_tokens']:,} out\n"
+            f"Peticiones: {budget['total_requests']}\n\n"
+            f"⚠️ El servicio se bloqueará al llegar a €{BUDGET_LIMIT_EUR:.0f}.\n"
+            f"Añade más crédito para continuar."
+        )
+        _fire_alerts(msg, "critical", budget)
+
+    elif pct >= BUDGET_WARN_PCT and not _alert_sent["warn"]:
+        _alert_sent["warn"] = True
+        msg = (
+            f"⚠️ AVISO — Presupuesto Consejo AdmiraNext al {pct*100:.1f}%\n"
+            f"Gastado: €{total_eur:.2f} / €{BUDGET_LIMIT_EUR:.2f}\n"
+            f"Tokens: {budget['total_input_tokens']:,} in + {budget['total_output_tokens']:,} out\n"
+            f"Peticiones: {budget['total_requests']}\n\n"
+            f"Considera añadir más crédito pronto."
+        )
+        _fire_alerts(msg, "warn", budget)
+
+
+def _fire_alerts(message: str, level: str, budget: dict):
+    """Send alerts via Telegram and email (non-blocking)."""
+    budget["alerts_sent"].append({
+        "timestamp": datetime.now().isoformat(),
+        "level": level,
+        "cost_eur": round(budget["total_cost_eur"], 4),
+    })
+    _save_budget(budget)
+
+    # Send in background threads to not block the API
+    threading.Thread(target=_send_telegram, args=(message,), daemon=True).start()
+    threading.Thread(target=_send_email, args=(message, level), daemon=True).start()
+    print(f"🚨 Budget alert ({level}): €{budget['total_cost_eur']:.2f} / €{BUDGET_LIMIT_EUR:.2f}")
+
+
+def _send_telegram(message: str):
+    """Send alert to Telegram Bot Memorizer."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ Telegram not configured, skipping alert")
+        return
+    try:
+        if http_requests:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            http_requests.post(url, json={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": message,
+                "parse_mode": "Markdown",
+            }, timeout=10)
+            print("✅ Telegram alert sent")
+        else:
+            # Fallback: use urllib if requests not installed
+            import urllib.request
+            import urllib.parse
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            data = json.dumps({
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": message,
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=10)
+            print("✅ Telegram alert sent (urllib)")
+    except Exception as e:
+        print(f"❌ Telegram alert failed: {e}")
+
+
+def _send_email(message: str, level: str):
+    """Send alert email to csilvasantin@gmail.com."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("⚠️ SMTP not configured, skipping email alert")
+        return
+    try:
+        subject = f"{'🚨 CRÍTICO' if level == 'critical' else '⚠️ AVISO'} — Presupuesto Consejo AdmiraNext"
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_USER
+        msg["To"] = ALERT_EMAIL
+        msg["Subject"] = subject
+        msg.attach(MIMEText(message, "plain", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, ALERT_EMAIL, msg.as_string())
+        print("✅ Email alert sent")
+    except Exception as e:
+        print(f"❌ Email alert failed: {e}")
+
+
+def check_budget():
+    """Check if budget is exceeded. Raises 402 if so."""
+    budget = _load_budget()
+    if budget["total_cost_eur"] >= BUDGET_LIMIT_EUR:
+        if not _alert_sent["blocked"]:
+            _alert_sent["blocked"] = True
+            msg = (
+                f"🛑 BLOQUEADO — Presupuesto Consejo AdmiraNext AGOTADO\n"
+                f"Gastado: €{budget['total_cost_eur']:.2f} / €{BUDGET_LIMIT_EUR:.2f}\n"
+                f"El servicio ha sido desactivado automáticamente.\n\n"
+                f"Para reactivar, añade crédito y aumenta BUDGET_LIMIT_EUR en .env"
+            )
+            threading.Thread(target=_send_telegram, args=(msg,), daemon=True).start()
+            threading.Thread(target=_send_email, args=(msg, "blocked"), daemon=True).start()
+        raise HTTPException(
+            status_code=402,
+            detail=f"Budget exceeded: €{budget['total_cost_eur']:.2f} / €{BUDGET_LIMIT_EUR:.2f}. Service paused.",
+        )
+
+
 # ── App ──────────────────────────────────────────────────────
-app = FastAPI(title="AdmiraNext Council API", version="2.0.0")
+app = FastAPI(title="AdmiraNext Council API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,12 +283,10 @@ _rate_store: dict = defaultdict(list)
 
 def check_rate_limit(request: Request):
     """Simple in-memory rate limiter by IP."""
-    # Cloudflare sends real IP in CF-Connecting-IP header
     ip = request.headers.get("cf-connecting-ip",
          request.headers.get("x-forwarded-for",
          request.client.host if request.client else "unknown"))
     now = time.time()
-    # Clean old entries
     _rate_store[ip] = [t for t in _rate_store[ip] if now - t < RATE_LIMIT_WINDOW]
     if len(_rate_store[ip]) >= RATE_LIMIT_MAX:
         raise HTTPException(
@@ -85,7 +299,7 @@ def check_rate_limit(request: Request):
 def verify_token(request: Request):
     """Verify the API token from the X-Council-Token header."""
     if not COUNCIL_API_TOKEN:
-        return  # No token configured = open access (local dev)
+        return
     token = request.headers.get("x-council-token", "")
     if token != COUNCIL_API_TOKEN:
         raise HTTPException(status_code=403, detail="Invalid or missing API token")
@@ -106,7 +320,6 @@ AGENTS = {
     },
 }
 
-# Cache instantiated agents
 _agent_cache: dict = {}
 
 
@@ -138,18 +351,16 @@ class AskResponse(BaseModel):
     creativo: list
 
 
-# Icon map matching the SCUMM frontend
 ICONS = {
     "CEO": "🏛️", "CTO": "⚙️", "COO": "📋", "CFO": "💰",
     "CCO": "💡", "CDO": "🎨", "CXO": "🌐", "CSO": "📖",
 }
 
-# ── Max message length ───────────────────────────────────────
 MAX_MESSAGE_LENGTH = 1000
 
 
-def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> str:
-    """Call Claude with the agent's persona for a conversational response."""
+def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> tuple:
+    """Call Claude with the agent's persona. Returns (text, input_tokens, output_tokens)."""
     messages = []
 
     if context:
@@ -177,7 +388,12 @@ def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> str
         system=conv_system,
         messages=messages,
     )
-    return response.content[0].text
+
+    # Extract token usage from response
+    input_tokens = response.usage.input_tokens
+    output_tokens = response.usage.output_tokens
+
+    return response.content[0].text, input_tokens, output_tokens
 
 
 # ── Endpoints ────────────────────────────────────────────────
@@ -188,16 +404,20 @@ async def council_ask(
     _auth=Depends(verify_token),
 ):
     """Send a message to the council. All 8 agents respond in batches."""
+    # Check budget BEFORE making any API calls
+    check_budget()
+
     gen = req.generation if req.generation in AGENTS else "leyendas"
     group = AGENTS[gen]
-
     loop = asyncio.get_event_loop()
 
     async def run_agent(cls):
         agent = get_agent(cls)
-        content = await loop.run_in_executor(
+        content, inp_tok, out_tok = await loop.run_in_executor(
             None, agent_ask, agent, req.message, req.context
         )
+        # Track usage per agent call
+        track_usage(inp_tok, out_tok, agent.name)
         return AgentReply(
             name=agent.name,
             role=agent.role,
@@ -210,9 +430,11 @@ async def council_ask(
     all_agents = list(group["racional"]) + list(group["creativo"])
     all_replies = []
     BATCH_SIZE = 4
-    BATCH_DELAY = 65  # seconds between batches (5 req/min limit)
+    BATCH_DELAY = 65
 
     for i in range(0, len(all_agents), BATCH_SIZE):
+        # Re-check budget between batches
+        check_budget()
         batch = all_agents[i:i + BATCH_SIZE]
         tasks = [run_agent(cls) for cls in batch]
         batch_replies = await asyncio.gather(*tasks)
@@ -228,6 +450,7 @@ async def council_ask(
 
 @app.get("/api/council/health")
 async def health():
+    budget = _load_budget()
     return {
         "status": "ok",
         "agents": 16,
@@ -236,14 +459,47 @@ async def health():
             "cors_origins": ALLOWED_ORIGINS,
             "rate_limit": f"{RATE_LIMIT_MAX} req / {RATE_LIMIT_WINDOW}s",
         },
+        "budget": {
+            "spent_eur": round(budget["total_cost_eur"], 4),
+            "limit_eur": BUDGET_LIMIT_EUR,
+            "remaining_eur": round(BUDGET_LIMIT_EUR - budget["total_cost_eur"], 4),
+            "pct_used": round(budget["total_cost_eur"] / BUDGET_LIMIT_EUR * 100, 1),
+            "total_requests": budget["total_requests"],
+            "total_tokens": budget["total_input_tokens"] + budget["total_output_tokens"],
+        },
+    }
+
+
+@app.get("/api/council/budget")
+async def budget_status(request: Request, _auth=Depends(verify_token)):
+    """Detailed budget status."""
+    budget = _load_budget()
+    return {
+        "total_cost_eur": round(budget["total_cost_eur"], 4),
+        "total_cost_usd": round(budget["total_cost_usd"], 4),
+        "limit_eur": BUDGET_LIMIT_EUR,
+        "remaining_eur": round(BUDGET_LIMIT_EUR - budget["total_cost_eur"], 4),
+        "pct_used": round(budget["total_cost_eur"] / BUDGET_LIMIT_EUR * 100, 1),
+        "total_input_tokens": budget["total_input_tokens"],
+        "total_output_tokens": budget["total_output_tokens"],
+        "total_requests": budget["total_requests"],
+        "alerts_sent": budget.get("alerts_sent", []),
+        "last_updated": budget.get("last_updated", ""),
+        "warn_at_eur": round(BUDGET_LIMIT_EUR * BUDGET_WARN_PCT, 2),
+        "critical_at_eur": round(BUDGET_LIMIT_EUR * BUDGET_CRITICAL_PCT, 2),
     }
 
 
 # ── Run ──────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    print("🏛️  AdmiraNext Council API v2.0 — http://localhost:8420")
+    budget = _load_budget()
+    print("🏛️  AdmiraNext Council API v3.0 — http://localhost:8420")
     print(f"🔐 Token required: {bool(COUNCIL_API_TOKEN)}")
     print(f"🌐 Allowed origins: {ALLOWED_ORIGINS}")
     print(f"⏱️  Rate limit: {RATE_LIMIT_MAX} req / {RATE_LIMIT_WINDOW}s")
+    print(f"💰 Budget: €{budget['total_cost_eur']:.4f} / €{BUDGET_LIMIT_EUR:.2f} "
+          f"({budget['total_cost_eur']/BUDGET_LIMIT_EUR*100:.1f}% used)")
+    print(f"📱 Telegram alerts: {'✅' if TELEGRAM_BOT_TOKEN else '❌'}")
+    print(f"📧 Email alerts: {'✅' if SMTP_USER else '⚠️ Set SMTP_USER/SMTP_PASS in .env'}")
     uvicorn.run(app, host="0.0.0.0", port=8420)
