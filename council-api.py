@@ -16,6 +16,7 @@ import json
 import asyncio
 import time
 import smtplib
+import random
 import threading
 from typing import Optional
 from collections import defaultdict
@@ -396,6 +397,24 @@ def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> tup
     return response.content[0].text, input_tokens, output_tokens
 
 
+def _send_query_report(question: str, replies: list, cost_eur: float, gen: str):
+    """Send a usage report to Telegram after each query."""
+    agents_txt = "\n".join(
+        f"  • {r.icon} {r.name} ({r.persona})"
+        for r in replies
+    )
+    budget = _load_budget()
+    msg = (
+        f"📋 *Consejo AdmiraNext — Consulta*\n\n"
+        f"❓ _{question[:200]}_\n\n"
+        f"👥 Consejeros ({gen}):\n{agents_txt}\n\n"
+        f"💰 Coste: €{cost_eur:.4f}\n"
+        f"📊 Acumulado: €{budget['total_cost_eur']:.4f} / €{BUDGET_LIMIT_EUR:.2f} "
+        f"({budget['total_cost_eur']/BUDGET_LIMIT_EUR*100:.1f}%)"
+    )
+    threading.Thread(target=_send_telegram, args=(msg,), daemon=True).start()
+
+
 # ── Endpoints ────────────────────────────────────────────────
 @app.post("/api/council/ask", response_model=AskResponse)
 async def council_ask(
@@ -403,20 +422,25 @@ async def council_ask(
     _rate=Depends(check_rate_limit),
     _auth=Depends(verify_token),
 ):
-    """Send a message to the council. All 8 agents respond in batches."""
-    # Check budget BEFORE making any API calls
+    """Send a message to the council. 1 racional + 1 creativo (random) by default."""
     check_budget()
 
     gen = req.generation if req.generation in AGENTS else "leyendas"
     group = AGENTS[gen]
     loop = asyncio.get_event_loop()
 
+    # Pick 1 random agent from each side
+    racional_cls = random.choice(group["racional"])
+    creativo_cls = random.choice(group["creativo"])
+    selected = [racional_cls, creativo_cls]
+
+    cost_before = _load_budget()["total_cost_eur"]
+
     async def run_agent(cls):
         agent = get_agent(cls)
         content, inp_tok, out_tok = await loop.run_in_executor(
             None, agent_ask, agent, req.message, req.context
         )
-        # Track usage per agent call
         track_usage(inp_tok, out_tok, agent.name)
         return AgentReply(
             name=agent.name,
@@ -427,23 +451,17 @@ async def council_ask(
             content=content,
         )
 
-    all_agents = list(group["racional"]) + list(group["creativo"])
-    all_replies = []
-    BATCH_SIZE = 4
-    BATCH_DELAY = 65
-
-    for i in range(0, len(all_agents), BATCH_SIZE):
-        # Re-check budget between batches
-        check_budget()
-        batch = all_agents[i:i + BATCH_SIZE]
-        tasks = [run_agent(cls) for cls in batch]
-        batch_replies = await asyncio.gather(*tasks)
-        all_replies.extend(batch_replies)
-        if i + BATCH_SIZE < len(all_agents):
-            await asyncio.sleep(BATCH_DELAY)
+    # Run both agents in parallel (only 2 calls — no batching needed)
+    tasks = [run_agent(cls) for cls in selected]
+    all_replies = await asyncio.gather(*tasks)
 
     racional_replies = [r for r in all_replies if r.side == "racional"]
     creativo_replies = [r for r in all_replies if r.side == "creativo"]
+
+    # Calculate cost of this query and send report to Telegram
+    cost_after = _load_budget()["total_cost_eur"]
+    query_cost = cost_after - cost_before
+    _send_query_report(req.message, list(all_replies), query_cost, gen)
 
     return AskResponse(racional=racional_replies, creativo=creativo_replies)
 
