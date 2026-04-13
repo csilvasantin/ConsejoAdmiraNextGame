@@ -283,7 +283,18 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
         }
+        .side-title:hover { opacity: 0.8; }
+        .side-title .collapse-arrow {
+            margin-left: 0.3rem;
+            font-size: 0.7rem;
+            transition: transform 0.3s;
+            color: #666;
+        }
+        .side-panel.collapsed .collapse-arrow { transform: rotate(-90deg); }
+        .side-panel.collapsed .panel-body { display: none; }
         .side-machines {
             font-size: 0.7rem;
             color: #666;
@@ -955,15 +966,19 @@
         </div>
 
         <div class="status-grid" id="status-grid">
-            <div class="side-panel racional">
-                <div class="side-title">🧠 Racional <span class="side-machines">🔴 Sillas rojas</span></div>
-                <div id="racional-members"></div>
-                <div class="board-content" id="board-racional"></div>
+            <div class="side-panel racional" id="panel-racional">
+                <div class="side-title" onclick="togglePanel('panel-racional')">🧠 Racional <span class="collapse-arrow">▼</span> <span class="side-machines">🔴 Sillas rojas</span></div>
+                <div class="panel-body">
+                    <div id="racional-members"></div>
+                    <div class="board-content" id="board-racional"></div>
+                </div>
             </div>
-            <div class="side-panel creativo">
-                <div class="side-title">🎨 Creativo <span class="side-machines">🔵 Sillas azules</span></div>
-                <div id="creativo-members"></div>
-                <div class="board-content" id="board-creativo"></div>
+            <div class="side-panel creativo" id="panel-creativo">
+                <div class="side-title" onclick="togglePanel('panel-creativo')">🎨 Creativo <span class="collapse-arrow">▼</span> <span class="side-machines">🔵 Sillas azules</span></div>
+                <div class="panel-body">
+                    <div id="creativo-members"></div>
+                    <div class="board-content" id="board-creativo"></div>
+                </div>
             </div>
             <div class="side-panel sintesis">
                 <div class="side-title">⚡ Síntesis <span class="side-machines">🟡 Consenso</span></div>
@@ -1650,6 +1665,11 @@
     }
 
     function setActionLine(text) { document.getElementById("action-input").placeholder = text; }
+
+    // Toggle collapsible panels
+    function togglePanel(panelId) {
+        document.getElementById(panelId).classList.toggle("collapsed");
+    }
 
     // Toggle nameplates visibility
     let nameplatesVisible = true;
