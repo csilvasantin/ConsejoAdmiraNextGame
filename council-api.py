@@ -8,6 +8,9 @@ import os
 import asyncio
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file if present
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -91,7 +94,7 @@ ICONS = {
 }
 
 
-def agent_ask(agent: CouncilAgent, message: str, context: list[dict] | None) -> str:
+def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> str:
     """Call Claude with the agent's persona for a conversational response."""
     messages = []
 

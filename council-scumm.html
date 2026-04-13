@@ -958,7 +958,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>AdmiraNext Consejo <span style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;">v26.11.04.2</span></h1>
+        <h1>AdmiraNext Consejo <span style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;">v26.13.04.1</span></h1>
 
         <div class="top-bar">
             <div class="gen-toggle">
@@ -1763,6 +1763,7 @@
         document.getElementById("conv-area").classList.remove("active");
         document.getElementById("conv-racional").innerHTML = "";
         document.getElementById("conv-creativo").innerHTML = "";
+        conversationHistory = [];
         if (!nameplatesVisible) toggleNameplates();
         setActionLine("Escribe aquí para hablar con el consejo...");
     }
@@ -1800,31 +1801,96 @@
         simulateCouncilResponse(text);
     }
 
+    // ── Council API config ──
+    const COUNCIL_API = "http://localhost:8420";
+    let conversationHistory = [];
+
+    async function askCouncilAPI(message) {
+        /**
+         * Calls the real council API backed by Claude.
+         * Falls back to simulation if the API is unreachable.
+         */
+        try {
+            const res = await fetch(COUNCIL_API + "/api/council/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: message,
+                    generation: currentGen,
+                    context: conversationHistory.slice(-6),
+                }),
+            });
+            if (!res.ok) throw new Error("API " + res.status);
+            return await res.json();
+        } catch (err) {
+            console.warn("Council API not available:", err.message);
+            return null; // triggers fallback
+        }
+    }
+
     async function simulateCouncilResponse(question) {
+        // Show thinking state for all members
         const members = COUNCIL.filter(m => m.gen === currentGen);
-        const racionales = members.filter(m => m.side === "racional").sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 2));
-        const creativos = members.filter(m => m.side === "creativo").sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 2));
+        const racionales = members.filter(m => m.side === "racional");
+        const creativos = members.filter(m => m.side === "creativo");
 
-        // Racional side responds
-        for (const m of racionales) {
-            showSpeechBubble(m.persona, m.name, "[" + m.persona + " está pensando...]");
+        // Show "thinking" animation
+        setActionLine("🧠 Los consejeros están deliberando con Claude...");
+        for (const m of [...racionales, ...creativos]) {
             highlightNameplate(m.persona);
-            await new Promise(r => setTimeout(r, 1000));
-            addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional", "[Simulación] " + m.persona + " analiza desde el lado operativo.");
-            clearNameplateHighlight();
         }
+        showSpeechBubble(racionales[0].persona, "Consejo", "Los 8 consejeros están pensando...");
 
-        // Creativo side responds
-        for (const m of creativos) {
-            showSpeechBubble(m.persona, m.name, "[" + m.persona + " está pensando...]");
-            highlightNameplate(m.persona);
-            await new Promise(r => setTimeout(r, 1000));
-            addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo", "[Simulación] " + m.persona + " responde desde el lado creativo.");
-            clearNameplateHighlight();
-        }
+        // Add to conversation history
+        conversationHistory.push({ role: "user", content: question });
+
+        // Call real API
+        const apiResponse = await askCouncilAPI(question);
 
         hideSpeechBubble();
-        setActionLine("Escribe para seguir la conversación...");
+        clearNameplateHighlight();
+
+        if (apiResponse) {
+            // Real Claude responses — show them one by one with animation
+            for (const reply of apiResponse.racional) {
+                const member = members.find(m => m.name === reply.name);
+                if (member) {
+                    showSpeechBubble(member.persona, reply.name, reply.content.substring(0, 60) + "...");
+                    highlightNameplate(member.persona);
+                }
+                addConvEntry("conv-racional", reply.icon, reply.name, reply.persona, "racional", reply.content);
+                conversationHistory.push({ role: "assistant", content: reply.name + ": " + reply.content });
+                await new Promise(r => setTimeout(r, 400));
+                clearNameplateHighlight();
+            }
+            for (const reply of apiResponse.creativo) {
+                const member = members.find(m => m.name === reply.name);
+                if (member) {
+                    showSpeechBubble(member.persona, reply.name, reply.content.substring(0, 60) + "...");
+                    highlightNameplate(member.persona);
+                }
+                addConvEntry("conv-creativo", reply.icon, reply.name, reply.persona, "creativo", reply.content);
+                conversationHistory.push({ role: "assistant", content: reply.name + ": " + reply.content });
+                await new Promise(r => setTimeout(r, 400));
+                clearNameplateHighlight();
+            }
+            hideSpeechBubble();
+            setActionLine("✅ " + (apiResponse.racional.length + apiResponse.creativo.length) + " consejeros han respondido — escribe para continuar");
+        } else {
+            // Fallback: offline simulation
+            setActionLine("⚠️ API no disponible — modo simulación");
+            const simRac = racionales.sort(() => Math.random() - 0.5).slice(0, 2);
+            const simCre = creativos.sort(() => Math.random() - 0.5).slice(0, 2);
+            for (const m of simRac) {
+                addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional", "[Offline] " + m.persona + " analiza desde el lado racional.");
+                await new Promise(r => setTimeout(r, 300));
+            }
+            for (const m of simCre) {
+                addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo", "[Offline] " + m.persona + " responde desde el lado creativo.");
+                await new Promise(r => setTimeout(r, 300));
+            }
+            setActionLine("Modo offline — arranca council-api.py para conectar con Claude");
+        }
     }
 
     function selectProject(el) {
@@ -1846,33 +1912,71 @@
         const racionales = members.filter(m => m.side === "racional");
         const creativos = members.filter(m => m.side === "creativo");
         const roundName = { presentar:"Propuestas", debatir:"Debate", sintetizar:"Síntesis" }[verb];
-        const verbAction = { presentar:"presenta su visión", debatir:"debate los puntos", sintetizar:"ofrece su síntesis" }[verb];
         const verbGerund = { presentar:"presentando", debatir:"debatiendo", sintetizar:"sintetizando" }[verb];
         document.getElementById("round-indicator").textContent = "Ronda: " + roundName;
-        setActionLine(roundName + " en curso...");
+        setActionLine("🧠 " + roundName + " en curso — los consejeros deliberan con Claude...");
 
-        // Racional side
-        for (const m of racionales) {
-            showSpeechBubble(m.persona, m.name, "[" + m.persona + " está " + verbGerund + "...]");
-            highlightNameplate(m.persona);
-            await new Promise(r => setTimeout(r, 800));
-            addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional", "[Simulación] " + m.persona + " " + verbAction + ".");
-            clearNameplateHighlight();
-        }
+        // Build the prompt based on the verb + project
+        const verbPrompts = {
+            presentar: "Como miembro del Consejo de Dirección de AdmiraNext, presenta tu propuesta inicial para el proyecto '" + (currentProject || "nuevo proyecto") + "'. Da tu perspectiva profesional desde tu rol. Sé concreto y propositivo.",
+            debatir: "Estamos en fase de debate sobre el proyecto '" + (currentProject || "nuevo proyecto") + "'. Analiza las propuestas anteriores del consejo, valida lo fuerte, cuestiona lo débil, y propón mejoras.",
+            sintetizar: "Genera tu síntesis final sobre el proyecto '" + (currentProject || "nuevo proyecto") + "'. Integra las mejores ideas del debate y da tu conclusión ejecutiva.",
+        };
+        const prompt = verbPrompts[verb] || verbPrompts.presentar;
 
-        // Creativo side
-        for (const m of creativos) {
-            showSpeechBubble(m.persona, m.name, "[" + m.persona + " está " + verbGerund + "...]");
-            highlightNameplate(m.persona);
-            await new Promise(r => setTimeout(r, 800));
-            addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo", "[Simulación] " + m.persona + " " + verbAction + ".");
-            clearNameplateHighlight();
-        }
+        // Show thinking animation
+        for (const m of [...racionales, ...creativos]) highlightNameplate(m.persona);
+        showSpeechBubble(racionales[0].persona, "Consejo", "Los consejeros están " + verbGerund + "...");
+
+        conversationHistory.push({ role: "user", content: prompt });
+        const apiResponse = await askCouncilAPI(prompt);
 
         hideSpeechBubble();
+        clearNameplateHighlight();
+
+        if (apiResponse) {
+            // Show real Claude responses with animation
+            for (const reply of apiResponse.racional) {
+                const member = members.find(m => m.name === reply.name);
+                if (member) {
+                    showSpeechBubble(member.persona, reply.name, reply.content.substring(0, 60) + "...");
+                    highlightNameplate(member.persona);
+                }
+                addConvEntry("conv-racional", reply.icon, reply.name, reply.persona, "racional", reply.content);
+                conversationHistory.push({ role: "assistant", content: reply.name + ": " + reply.content });
+                await new Promise(r => setTimeout(r, 500));
+                clearNameplateHighlight();
+            }
+            for (const reply of apiResponse.creativo) {
+                const member = members.find(m => m.name === reply.name);
+                if (member) {
+                    showSpeechBubble(member.persona, reply.name, reply.content.substring(0, 60) + "...");
+                    highlightNameplate(member.persona);
+                }
+                addConvEntry("conv-creativo", reply.icon, reply.name, reply.persona, "creativo", reply.content);
+                conversationHistory.push({ role: "assistant", content: reply.name + ": " + reply.content });
+                await new Promise(r => setTimeout(r, 500));
+                clearNameplateHighlight();
+            }
+            hideSpeechBubble();
+            const total = apiResponse.racional.length + apiResponse.creativo.length;
+            setActionLine("✅ " + roundName + " completada — " + total + " consejeros han respondido");
+        } else {
+            // Fallback offline
+            setActionLine("⚠️ API no disponible — modo offline");
+            const verbAction = { presentar:"presenta su visión", debatir:"debate los puntos", sintetizar:"ofrece su síntesis" }[verb];
+            for (const m of racionales) {
+                addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional", "[Offline] " + m.persona + " " + verbAction + ".");
+                await new Promise(r => setTimeout(r, 200));
+            }
+            for (const m of creativos) {
+                addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo", "[Offline] " + m.persona + " " + verbAction + ".");
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+
         debateRunning = false;
         document.getElementById("round-indicator").textContent = "Ronda: " + roundName + " ✓";
-        setActionLine(roundName + " completada — " + members.length + " consejeros");
     }
 
     function showSpeechBubble(persona, role, text) {
