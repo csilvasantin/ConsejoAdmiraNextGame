@@ -932,6 +932,7 @@
         .inv-item.selected { background: rgba(52,152,219,0.15); color: #fff; }
         .inv-item.llm-option.selected { background: rgba(52,152,219,0.25); color: #fff; border-left: 2px solid #3498db; padding-left: 4px; }
         .llm-free { font-size: 5px; background: #27ae60; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; letter-spacing: 0.5px; }
+        .llm-paid { font-size: 5px; background: #e67e22; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; }
 
         /* Speech bubble */
         .speech-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10; }
@@ -994,7 +995,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>AdmiraNext Consejo <span style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;">v26.13.04.5</span></h1>
+        <h1>AdmiraNext Consejo <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;text-decoration:none;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.webkitTextFillColor='#daa520'" onmouseout="this.style.webkitTextFillColor='#555'">v26.13.04.6</a></h1>
 
         <div class="top-bar">
             <div class="gen-toggle">
@@ -1061,8 +1062,8 @@
                 <div class="inventory">
                     <div class="inventory-title">Motor LLM</div>
                     <div class="inventory-list" id="llm-list">
-                        <div class="inv-item llm-option selected" data-llm="claude-sonnet" onclick="selectLLM(this)">💎 Claude Sonnet 4</div>
-                        <div class="inv-item llm-option" data-llm="llama-70b" onclick="selectLLM(this)">🦙 Llama 3.3 70B <span class="llm-free">FREE</span></div>
+                        <div class="inv-item llm-option" data-llm="claude-sonnet" data-paid="true" onclick="selectLLM(this)">💎 Claude Sonnet 4 <span class="llm-paid">€</span></div>
+                        <div class="inv-item llm-option selected" data-llm="llama-70b" onclick="selectLLM(this)">🦙 Llama 3.3 70B <span class="llm-free">FREE</span></div>
                         <div class="inv-item llm-option" data-llm="deepseek-r1" onclick="selectLLM(this)">🔮 DeepSeek R1 <span class="llm-free">FREE</span></div>
                         <div class="inv-item llm-option" data-llm="gemma-9b" onclick="selectLLM(this)">🌀 Gemma 2 9B <span class="llm-free">FREE</span></div>
                     </div>
@@ -1749,15 +1750,22 @@
     let debateRunning = false;
     let selectedAgent = null; // { name, persona, side, icon } of selected agent for "Preguntar"
     let preguntarMode = false;
-    let selectedLLM = "claude-sonnet"; // Active LLM model key
+    let selectedLLM = "llama-70b"; // Active LLM model key (default: free model)
 
     function selectLLM(el) {
+        const isPaid = el.dataset.paid === "true";
+        const name = el.textContent.trim().replace('FREE', '').replace('€', '').trim();
+
+        // Ask confirmation for paid models
+        if (isPaid) {
+            const ok = confirm("⚠️ " + name + " es un modelo DE PAGO.\n\nCada consulta tiene un coste (~€0.003).\n\n¿Quieres activarlo?");
+            if (!ok) return;
+        }
+
         document.querySelectorAll('.llm-option').forEach(i => i.classList.remove('selected'));
         el.classList.add('selected');
         selectedLLM = el.dataset.llm;
-        const name = el.textContent.trim().replace('FREE', '').trim();
-        const isFree = el.querySelector('.llm-free') !== null;
-        console.log("LLM selected:", selectedLLM, name, isFree ? "(FREE)" : "(PAID)");
+        console.log("LLM selected:", selectedLLM, name, isPaid ? "(PAID)" : "(FREE)");
     }
 
     function selectVerb(btn) {
