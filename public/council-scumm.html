@@ -173,7 +173,60 @@
         }
         .status-grid.conversation-mode .side-panel.sintesis { display: block; }
 
-        /* Board mode: panel as whiteboard */
+        /* Conversation overlays on illustration windows */
+        .window-overlay {
+            position: absolute;
+            background: rgba(10, 10, 30, 0.85);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            overflow-y: auto;
+            display: none;
+            padding: 6px 8px;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+        .window-overlay.active { display: block; }
+        .window-overlay-title {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 7px;
+            color: #daa520;
+            margin-bottom: 4px;
+            text-align: center;
+            opacity: 0.8;
+        }
+        /* Left window (Racional) — behind left group */
+        .window-overlay.racional {
+            left: 1%; top: 2%;
+            width: 28%; height: 38%;
+        }
+        /* Right window (Creativo) — behind right group */
+        .window-overlay.creativo {
+            right: 1%; top: 2%;
+            width: 28%; height: 38%;
+        }
+        .window-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            animation: fadeIn 0.3s;
+        }
+        .window-entry:last-child { border-bottom: none; }
+        .window-speaker {
+            font-weight: 700;
+            font-size: 0.6rem;
+            margin-bottom: 1px;
+        }
+        .window-speaker.racional { color: #e74c3c; }
+        .window-speaker.creativo { color: #3498db; }
+        .window-speaker.user { color: #daa520; }
+        .window-text {
+            font-size: 0.6rem;
+            color: #ccc;
+            line-height: 1.4;
+        }
+
+        /* Board mode: panel as whiteboard (status grid panels) */
         .board-content {
             display: none;
             max-height: 300px;
@@ -857,6 +910,13 @@
 
         <div class="council-image">
             <img id="council-img" src="../assets/council-leyendas.jpg?v=5" alt="Consejo AdmiraNext">
+            <!-- Conversation overlays on background windows -->
+            <div class="window-overlay racional" id="win-racional">
+                <div class="window-overlay-title">🧠 Racional</div>
+            </div>
+            <div class="window-overlay creativo" id="win-creativo">
+                <div class="window-overlay-title">🎨 Creativo</div>
+            </div>
             <div class="nameplates" id="nameplates"></div>
             <div class="speech-overlay" id="speech-overlay">
                 <div class="speech-bubble" id="speech-bubble">
@@ -1602,46 +1662,47 @@
         btn.classList.toggle("off", !nameplatesVisible);
     }
 
-    // Enter conversation mode — panels become whiteboards
+    // Enter conversation mode — show overlays on illustration windows
     let conversationMode = false;
     function enterConversation() {
         if (conversationMode) return;
         conversationMode = true;
-        document.getElementById("status-grid").classList.add("conversation-mode");
+        document.getElementById("win-racional").classList.add("active");
+        document.getElementById("win-creativo").classList.add("active");
         document.getElementById("back-status").style.display = "inline-block";
         if (nameplatesVisible) toggleNameplates();
     }
 
     function exitConversation() {
         conversationMode = false;
-        document.getElementById("status-grid").classList.remove("conversation-mode");
+        document.getElementById("win-racional").classList.remove("active");
+        document.getElementById("win-creativo").classList.remove("active");
+        // Clear window overlay content (keep titles)
+        document.querySelectorAll(".window-entry").forEach(e => e.remove());
         document.getElementById("back-status").style.display = "none";
-        document.getElementById("board-racional").innerHTML = "";
-        document.getElementById("board-creativo").innerHTML = "";
-        document.getElementById("board-sintesis").innerHTML = "";
-        // Restore member rows visibility
-        document.querySelectorAll(".member-row").forEach(r => r.style.display = "");
         if (!nameplatesVisible) toggleNameplates();
         setActionLine("Escribe aquí para hablar con el consejo...");
     }
 
-    function addBoardEntry(boardId, icon, name, persona, side, text) {
-        const board = document.getElementById(boardId);
+    function addWindowEntry(winId, icon, name, persona, side, text) {
+        const win = document.getElementById(winId);
         const entry = document.createElement("div");
-        entry.className = "board-entry";
-        entry.innerHTML = '<div class="board-speaker ' + side + '">' + icon + ' ' + name + ' — ' + persona + '</div><div class="board-text">' + text + '</div>';
-        board.appendChild(entry);
-        board.scrollTop = board.scrollHeight;
+        entry.className = "window-entry";
+        entry.innerHTML = '<div class="window-speaker ' + side + '">' + icon + ' ' + name + '</div><div class="window-text">' + text + '</div>';
+        win.appendChild(entry);
+        win.scrollTop = win.scrollHeight;
     }
 
     function addUserEntry(text) {
-        // Show user message in the synthesis panel
-        const board = document.getElementById("board-sintesis");
-        const entry = document.createElement("div");
-        entry.className = "board-entry";
-        entry.innerHTML = '<div class="board-user">👤 Tú</div><div class="board-text">' + text.replace(/</g,'&lt;') + '</div>';
-        board.appendChild(entry);
-        board.scrollTop = board.scrollHeight;
+        // Show user message in both windows
+        ["win-racional", "win-creativo"].forEach(winId => {
+            const win = document.getElementById(winId);
+            const entry = document.createElement("div");
+            entry.className = "window-entry";
+            entry.innerHTML = '<div class="window-speaker user">👤 Tú</div><div class="window-text">' + text.replace(/</g,'&lt;') + '</div>';
+            win.appendChild(entry);
+            win.scrollTop = win.scrollHeight;
+        });
     }
 
     // Send message to council
@@ -1661,27 +1722,23 @@
         const racionales = members.filter(m => m.side === "racional").sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 2));
         const creativos = members.filter(m => m.side === "creativo").sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 2));
 
-        // Racional side responds
+        // Racional side responds — left window
         for (const m of racionales) {
             showSpeechBubble(m.persona, m.name, "[" + m.persona + " está pensando...]");
             highlightNameplate(m.persona);
             await new Promise(r => setTimeout(r, 1000));
-            addBoardEntry("board-racional", m.icon, m.name, m.persona, "racional", "[Simulación] " + m.persona + " analiza desde el lado operativo.");
+            addWindowEntry("win-racional", m.icon, m.name, m.persona, "racional", "[Simulación] " + m.persona + " analiza desde el lado operativo.");
             clearNameplateHighlight();
         }
 
-        // Creativo side responds
+        // Creativo side responds — right window
         for (const m of creativos) {
             showSpeechBubble(m.persona, m.name, "[" + m.persona + " está pensando...]");
             highlightNameplate(m.persona);
             await new Promise(r => setTimeout(r, 1000));
-            addBoardEntry("board-creativo", m.icon, m.name, m.persona, "creativo", "[Simulación] " + m.persona + " responde desde el lado creativo.");
+            addWindowEntry("win-creativo", m.icon, m.name, m.persona, "creativo", "[Simulación] " + m.persona + " responde desde el lado creativo.");
             clearNameplateHighlight();
         }
-
-        // Synthesis
-        await new Promise(r => setTimeout(r, 500));
-        addBoardEntry("board-sintesis", "⚡", "Consejo", "Síntesis", "sintesis", "[Simulación] El consejo sintetiza las perspectivas racional y creativa.");
 
         hideSpeechBubble();
         setActionLine("Escribe para seguir la conversación...");
@@ -1711,27 +1768,23 @@
         document.getElementById("round-indicator").textContent = "Ronda: " + roundName;
         setActionLine(roundName + " en curso...");
 
-        // Racional side
+        // Racional side — left window
         for (const m of racionales) {
             showSpeechBubble(m.persona, m.name, "[" + m.persona + " está " + verbGerund + "...]");
             highlightNameplate(m.persona);
             await new Promise(r => setTimeout(r, 800));
-            addBoardEntry("board-racional", m.icon, m.name, m.persona, "racional", "[Simulación] " + m.persona + " " + verbAction + ".");
+            addWindowEntry("win-racional", m.icon, m.name, m.persona, "racional", "[Simulación] " + m.persona + " " + verbAction + ".");
             clearNameplateHighlight();
         }
 
-        // Creativo side
+        // Creativo side — right window
         for (const m of creativos) {
             showSpeechBubble(m.persona, m.name, "[" + m.persona + " está " + verbGerund + "...]");
             highlightNameplate(m.persona);
             await new Promise(r => setTimeout(r, 800));
-            addBoardEntry("board-creativo", m.icon, m.name, m.persona, "creativo", "[Simulación] " + m.persona + " " + verbAction + ".");
+            addWindowEntry("win-creativo", m.icon, m.name, m.persona, "creativo", "[Simulación] " + m.persona + " " + verbAction + ".");
             clearNameplateHighlight();
         }
-
-        // Synthesis
-        await new Promise(r => setTimeout(r, 500));
-        addBoardEntry("board-sintesis", "⚡", "Consejo", "Síntesis", "sintesis", "[Simulación] El consejo sintetiza la ronda de " + roundName.toLowerCase() + ".");
 
         hideSpeechBubble();
         debateRunning = false;
