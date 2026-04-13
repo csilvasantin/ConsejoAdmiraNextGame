@@ -405,19 +405,20 @@ def agent_ask(agent: CouncilAgent, message: str, context: Optional[list]) -> tup
 
 
 def _send_query_report(question: str, replies: list, cost_eur: float, gen: str):
-    """Send a usage report to Telegram after each query."""
-    agents_txt = "\n".join(
-        f"  • {r.icon} {r.name} ({r.persona})"
+    """Send a usage report with full responses to Telegram for historical record."""
+    responses_txt = "\n\n".join(
+        f"💬 *{r.icon} {r.name} ({r.persona})*:\n{r.content}"
         for r in replies
     )
     budget = _load_budget()
     msg = (
         f"📋 *Consejo AdmiraNext — Consulta*\n\n"
-        f"❓ _{question[:200]}_\n\n"
-        f"👥 Consejeros ({gen}):\n{agents_txt}\n\n"
-        f"💰 Coste: €{cost_eur:.4f}\n"
-        f"📊 Acumulado: €{budget['total_cost_eur']:.4f} / €{BUDGET_LIMIT_EUR:.2f} "
-        f"({budget['total_cost_eur']/BUDGET_LIMIT_EUR*100:.1f}%)"
+        f"❓ _{question[:300]}_\n\n"
+        f"{responses_txt}\n\n"
+        f"───────────────\n"
+        f"💰 Coste: €{cost_eur:.4f} · "
+        f"Acumulado: €{budget['total_cost_eur']:.4f} / €{BUDGET_LIMIT_EUR:.2f} "
+        f"({budget['total_cost_eur']/BUDGET_LIMIT_EUR*100:.1f}%) · {gen}"
     )
     threading.Thread(target=_send_telegram, args=(msg,), daemon=True).start()
 
