@@ -1177,32 +1177,32 @@
     // Nameplate positions on image (% from left, % from top) mapped to each character
     // Positions match the visual location of each person in the pixel art
     // 1 consejero = 1 máquina. machineId null = sin máquina asignada (gris)
-    // body = { left, top, width, height } in % — tight clickable body hitbox
-    // Carefully mapped to each character's torso+head, avoiding overlap
+    // body = { left, top, width, height } in % — head+torso only, stops at table edge
+    // Precisely mapped to each character silhouette, no table/documents
     const NAMEPLATE_POS = {
         leyendas: [
             // Racional (left/red) — posiciones sobre la cabeza de cada personaje
-            { role: "CEO", persona: "Steve Jobs",      x: 10, y: 38, machineId: "admira-macbookair16",      body: { left: 5,  top: 42, width: 9,  height: 42 } },
-            { role: "CTO", persona: "Steve Wozniak",   x: 20, y: 32, machineId: "admira-macbookpronegro14", body: { left: 16, top: 34, width: 10, height: 42 } },
-            { role: "COO", persona: "Tim Cook",        x: 33, y: 26, machineId: "admira-macbookairplata",   body: { left: 29, top: 28, width: 10, height: 42 } },
-            { role: "CFO", persona: "Warren Buffett",  x: 45, y: 25, machineId: "admira-macmini",           body: { left: 40, top: 24, width: 11, height: 45 } },
+            { role: "CEO", persona: "Steve Jobs",      x: 10, y: 38, machineId: "admira-macbookair16",      body: { left: 6,  top: 43, width: 8,  height: 28 } },
+            { role: "CTO", persona: "Steve Wozniak",   x: 20, y: 32, machineId: "admira-macbookpronegro14", body: { left: 17, top: 35, width: 9,  height: 32 } },
+            { role: "COO", persona: "Tim Cook",        x: 33, y: 26, machineId: "admira-macbookairplata",   body: { left: 30, top: 29, width: 9,  height: 35 } },
+            { role: "CFO", persona: "Warren Buffett",  x: 45, y: 25, machineId: "admira-macmini",           body: { left: 41, top: 26, width: 10, height: 37 } },
             // Creativo (right/blue)
-            { role: "CCO", persona: "Walt Disney",     x: 58, y: 23, machineId: "admira-macbookairblanco",  body: { left: 53, top: 24, width: 10, height: 45 } },
-            { role: "CDO", persona: "Dieter Rams",     x: 72, y: 27, machineId: "admira-macbookairazul",    body: { left: 64, top: 28, width: 9,  height: 42 } },
-            { role: "CXO", persona: "Howard Schultz",  x: 82, y: 32, machineId: "admira-pctwin",            body: { left: 75, top: 32, width: 10, height: 42 } },
-            { role: "CSO", persona: "George Lucas",    x: 92, y: 38, machineId: "admira-macbookaircrema",   body: { left: 86, top: 38, width: 11, height: 42 } },
+            { role: "CCO", persona: "Walt Disney",     x: 58, y: 23, machineId: "admira-macbookairblanco",  body: { left: 54, top: 26, width: 9,  height: 37 } },
+            { role: "CDO", persona: "Dieter Rams",     x: 72, y: 27, machineId: "admira-macbookairazul",    body: { left: 65, top: 30, width: 8,  height: 35 } },
+            { role: "CXO", persona: "Howard Schultz",  x: 82, y: 32, machineId: "admira-pctwin",            body: { left: 76, top: 33, width: 9,  height: 32 } },
+            { role: "CSO", persona: "George Lucas",    x: 92, y: 38, machineId: "admira-macbookaircrema",   body: { left: 87, top: 40, width: 10, height: 28 } },
         ],
         coetaneos: [
-            // Racional (left/red) — same physical positions, different personas
-            { role: "CEO", persona: "Elon Musk",       x: 10, y: 38, machineId: "admira-macbookair16",      body: { left: 5,  top: 42, width: 9,  height: 42 } },
-            { role: "CTO", persona: "Jensen Huang",    x: 20, y: 32, machineId: "admira-macbookpronegro14", body: { left: 16, top: 34, width: 10, height: 42 } },
-            { role: "COO", persona: "Gwynne Shotwell", x: 33, y: 26, machineId: "admira-macbookairplata",   body: { left: 29, top: 28, width: 10, height: 42 } },
-            { role: "CFO", persona: "Ruth Porat",      x: 45, y: 25, machineId: "admira-macmini",           body: { left: 40, top: 24, width: 11, height: 45 } },
+            // Racional (left/red) — same physical seats, different personas
+            { role: "CEO", persona: "Elon Musk",       x: 10, y: 38, machineId: "admira-macbookair16",      body: { left: 6,  top: 43, width: 8,  height: 28 } },
+            { role: "CTO", persona: "Jensen Huang",    x: 20, y: 32, machineId: "admira-macbookpronegro14", body: { left: 17, top: 35, width: 9,  height: 32 } },
+            { role: "COO", persona: "Gwynne Shotwell", x: 33, y: 26, machineId: "admira-macbookairplata",   body: { left: 30, top: 29, width: 9,  height: 35 } },
+            { role: "CFO", persona: "Ruth Porat",      x: 45, y: 25, machineId: "admira-macmini",           body: { left: 41, top: 26, width: 10, height: 37 } },
             // Creativo (right/blue)
-            { role: "CCO", persona: "John Lasseter",   x: 58, y: 23, machineId: "admira-macbookairblanco",  body: { left: 53, top: 24, width: 10, height: 45 } },
-            { role: "CDO", persona: "Jony Ive",        x: 72, y: 27, machineId: "admira-macbookairazul",    body: { left: 64, top: 28, width: 9,  height: 42 } },
-            { role: "CXO", persona: "Carlos Ratti",    x: 82, y: 32, machineId: "admira-pctwin",            body: { left: 75, top: 32, width: 10, height: 42 } },
-            { role: "CSO", persona: "Ryan Reynolds",   x: 92, y: 38, machineId: "admira-macbookaircrema",   body: { left: 86, top: 38, width: 11, height: 42 } },
+            { role: "CCO", persona: "John Lasseter",   x: 58, y: 23, machineId: "admira-macbookairblanco",  body: { left: 54, top: 26, width: 9,  height: 37 } },
+            { role: "CDO", persona: "Jony Ive",        x: 72, y: 27, machineId: "admira-macbookairazul",    body: { left: 65, top: 30, width: 8,  height: 35 } },
+            { role: "CXO", persona: "Carlos Ratti",    x: 82, y: 32, machineId: "admira-pctwin",            body: { left: 76, top: 33, width: 9,  height: 32 } },
+            { role: "CSO", persona: "Ryan Reynolds",   x: 92, y: 38, machineId: "admira-macbookaircrema",   body: { left: 87, top: 40, width: 10, height: 28 } },
         ],
     };
 
