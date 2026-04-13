@@ -743,7 +743,7 @@
         <div class="summary" id="summary"></div>
 
         <div class="council-image">
-            <img id="council-img" src="../assets/council-leyendas.jpg?v=2" alt="Consejo AdmiraNext">
+            <img id="council-img" src="assets/council-leyendas.jpg?v=2" alt="Consejo AdmiraNext">
             <div class="nameplates" id="nameplates"></div>
             <div class="speech-overlay" id="speech-overlay">
                 <div class="speech-bubble" id="speech-bubble">
@@ -894,7 +894,7 @@
         const img = document.getElementById("council-img");
         img.style.opacity = "0";
         setTimeout(() => {
-            img.src = gen === "leyendas" ? "../assets/council-leyendas.jpg?v=2" : "../assets/council-coetaneos.jpg";
+            img.src = gen === "leyendas" ? "assets/council-leyendas.jpg?v=2" : "assets/council-coetaneos.jpg";
             img.style.opacity = "1";
         }, 300);
         render();

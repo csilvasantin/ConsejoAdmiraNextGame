@@ -47,6 +47,13 @@ jobs:
           cp public/new-member.html _site/new-member.html 2>/dev/null || true
           cp public/new-member.js _site/new-member.js 2>/dev/null || true
           cp public/network.html _site/network.html 2>/dev/null || true
+          cp public/council-scumm.html _site/council-scumm.html 2>/dev/null || true
+          cp public/game.html _site/game.html 2>/dev/null || true
+          cp public/teamwork.html _site/teamwork.html 2>/dev/null || true
+          cp public/styles.css _site/public-styles.css 2>/dev/null || true
+          mkdir -p _site/assets
+          cp assets/*.jpg _site/assets/ 2>/dev/null || true
+          cp assets/*.png _site/assets/ 2>/dev/null || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
