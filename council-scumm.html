@@ -1756,10 +1756,13 @@
         const isPaid = el.dataset.paid === "true";
         const name = el.textContent.trim().replace('FREE', '').replace('€', '').trim();
 
-        // Ask confirmation for paid models
+        // Ask confirmation + password for paid models
         if (isPaid) {
-            const ok = confirm("⚠️ " + name + " es un modelo DE PAGO.\n\nCada consulta tiene un coste (~€0.003).\n\n¿Quieres activarlo?");
-            if (!ok) return;
+            const pwd = prompt("🔒 " + name + " es un modelo DE PAGO (~€0.003/consulta).\n\nIntroduce la clave de administrador para activarlo:");
+            if (pwd !== "admira2026") {
+                if (pwd !== null) alert("❌ Clave incorrecta. Usa un modelo gratuito.");
+                return;
+            }
         }
 
         document.querySelectorAll('.llm-option').forEach(i => i.classList.remove('selected'));
