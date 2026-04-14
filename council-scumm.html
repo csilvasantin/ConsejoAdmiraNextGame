@@ -2254,13 +2254,22 @@
         }
     }
 
-    // Wire del click del hotspot
+    // Wire del click del hotspot y del fin de vídeo
     document.addEventListener("DOMContentLoaded", () => {
         const hotspot = document.getElementById("apple-ii-hotspot");
-        if (!hotspot) return;
-        hotspot.addEventListener("click", () => {
-            if (currentVerb === "mirar") playPresentation();
-        });
+        if (hotspot) {
+            hotspot.addEventListener("click", () => {
+                if (currentVerb === "mirar") playPresentation();
+            });
+        }
+        // Al acabar el vídeo, volvemos al primer fotograma (Apple II tranquilo en la mesa)
+        const video = document.getElementById("presentation-video");
+        if (video) {
+            video.addEventListener("ended", () => {
+                video.currentTime = 0;
+                video.pause();
+            });
+        }
     });
 
     async function askCouncilAPI(message) {
