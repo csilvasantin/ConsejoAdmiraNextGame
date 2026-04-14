@@ -925,12 +925,17 @@
         .verb-btn.verb-primary:hover { color: #ff6b6b; text-shadow: 0 0 8px rgba(231,76,60,0.5); background: rgba(231,76,60,0.08); }
         .verb-btn.verb-primary.active { color: #fff; text-shadow: 0 0 12px rgba(231,76,60,0.8); background: rgba(231,76,60,0.15); }
         .inventory { width: 240px; border-left: 1px solid #1a1a2e; padding: 6px 8px; display: flex; flex-direction: column; }
+        /* Panels del inventario — uno visible a la vez según el verbo activo */
+        .inv-panel { display: none; flex: 1; flex-direction: column; }
+        .inv-panel.active { display: flex; }
         .inventory-title { font-size: 6px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; text-align: center; }
         .inventory-list { display: flex; flex-direction: column; gap: 2px; flex: 1; max-height: 80px; overflow-y: auto; }
         .inv-item { font-size: 7px; color: #3498db; padding: 3px 6px; cursor: pointer; border-radius: 3px; transition: all 0.15s; }
         .inv-item:hover { background: rgba(52,152,219,0.1); color: #5dade2; }
         .inv-item.selected { background: rgba(52,152,219,0.15); color: #fff; }
-        .inv-item.llm-option.selected { background: rgba(52,152,219,0.25); color: #fff; border-left: 2px solid #3498db; padding-left: 4px; }
+        .inv-item.llm-option.selected,
+        .inv-item.leer-option.selected,
+        .inv-item.mirar-option.selected { background: rgba(52,152,219,0.25); color: #fff; border-left: 2px solid #3498db; padding-left: 4px; }
         .llm-free { font-size: 5px; background: #27ae60; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; letter-spacing: 0.5px; }
         .llm-paid { font-size: 5px; background: #e67e22; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; }
 
@@ -1138,12 +1143,35 @@
                     <button class="verb-btn" data-verb="salir" onclick="selectVerb(this)">Salir</button>
                 </div>
                 <div class="inventory">
-                    <div class="inventory-title">Motor LLM</div>
-                    <div class="inventory-list" id="llm-list">
-                        <div class="inv-item llm-option" data-llm="claude-sonnet" data-paid="true" onclick="selectLLM(this)">💎 Claude Sonnet 4 <span class="llm-paid">€</span></div>
-                        <div class="inv-item llm-option selected" data-llm="llama-70b" onclick="selectLLM(this)">🦙 Llama 3.3 70B <span class="llm-free">FREE</span></div>
-                        <div class="inv-item llm-option" data-llm="deepseek-r1" onclick="selectLLM(this)">🔮 DeepSeek R1 <span class="llm-free">FREE</span></div>
-                        <div class="inv-item llm-option" data-llm="gemma-9b" onclick="selectLLM(this)">🌀 Gemma 2 9B <span class="llm-free">FREE</span></div>
+                    <!-- Panel LLM: por defecto y para verbos que usan modelo (preguntar, debatir, sintetizar, hablar) -->
+                    <div class="inv-panel active" data-panel="llm">
+                        <div class="inventory-title">Motor LLM</div>
+                        <div class="inventory-list" id="llm-list">
+                            <div class="inv-item llm-option" data-llm="claude-sonnet" data-paid="true" onclick="selectLLM(this)">💎 Claude Sonnet 4 <span class="llm-paid">€</span></div>
+                            <div class="inv-item llm-option selected" data-llm="llama-70b" onclick="selectLLM(this)">🦙 Llama 3.3 70B <span class="llm-free">FREE</span></div>
+                            <div class="inv-item llm-option" data-llm="deepseek-r1" onclick="selectLLM(this)">🔮 DeepSeek R1 <span class="llm-free">FREE</span></div>
+                            <div class="inv-item llm-option" data-llm="gemma-9b" onclick="selectLLM(this)">🌀 Gemma 2 9B <span class="llm-free">FREE</span></div>
+                        </div>
+                    </div>
+                    <!-- Panel LEER: cómo nos cuenta el libro del día -->
+                    <div class="inv-panel" data-panel="leer">
+                        <div class="inventory-title">Modo de lectura</div>
+                        <div class="inventory-list">
+                            <div class="inv-item leer-option" data-leer="texto" onclick="selectSubOption('leer', this)">📄 Texto</div>
+                            <div class="inv-item leer-option selected" data-leer="audio" onclick="selectSubOption('leer', this)">🔊 Audio</div>
+                            <div class="inv-item leer-option" data-leer="video" onclick="selectSubOption('leer', this)">🎬 Vídeo</div>
+                            <div class="inv-item leer-option" data-leer="interactivo" onclick="selectSubOption('leer', this)">💭 Interactivo</div>
+                        </div>
+                    </div>
+                    <!-- Panel MIRAR: tipo de contenido en el Apple II -->
+                    <div class="inv-panel" data-panel="mirar">
+                        <div class="inventory-title">Tipo de contenido</div>
+                        <div class="inventory-list">
+                            <div class="inv-item mirar-option" data-mirar="debate" onclick="selectSubOption('mirar', this)">💬 Debate</div>
+                            <div class="inv-item mirar-option selected" data-mirar="presentacion" onclick="selectSubOption('mirar', this)">📊 Presentación</div>
+                            <div class="inv-item mirar-option" data-mirar="exposicion" onclick="selectSubOption('mirar', this)">🎓 Exposición</div>
+                            <div class="inv-item mirar-option" data-mirar="random" onclick="selectSubOption('mirar', this)">🎲 Random</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1849,6 +1877,36 @@
     let selectedAgent = null; // { name, persona, side, icon } of selected agent for "Preguntar"
     let preguntarMode = false;
     let selectedLLM = "llama-70b"; // Active LLM model key (default: free model)
+    let selectedLeer = "audio";    // Sub-opción del verbo LEER
+    let selectedMirar = "presentacion"; // Sub-opción del verbo MIRAR
+
+    // Mapea cada verbo al panel del inventario que debe mostrarse
+    const VERB_TO_PANEL = {
+        preguntar: "llm",
+        debatir:   "llm",
+        sintetizar:"llm",
+        hablar:    "llm",
+        leer:      "leer",
+        mirar:     "mirar",
+        // votar/comparar/salir → mantener el último (no fuerzan cambio)
+    };
+
+    function updateInventoryPanel(verb) {
+        const panel = VERB_TO_PANEL[verb];
+        if (!panel) return; // verbos sin panel propio: no tocar
+        document.querySelectorAll('.inv-panel').forEach(p => p.classList.remove('active'));
+        const target = document.querySelector('.inv-panel[data-panel="' + panel + '"]');
+        if (target) target.classList.add('active');
+    }
+
+    function selectSubOption(verb, el) {
+        const cls = verb + "-option";
+        document.querySelectorAll('.' + cls).forEach(i => i.classList.remove('selected'));
+        el.classList.add('selected');
+        if (verb === "leer")  selectedLeer  = el.dataset.leer;
+        if (verb === "mirar") selectedMirar = el.dataset.mirar;
+        console.log(verb, "sub-option:", verb === "leer" ? selectedLeer : selectedMirar);
+    }
 
     function selectLLM(el) {
         const isPaid = el.dataset.paid === "true";
@@ -1873,6 +1931,7 @@
         document.querySelectorAll('.verb-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentVerb = btn.dataset.verb;
+        updateInventoryPanel(currentVerb);
 
         // Exit preguntar mode if switching to another verb
         if (currentVerb !== 'preguntar') {
@@ -2070,6 +2129,11 @@
 
     // ── LEER: libro del día ──────────────────────────────────
     async function triggerLeer() {
+        // Sub-opciones todavía no implementadas — solo "audio" hace algo
+        if (selectedLeer !== "audio") {
+            setActionLine("📚 Modo '" + selectedLeer + "' aún no implementado — usa Audio por ahora");
+            return;
+        }
         const existing = document.getElementById("daily-book-overlay");
         if (existing) { existing.remove(); return; }
 
@@ -2234,6 +2298,11 @@
     }
 
     function playPresentation() {
+        // Sub-opciones todavía no implementadas — solo "presentacion" hace algo
+        if (selectedMirar !== "presentacion") {
+            setActionLine("🎬 Modo '" + selectedMirar + "' aún no implementado — usa Presentación por ahora");
+            return;
+        }
         const video = document.getElementById("presentation-video");
         if (!video) return;
         if (!video.paused) {
