@@ -2003,10 +2003,12 @@
     }
 
     // ── Council API config ──
-    // Tries Cloudflare tunnel first, then localhost fallback
+    // Tailscale Funnel del Mac Mini (Gran de Gracia) → council-api.py:8420
+    // El mount /api hace strip del prefijo, por eso la baseUrl ya incluye /api:
+    // baseUrl + "/api/council/ask" → ".../api/api/council/ask" → backend /api/council/ask
     const COUNCIL_API_URLS = [
-        "https://persian-principal-pediatric-pmc.trycloudflare.com",  // Cloudflare tunnel
-        "http://localhost:8420",                                       // Local dev fallback
+        "https://macmini.tail48b61c.ts.net/api",  // Tailscale Funnel (estable)
+        "http://localhost:8420",                   // Local dev fallback
     ];
     const COUNCIL_API_TOKEN = "G3ADHakfWlP6JfzZMkhcT3NXyGp5r8UXXZu5gX0uGMA";
     let activeApiUrl = null;
