@@ -703,6 +703,41 @@ async def budget_status(request: Request, _auth=Depends(verify_token)):
 
 
 # ╔══════════════════════════════════════════════════════════════╗
+# ║  PRESENTATIONS — Vídeos en la pantalla del Apple II          ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+PRESENTATIONS_DIR = Path.home() / "Presentations" / "council"
+PRESENTATIONS_STATE_FILE = PRESENTATIONS_DIR / "state.json"
+PRESENTATIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _presentations_load_state() -> dict:
+    if PRESENTATIONS_STATE_FILE.exists():
+        try:
+            return json.loads(PRESENTATIONS_STATE_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"active": None, "items": []}
+
+
+@app.get("/api/council/presentation")
+async def council_presentation():
+    """Devuelve la presentación activa (la que se muestra en el Apple II)."""
+    state = _presentations_load_state()
+    active_slug = state.get("active")
+    if not active_slug:
+        return None
+    for item in state.get("items", []):
+        if item.get("slug") == active_slug:
+            return item
+    return None
+
+
+# Sirve los vídeos y posters. Externa via Funnel: /api/presentations/X.mp4
+app.mount("/presentations", StaticFiles(directory=str(PRESENTATIONS_DIR)), name="presentations")
+
+
+# ╔══════════════════════════════════════════════════════════════╗
 # ║  DAILY BOOK — Un consejero pone un libro sobre la mesa       ║
 # ╚══════════════════════════════════════════════════════════════╝
 

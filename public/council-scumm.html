@@ -973,6 +973,63 @@
             background: radial-gradient(ellipse at 50% 30%, rgba(46, 204, 113, 0.3), rgba(46, 204, 113, 0.08));
             box-shadow: 0 0 20px rgba(46, 204, 113, 0.45);
         }
+        /* Apple II hotspot — pantalla del ordenador en la mesa, activa cuando MIRAR está seleccionado */
+        .apple-ii-hotspot {
+            position: absolute;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            background: transparent;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .apple-ii-hotspot.mirar-active {
+            pointer-events: auto;
+            border-color: rgba(80, 255, 120, 0.5);
+            background: radial-gradient(ellipse at center, rgba(80, 255, 120, 0.18), rgba(80, 255, 120, 0.02));
+            box-shadow: 0 0 18px rgba(80, 255, 120, 0.4), inset 0 0 12px rgba(80, 255, 120, 0.2);
+            animation: apple-ii-pulse 2s ease-in-out infinite;
+        }
+        .apple-ii-hotspot.mirar-active:hover {
+            border-color: rgba(80, 255, 120, 0.9);
+            background: radial-gradient(ellipse at center, rgba(80, 255, 120, 0.32), rgba(80, 255, 120, 0.05));
+            box-shadow: 0 0 28px rgba(80, 255, 120, 0.7), inset 0 0 18px rgba(80, 255, 120, 0.3);
+        }
+        @keyframes apple-ii-pulse {
+            0%, 100% { box-shadow: 0 0 18px rgba(80, 255, 120, 0.4), inset 0 0 12px rgba(80, 255, 120, 0.2); }
+            50% { box-shadow: 0 0 28px rgba(80, 255, 120, 0.6), inset 0 0 18px rgba(80, 255, 120, 0.35); }
+        }
+        .apple-ii-preview {
+            position: absolute;
+            display: none;
+            background: #1a1428;
+            border: 2px solid rgba(80, 255, 120, 0.6);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            max-width: 280px;
+        }
+        .apple-ii-preview img {
+            display: block;
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .apple-ii-preview .ap-title {
+            color: #f0e8d4;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .apple-ii-preview .ap-hint {
+            color: #80ff78;
+            font-size: 10px;
+            text-align: center;
+            margin-top: 2px;
+        }
 
         /* Preguntar mode — nameplates become clickable selectors */
         /* Preguntar mode — enable pointer events on nameplates */
@@ -1061,6 +1118,11 @@
                 <div class="window-overlay-title">🎨 Creativo</div>
             </div>
             <div class="body-hotspots" id="body-hotspots"></div>
+            <!-- Apple II en el centro de la mesa: hotspot para el verbo MIRAR -->
+            <div class="apple-ii-hotspot" id="apple-ii-hotspot"
+                 style="left:44%;top:55%;width:13%;height:18%"
+                 title="Apple II — pulsa MIRAR y haz clic"></div>
+            <div class="apple-ii-preview" id="apple-ii-preview"></div>
             <div class="nameplates" id="nameplates"></div>
             <div class="speech-overlay" id="speech-overlay">
                 <div class="speech-bubble" id="speech-bubble">
@@ -1840,7 +1902,11 @@
             if (!currentProject) { setActionLine("Selecciona un proyecto del inventario"); return; }
             executeCouncilVerb(currentVerb);
         }
-        if (currentVerb === 'mirar') setActionLine("Mirar... haz clic en un consejero");
+        if (currentVerb === 'mirar') {
+            enterMirarMode();
+        } else {
+            exitMirarMode();
+        }
         if (currentVerb === 'hablar') setActionLine("Hablar con... selecciona un consejero");
         if (currentVerb === 'leer') {
             triggerLeer();
@@ -2160,6 +2226,147 @@
             "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
         }[c]));
     }
+
+    // ── MIRAR: presentación en el Apple II ───────────────────
+    let cachedPresentation = null;
+
+    async function fetchPresentation() {
+        if (cachedPresentation) return cachedPresentation;
+        const urls = activeApiUrl ? [activeApiUrl] : COUNCIL_API_URLS;
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + "/api/council/presentation", {
+                    signal: AbortSignal.timeout(8000),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data) {
+                        activeApiUrl = baseUrl;
+                        cachedPresentation = data;
+                        return data;
+                    }
+                }
+            } catch (e) { /* try next */ }
+        }
+        return null;
+    }
+
+    async function enterMirarMode() {
+        const hotspot = document.getElementById("apple-ii-hotspot");
+        if (!hotspot) return;
+
+        const pres = await fetchPresentation();
+        if (!pres) {
+            setActionLine("⚠️ No hay presentación cargada en el Apple II");
+            return;
+        }
+
+        hotspot.classList.add("mirar-active");
+        setActionLine("👁 Mira el Apple II… haz clic para reproducir: " + pres.title);
+    }
+
+    function exitMirarMode() {
+        const hotspot = document.getElementById("apple-ii-hotspot");
+        if (hotspot) hotspot.classList.remove("mirar-active");
+        const preview = document.getElementById("apple-ii-preview");
+        if (preview) preview.style.display = "none";
+    }
+
+    function showAppleIIPreview(evt) {
+        if (currentVerb !== "mirar" || !cachedPresentation) return;
+        const preview = document.getElementById("apple-ii-preview");
+        const baseUrl = activeApiUrl || COUNCIL_API_URLS[0];
+        const posterUrl = baseUrl + cachedPresentation.poster_url;
+
+        preview.innerHTML = `
+            <img src="${posterUrl}" alt="">
+            <div class="ap-title">${escapeHtml(cachedPresentation.title)}</div>
+            <div class="ap-hint">▶ click para reproducir</div>
+        `;
+        preview.style.display = "block";
+
+        const hotspot = document.getElementById("apple-ii-hotspot");
+        const r = hotspot.getBoundingClientRect();
+        let x = r.left + r.width / 2 - 140;
+        let y = r.top - preview.offsetHeight - 12;
+        if (y < 10) y = r.bottom + 12;
+        if (x < 10) x = 10;
+        if (x + 280 > window.innerWidth) x = window.innerWidth - 290;
+        preview.style.left = x + "px";
+        preview.style.top = y + "px";
+    }
+
+    function hideAppleIIPreview() {
+        const preview = document.getElementById("apple-ii-preview");
+        if (preview) preview.style.display = "none";
+    }
+
+    function playPresentation() {
+        if (!cachedPresentation) return;
+        hideAppleIIPreview();
+        const baseUrl = activeApiUrl || COUNCIL_API_URLS[0];
+        const videoUrl = baseUrl + cachedPresentation.video_url;
+        const sideColor = "#80ff78";
+
+        const old = document.getElementById("presentation-overlay");
+        if (old) old.remove();
+
+        const ov = document.createElement("div");
+        ov.id = "presentation-overlay";
+        ov.style.cssText = `
+            position: fixed; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.92);
+            z-index: 9999;
+            font-family: inherit;
+        `;
+        ov.innerHTML = `
+            <div style="
+                background: #1a1428;
+                border: 2px solid ${sideColor};
+                border-radius: 12px;
+                padding: 18px;
+                max-width: 90vw; width: 880px;
+                color: #f0e8d4;
+                box-shadow: 0 0 40px rgba(80, 255, 120, 0.4);
+                position: relative;
+            ">
+                <button id="po-close" style="
+                    position: absolute; top: 6px; right: 12px;
+                    background: none; border: none; color: #f0e8d4;
+                    font-size: 24px; cursor: pointer; line-height: 1;
+                ">×</button>
+
+                <div style="font-size: 11px; color: ${sideColor}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">
+                    🖥 Apple II — Presentación
+                </div>
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 12px;">
+                    ${escapeHtml(cachedPresentation.title)}
+                </div>
+
+                <video controls autoplay playsinline preload="metadata"
+                    style="width: 100%; max-height: 70vh; background: #000; border-radius: 4px;"
+                    src="${videoUrl}"></video>
+
+                ${cachedPresentation.description ? `<div style="
+                    font-size: 12px; color: #b8a890; margin-top: 10px; font-style: italic;
+                ">${escapeHtml(cachedPresentation.description)}</div>` : ""}
+            </div>
+        `;
+        document.body.appendChild(ov);
+        document.getElementById("po-close").onclick = () => ov.remove();
+        ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const hotspot = document.getElementById("apple-ii-hotspot");
+        if (!hotspot) return;
+        hotspot.addEventListener("mouseenter", showAppleIIPreview);
+        hotspot.addEventListener("mouseleave", hideAppleIIPreview);
+        hotspot.addEventListener("click", () => {
+            if (currentVerb === "mirar") playPresentation();
+        });
+    });
 
     async function askCouncilAPI(message) {
         /**
