@@ -973,13 +973,17 @@
             background: radial-gradient(ellipse at 50% 30%, rgba(46, 204, 113, 0.3), rgba(46, 204, 113, 0.08));
             box-shadow: 0 0 20px rgba(46, 204, 113, 0.45);
         }
-        /* Apple II overlay PNG — siempre visible, sentado sobre la mesa */
-        .apple-ii-overlay {
+        /* Vídeo de la presentación — superpuesto a la imagen del consejo, mismo tamaño.
+           El poster (primer fotograma) ya muestra el Apple II integrado en la mesa,
+           así que reemplaza visualmente a la imagen estática. */
+        .presentation-video {
             position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 2;
             pointer-events: none;
-            z-index: 3;
-            user-select: none;
-            filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+            background: transparent;
         }
         /* Apple II hotspot — pantalla del ordenador en la mesa, activa cuando MIRAR está seleccionado */
         .apple-ii-hotspot {
@@ -1008,38 +1012,6 @@
             0%, 100% { box-shadow: 0 0 18px rgba(80, 255, 120, 0.4), inset 0 0 12px rgba(80, 255, 120, 0.2); }
             50% { box-shadow: 0 0 28px rgba(80, 255, 120, 0.6), inset 0 0 18px rgba(80, 255, 120, 0.35); }
         }
-        /* Tooltip preview con poster del vídeo */
-        .apple-ii-preview {
-            position: absolute;
-            display: none;
-            background: #1a1428;
-            border: 2px solid rgba(80, 255, 120, 0.6);
-            border-radius: 8px;
-            padding: 8px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-            z-index: 100;
-            pointer-events: none;
-            max-width: 280px;
-        }
-        .apple-ii-preview img {
-            display: block;
-            width: 100%;
-            border-radius: 4px;
-            margin-bottom: 6px;
-        }
-        .apple-ii-preview .ap-title {
-            color: #f0e8d4;
-            font-size: 12px;
-            font-weight: bold;
-            text-align: center;
-        }
-        .apple-ii-preview .ap-hint {
-            color: #80ff78;
-            font-size: 10px;
-            text-align: center;
-            margin-top: 2px;
-        }
-
         /* Preguntar mode — nameplates become clickable selectors */
         /* Preguntar mode — enable pointer events on nameplates */
         .nameplates.preguntar-active { pointer-events: auto; }
@@ -1127,14 +1099,16 @@
                 <div class="window-overlay-title">🎨 Creativo</div>
             </div>
             <div class="body-hotspots" id="body-hotspots"></div>
-            <!-- Apple II overlay: Macintosh 128K (Wikimedia, CC BY-SA 3.0, autor Marcin Wichary) sobre la mesa -->
-            <img src="assets/apple-ii.png?v=2" class="apple-ii-overlay" alt="Apple II"
-                 style="left:43%;top:38%;width:13%">
-            <!-- Hotspot del verbo MIRAR: cubre la pantalla CRT del Mac (parte superior central del overlay) -->
+            <!-- Vídeo de presentación: cubre la imagen del consejo. Su poster (primer fotograma generado
+                 con qlmanage) ya muestra el Apple II integrado en la mesa con el mismo estilo SCUMM. -->
+            <video id="presentation-video" class="presentation-video"
+                   poster="https://macmini.tail48b61c.ts.net/api/presentations/ConsejoAppleII.mp4.png"
+                   src="https://macmini.tail48b61c.ts.net/api/presentations/ConsejoAppleII.mp4"
+                   preload="metadata" playsinline></video>
+            <!-- Hotspot del verbo MIRAR: cubre la pantalla del Apple II del primer fotograma del vídeo -->
             <div class="apple-ii-hotspot" id="apple-ii-hotspot"
-                 style="left:44.5%;top:43%;width:9.5%;height:11%"
+                 style="left:46%;top:53%;width:10%;height:11%"
                  title="Apple II — pulsa MIRAR y haz clic"></div>
-            <div class="apple-ii-preview" id="apple-ii-preview"></div>
             <div class="nameplates" id="nameplates"></div>
             <div class="speech-overlay" id="speech-overlay">
                 <div class="speech-bubble" id="speech-bubble">
@@ -2242,145 +2216,48 @@
         }[c]));
     }
 
-    // ── MIRAR: presentación en el Apple II ───────────────────
-    let cachedPresentation = null;
-
-    async function fetchPresentation() {
-        if (cachedPresentation) return cachedPresentation;
-        const urls = activeApiUrl ? [activeApiUrl] : COUNCIL_API_URLS;
-        for (const baseUrl of urls) {
-            try {
-                const res = await fetch(baseUrl + "/api/council/presentation", {
-                    signal: AbortSignal.timeout(8000),
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data) {
-                        activeApiUrl = baseUrl;
-                        cachedPresentation = data;
-                        return data;
-                    }
-                }
-            } catch (e) { /* try next */ }
-        }
-        return null;
-    }
-
-    async function enterMirarMode() {
+    // ── MIRAR: el vídeo está superpuesto a la imagen del consejo, su poster (primer
+    //          fotograma) ya muestra el Apple II en la mesa. MIRAR + click reproduce
+    //          el vídeo en su sitio, sin abrir nada nuevo.
+    function enterMirarMode() {
         const hotspot = document.getElementById("apple-ii-hotspot");
         if (!hotspot) return;
-
-        // Pre-fetch presentation metadata so hover is instant
-        const pres = await fetchPresentation();
-        if (!pres) {
-            setActionLine("⚠️ No hay presentación cargada en el Apple II");
-            return;
-        }
-
         hotspot.classList.add("mirar-active");
-        setActionLine("👁 Mira el Apple II… haz clic para reproducir: " + pres.title);
+        setActionLine("👁 Mira el Apple II… haz clic para reproducirlo");
     }
 
     function exitMirarMode() {
         const hotspot = document.getElementById("apple-ii-hotspot");
         if (hotspot) hotspot.classList.remove("mirar-active");
-        const preview = document.getElementById("apple-ii-preview");
-        if (preview) preview.style.display = "none";
-    }
-
-    function showAppleIIPreview(evt) {
-        if (currentVerb !== "mirar" || !cachedPresentation) return;
-        const preview = document.getElementById("apple-ii-preview");
-        const baseUrl = activeApiUrl || COUNCIL_API_URLS[0];
-        const posterUrl = baseUrl + cachedPresentation.poster_url;
-
-        preview.innerHTML = `
-            <img src="${posterUrl}" alt="">
-            <div class="ap-title">${escapeHtml(cachedPresentation.title)}</div>
-            <div class="ap-hint">▶ click para reproducir</div>
-        `;
-        preview.style.display = "block";
-
-        // Posiciona el preview cerca del hotspot, dentro del viewport
-        const hotspot = document.getElementById("apple-ii-hotspot");
-        const r = hotspot.getBoundingClientRect();
-        let x = r.left + r.width / 2 - 140;  // 280/2
-        let y = r.top - preview.offsetHeight - 12;
-        if (y < 10) y = r.bottom + 12;       // si no cabe arriba, abajo
-        if (x < 10) x = 10;
-        if (x + 280 > window.innerWidth) x = window.innerWidth - 290;
-        preview.style.left = x + "px";
-        preview.style.top = y + "px";
-    }
-
-    function hideAppleIIPreview() {
-        const preview = document.getElementById("apple-ii-preview");
-        if (preview) preview.style.display = "none";
+        // Si el vídeo está reproduciéndose, lo paramos y volvemos al primer fotograma
+        const video = document.getElementById("presentation-video");
+        if (video && !video.paused) {
+            video.pause();
+            video.currentTime = 0;
+        }
     }
 
     function playPresentation() {
-        if (!cachedPresentation) return;
-        hideAppleIIPreview();
-        const baseUrl = activeApiUrl || COUNCIL_API_URLS[0];
-        const videoUrl = baseUrl + cachedPresentation.video_url;
-        const sideColor = "#80ff78";  // verde tipo CRT
-
-        const old = document.getElementById("presentation-overlay");
-        if (old) old.remove();
-
-        const ov = document.createElement("div");
-        ov.id = "presentation-overlay";
-        ov.style.cssText = `
-            position: fixed; inset: 0;
-            display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.92);
-            z-index: 9999;
-            font-family: inherit;
-        `;
-        ov.innerHTML = `
-            <div style="
-                background: #1a1428;
-                border: 2px solid ${sideColor};
-                border-radius: 12px;
-                padding: 18px;
-                max-width: 90vw; width: 880px;
-                color: #f0e8d4;
-                box-shadow: 0 0 40px rgba(80, 255, 120, 0.4);
-                position: relative;
-            ">
-                <button id="po-close" style="
-                    position: absolute; top: 6px; right: 12px;
-                    background: none; border: none; color: #f0e8d4;
-                    font-size: 24px; cursor: pointer; line-height: 1;
-                ">×</button>
-
-                <div style="font-size: 11px; color: ${sideColor}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">
-                    🖥 Apple II — Presentación
-                </div>
-                <div style="font-size: 18px; font-weight: bold; margin-bottom: 12px;">
-                    ${escapeHtml(cachedPresentation.title)}
-                </div>
-
-                <video controls autoplay playsinline preload="metadata"
-                    style="width: 100%; max-height: 70vh; background: #000; border-radius: 4px;"
-                    src="${videoUrl}"></video>
-
-                ${cachedPresentation.description ? `<div style="
-                    font-size: 12px; color: #b8a890; margin-top: 10px; font-style: italic;
-                ">${escapeHtml(cachedPresentation.description)}</div>` : ""}
-            </div>
-        `;
-        document.body.appendChild(ov);
-        document.getElementById("po-close").onclick = () => ov.remove();
-        ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
+        const video = document.getElementById("presentation-video");
+        if (!video) return;
+        // Toggle: si ya reproduce, pausa; si no, reproduce desde el inicio
+        if (!video.paused) {
+            video.pause();
+            return;
+        }
+        video.currentTime = 0;
+        const p = video.play();
+        if (p && typeof p.catch === "function") {
+            p.catch(err => {
+                setActionLine("⚠️ No se pudo reproducir el vídeo: " + (err && err.message ? err.message : err));
+            });
+        }
     }
 
-    // Wire hover + click del hotspot del Apple II
+    // Wire del click del hotspot
     document.addEventListener("DOMContentLoaded", () => {
         const hotspot = document.getElementById("apple-ii-hotspot");
         if (!hotspot) return;
-        hotspot.addEventListener("mouseenter", showAppleIIPreview);
-        hotspot.addEventListener("mouseleave", hideAppleIIPreview);
         hotspot.addEventListener("click", () => {
             if (currentVerb === "mirar") playPresentation();
         });
