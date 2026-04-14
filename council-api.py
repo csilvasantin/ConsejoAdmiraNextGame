@@ -39,6 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import urllib.parse
 import subprocess
+import unicodedata
 from pydantic import BaseModel
 
 # Add admiranext to path
@@ -884,7 +885,9 @@ def daily_generate(llm_key: str = "llama-70b", force: bool = False) -> dict:
 
     today = datetime.now().date().isoformat()
     voice = _daily_voice_for(agent.name)
-    safe_title = "".join(c if c.isalnum() else "_" for c in pick["title"])[:40]
+    # ASCII-safe filename para evitar problemas de URL-encoding y filesystems
+    ascii_title = unicodedata.normalize("NFKD", pick["title"]).encode("ascii", "ignore").decode("ascii")
+    safe_title = "".join(c if c.isalnum() else "_" for c in ascii_title)[:40].strip("_") or "book"
     audio_path = AUDIO_DIR / f"{today}_{agent.name}_{safe_title}.m4a"
     _daily_generate_audio(summary, voice, audio_path)
 
