@@ -1173,6 +1173,36 @@
                             <div class="inv-item mirar-option" data-mirar="random" onclick="selectSubOption('mirar', this)">🎲 Random</div>
                         </div>
                     </div>
+                    <!-- Panel VOTAR: sentido del voto -->
+                    <div class="inv-panel" data-panel="votar">
+                        <div class="inventory-title">Sentido del voto</div>
+                        <div class="inventory-list">
+                            <div class="inv-item votar-option selected" data-votar="favor" onclick="selectSubOption('votar', this)">✅ A favor</div>
+                            <div class="inv-item votar-option" data-votar="contra" onclick="selectSubOption('votar', this)">❌ En contra</div>
+                            <div class="inv-item votar-option" data-votar="abstencion" onclick="selectSubOption('votar', this)">🤝 Abstención</div>
+                            <div class="inv-item votar-option" data-votar="posponer" onclick="selectSubOption('votar', this)">🔄 Posponer</div>
+                        </div>
+                    </div>
+                    <!-- Panel COMPARAR: dimensión a comparar -->
+                    <div class="inv-panel" data-panel="comparar">
+                        <div class="inventory-title">Dimensión</div>
+                        <div class="inventory-list">
+                            <div class="inv-item comparar-option selected" data-comparar="impacto" onclick="selectSubOption('comparar', this)">🏆 Impacto</div>
+                            <div class="inv-item comparar-option" data-comparar="sabiduria" onclick="selectSubOption('comparar', this)">🧠 Sabiduría</div>
+                            <div class="inv-item comparar-option" data-comparar="creatividad" onclick="selectSubOption('comparar', this)">🎨 Creatividad</div>
+                            <div class="inv-item comparar-option" data-comparar="velocidad" onclick="selectSubOption('comparar', this)">⚡ Velocidad</div>
+                        </div>
+                    </div>
+                    <!-- Panel SALIR: destino de navegación -->
+                    <div class="inv-panel" data-panel="salir">
+                        <div class="inventory-title">Destino</div>
+                        <div class="inventory-list">
+                            <div class="inv-item salir-option selected" data-salir="inicio" onclick="selectSubOption('salir', this)">🏠 Inicio</div>
+                            <div class="inv-item salir-option" data-salir="control" onclick="selectSubOption('salir', this)">📊 Control</div>
+                            <div class="inv-item salir-option" data-salir="equipo" onclick="selectSubOption('salir', this)">👥 Equipo</div>
+                            <div class="inv-item salir-option" data-salir="repos" onclick="selectSubOption('salir', this)">📁 Repos</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1877,8 +1907,11 @@
     let selectedAgent = null; // { name, persona, side, icon } of selected agent for "Preguntar"
     let preguntarMode = false;
     let selectedLLM = "llama-70b"; // Active LLM model key (default: free model)
-    let selectedLeer = "audio";    // Sub-opción del verbo LEER
+    let selectedLeer = "audio";         // Sub-opción del verbo LEER
     let selectedMirar = "presentacion"; // Sub-opción del verbo MIRAR
+    let selectedVotar = "favor";        // Sub-opción del verbo VOTAR
+    let selectedComparar = "impacto";   // Sub-opción del verbo COMPARAR
+    let selectedSalir = "inicio";       // Sub-opción del verbo SALIR
 
     // Mapea cada verbo al panel del inventario que debe mostrarse
     const VERB_TO_PANEL = {
@@ -1888,7 +1921,9 @@
         hablar:    "llm",
         leer:      "leer",
         mirar:     "mirar",
-        // votar/comparar/salir → mantener el último (no fuerzan cambio)
+        votar:     "votar",
+        comparar:  "comparar",
+        salir:     "salir",
     };
 
     function updateInventoryPanel(verb) {
@@ -1903,9 +1938,11 @@
         const cls = verb + "-option";
         document.querySelectorAll('.' + cls).forEach(i => i.classList.remove('selected'));
         el.classList.add('selected');
-        if (verb === "leer")  selectedLeer  = el.dataset.leer;
-        if (verb === "mirar") selectedMirar = el.dataset.mirar;
-        console.log(verb, "sub-option:", verb === "leer" ? selectedLeer : selectedMirar);
+        if (verb === "leer")     selectedLeer     = el.dataset.leer;
+        if (verb === "mirar")    selectedMirar    = el.dataset.mirar;
+        if (verb === "votar")    selectedVotar    = el.dataset.votar;
+        if (verb === "comparar") selectedComparar = el.dataset.comparar;
+        if (verb === "salir")    selectedSalir    = el.dataset.salir;
     }
 
     function selectLLM(el) {
@@ -1956,9 +1993,9 @@
         if (currentVerb === 'leer') {
             triggerLeer();
         }
-        if (currentVerb === 'votar') setActionLine("Votar sobre la propuesta actual");
-        if (currentVerb === 'comparar') setActionLine("Comparar Leyendas vs Coetáneos");
-        if (currentVerb === 'salir') { setActionLine("Volviendo..."); setTimeout(() => window.location.href = '../', 1000); }
+        if (currentVerb === 'votar') triggerVotar();
+        if (currentVerb === 'comparar') triggerComparar();
+        if (currentVerb === 'salir') triggerSalir();
     }
 
     function enterPreguntarMode() {
@@ -2632,6 +2669,148 @@
     }
 
     function clearNameplateHighlight() { document.querySelectorAll('.np').forEach(n => n.classList.remove('speaking')); }
+
+    // ═══════════════════════════════════
+    // VOTAR
+    // ═══════════════════════════════════
+    function triggerVotar() {
+        const old = document.getElementById("vote-overlay");
+        if (old) { old.remove(); return; }
+
+        const tema = currentProject || "la propuesta actual";
+        const votoLabels = { favor: "✅ A favor", contra: "❌ En contra", abstencion: "🤝 Abstención", posponer: "🔄 Posponer" };
+        const votoLabel = votoLabels[selectedVotar] || selectedVotar;
+
+        const members = COUNCIL.filter(m => m.gen === currentGen);
+
+        // Voto determinista por persona + tema + sentido (sin aleatoriedad real, reproducible)
+        function memberVote(persona) {
+            const h = (persona + tema).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            const outcomes = ["favor", "favor", "favor", "contra", "abstencion", "posponer"];
+            return outcomes[h % outcomes.length];
+        }
+
+        const results = members.map(m => ({ ...m, vote: memberVote(m.persona) }));
+        const tally = { favor: 0, contra: 0, abstencion: 0, posponer: 0 };
+        results.forEach(m => { if (tally[m.vote] !== undefined) tally[m.vote]++; });
+
+        const vIcon = { favor: "✅", contra: "❌", abstencion: "🤝", posponer: "🔄" };
+        const rows = results.map(m =>
+            `<tr>
+                <td style="padding:4px 10px">${m.icon}</td>
+                <td style="padding:4px 10px;color:#ccc">${m.persona}</td>
+                <td style="padding:4px 10px;color:#888;font-size:0.78em">${m.name}</td>
+                <td style="padding:4px 10px;font-size:1.1em;text-align:center">${vIcon[m.vote] || "?"}</td>
+            </tr>`
+        ).join('');
+
+        const resultLabel = tally.favor > members.length / 2 ? "✅ APROBADO" :
+                            tally.contra > members.length / 2 ? "❌ RECHAZADO" : "🤝 SIN MAYORÍA";
+        const resultColor = tally.favor > members.length / 2 ? "#44bb44" :
+                            tally.contra > members.length / 2 ? "#e74c3c" : "#888";
+
+        const ov = document.createElement("div");
+        ov.id = "vote-overlay";
+        ov.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.82);z-index:9999;font-family:inherit;";
+        ov.innerHTML = `
+            <div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:2rem;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;">
+                <h3 style="color:#daa520;font-family:'Press Start 2P',monospace;font-size:0.75rem;margin-bottom:1rem;text-align:center">VOTACIÓN DEL CONSEJO</h3>
+                <p style="color:#aaa;text-align:center;margin-bottom:0.4rem;font-size:0.85rem">📋 ${tema}</p>
+                <p style="color:#88ccff;text-align:center;margin-bottom:1.5rem;font-size:0.8rem">Tu posición: ${votoLabel}</p>
+                <table style="width:100%;margin-bottom:1.2rem;font-size:0.82rem;border-collapse:collapse">${rows}</table>
+                <div style="display:flex;gap:1.2rem;justify-content:center;margin-bottom:1rem;font-size:0.88rem">
+                    <span style="color:#44bb44">✅ ${tally.favor}</span>
+                    <span style="color:#e74c3c">❌ ${tally.contra}</span>
+                    <span style="color:#888">🤝 ${tally.abstencion}</span>
+                    <span style="color:#f39c12">🔄 ${tally.posponer}</span>
+                </div>
+                <p style="text-align:center;font-size:1rem;font-weight:700;color:${resultColor};margin-bottom:1.2rem">${resultLabel}</p>
+                <div style="text-align:center">
+                    <button onclick="document.getElementById('vote-overlay').remove()" style="background:#333;color:#ccc;border:1px solid #555;border-radius:6px;padding:0.5rem 1.5rem;cursor:pointer;font-family:inherit;font-size:0.85rem">Cerrar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+        ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+        setActionLine("🗳️ Votación sobre «" + tema + "» — " + resultLabel);
+    }
+
+    // ═══════════════════════════════════
+    // COMPARAR
+    // ═══════════════════════════════════
+    function triggerComparar() {
+        const old = document.getElementById("compare-overlay");
+        if (old) { old.remove(); return; }
+
+        const dimLabels = { impacto: "🏆 Impacto", sabiduria: "🧠 Sabiduría", creatividad: "🎨 Creatividad", velocidad: "⚡ Velocidad" };
+        const dimLabel = dimLabels[selectedComparar] || selectedComparar;
+
+        function score(persona, dim) {
+            const h = (persona + dim).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            return 55 + (h % 45); // 55–99
+        }
+
+        function memberRow(m, color) {
+            const s = score(m.persona, selectedComparar);
+            const filled = Math.round(s / 10);
+            const bar = "█".repeat(filled) + "░".repeat(10 - filled);
+            return `<tr>
+                <td style="padding:3px 6px;white-space:nowrap">${m.icon} <span style="color:#ccc;font-size:0.8em">${m.persona}</span></td>
+                <td style="font-family:monospace;color:${color};padding:3px 6px;letter-spacing:1px;font-size:0.75em">${bar}</td>
+                <td style="padding:3px 6px;color:#aaa;font-size:0.8em;text-align:right">${s}</td>
+            </tr>`;
+        }
+
+        const leyendas  = COUNCIL.filter(m => m.gen === "leyendas");
+        const coetaneos = COUNCIL.filter(m => m.gen === "coetaneos");
+        const leyScore  = Math.round(leyendas.reduce((s, m) => s + score(m.persona, selectedComparar), 0) / leyendas.length);
+        const coetScore = Math.round(coetaneos.reduce((s, m) => s + score(m.persona, selectedComparar), 0) / coetaneos.length);
+        const winner    = leyScore >= coetScore ? "🏛️ Leyendas" : "🌟 Coetáneos";
+        const winColor  = leyScore >= coetScore ? "#daa520" : "#3498db";
+
+        const ov = document.createElement("div");
+        ov.id = "compare-overlay";
+        ov.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.82);z-index:9999;font-family:inherit;";
+        ov.innerHTML = `
+            <div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:2rem;max-width:680px;width:92%;max-height:82vh;overflow-y:auto;">
+                <h3 style="color:#88ccff;font-family:'Press Start 2P',monospace;font-size:0.7rem;margin-bottom:0.8rem;text-align:center">COMPARAR GENERACIONES</h3>
+                <p style="color:#aaa;text-align:center;margin-bottom:1.2rem">${dimLabel}</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.2rem">
+                    <div>
+                        <div style="color:#daa520;font-weight:700;margin-bottom:0.6rem;text-align:center;font-size:0.9rem">🏛️ Leyendas — <strong>${leyScore}</strong></div>
+                        <table style="width:100%">${leyendas.map(m => memberRow(m, "#daa520")).join('')}</table>
+                    </div>
+                    <div>
+                        <div style="color:#3498db;font-weight:700;margin-bottom:0.6rem;text-align:center;font-size:0.9rem">🌟 Coetáneos — <strong>${coetScore}</strong></div>
+                        <table style="width:100%">${coetaneos.map(m => memberRow(m, "#3498db")).join('')}</table>
+                    </div>
+                </div>
+                <p style="text-align:center;font-size:1rem;font-weight:700;color:${winColor};margin-bottom:1.2rem">Ganador en ${dimLabel}: ${winner}</p>
+                <div style="text-align:center">
+                    <button onclick="document.getElementById('compare-overlay').remove()" style="background:#333;color:#ccc;border:1px solid #555;border-radius:6px;padding:0.5rem 1.5rem;cursor:pointer;font-family:inherit;font-size:0.85rem">Cerrar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+        ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+        setActionLine("📊 Comparando " + dimLabel + " — ganador: " + winner);
+    }
+
+    // ═══════════════════════════════════
+    // SALIR
+    // ═══════════════════════════════════
+    function triggerSalir() {
+        const destinations = {
+            inicio:  '../',
+            control: '../control.html',
+            equipo:  '../equipo.html',
+            repos:   'https://csilvasantin.github.io/18.-diario/repos.html',
+        };
+        const labels = { inicio: "🏠 Inicio", control: "📊 Control", equipo: "👥 Equipo", repos: "📁 Repos" };
+        const dest  = destinations[selectedSalir] || '../';
+        const label = labels[selectedSalir] || selectedSalir;
+        setActionLine("🚪 Navegando a " + label + "…");
+        setTimeout(() => { window.location.href = dest; }, 800);
+    }
+
     </script>
 </body>
 </html>
