@@ -1456,6 +1456,8 @@
     const GITHUB_FALLBACK = "https://raw.githubusercontent.com/csilvasantin/03.-ControlCodexClaude/main/data/machines.json";
     const DEMO_API = "https://macmini.tail48b61c.ts.net/demo/status";
     const DEMO_PING = "https://macmini.tail48b61c.ts.net/demo/ping";
+    // En GitHub Pages nunca tocar Tailscale — abre la app en macOS al resolver el DNS
+    const ON_GITHUB_PAGES = location.hostname.endsWith("github.io");
 
     // All 16 council members — mixed council (racional left/red + creativo right/blue)
     // 1 consejero = 1 máquina. Sin máquina = sin conexión (gris)
@@ -1567,8 +1569,8 @@
             }
         }
 
-        // Try Mac Mini API
-        try {
+        // Try Mac Mini API — solo si NO estamos en GitHub Pages
+        if (!ON_GITHUB_PAGES) try {
             const res = await fetch(CONTROL_API, {
                 signal: AbortSignal.timeout(4000),
                 redirect: 'error',
