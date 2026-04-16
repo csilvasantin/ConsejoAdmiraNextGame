@@ -1299,7 +1299,7 @@
         </div>
 
         <div class="council-image">
-            <img id="council-img" src="../assets/council-leyendas.jpg?v=5" alt="Consejo AdmiraNext">
+            <img id="council-img" src="assets/council-leyendas.jpg?v=5" alt="Consejo AdmiraNext">
             <!-- Conversation overlays on background windows -->
             <div class="window-overlay racional" id="win-racional">
                 <div class="window-overlay-title">🧠 Racional</div>
@@ -1531,7 +1531,7 @@
         const img = document.getElementById("council-img");
         img.style.opacity = "0";
         setTimeout(() => {
-            img.src = gen === "leyendas" ? "../assets/council-leyendas.jpg?v=5" : "../assets/council-coetaneos.jpg?v=5";
+            img.src = gen === "leyendas" ? "assets/council-leyendas.jpg?v=5" : "assets/council-coetaneos.jpg?v=5";
             img.style.opacity = "1";
         }, 300);
         render();
