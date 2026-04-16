@@ -1063,6 +1063,208 @@
         .output-speaker.racional { color: #e74c3c; }
         .output-speaker.creativo { color: #3498db; }
         .output-text { font-size: 0.85rem; color: #bbb; line-height: 1.6; }
+
+        /* ══════════════════════════════════════════════
+           16-BIT RETRO — SCUMM 90s override
+           ══════════════════════════════════════════════ */
+        body {
+            background: #000055;
+            font-family: 'Press Start 2P', monospace;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent 0px,
+                transparent 3px,
+                rgba(0,0,0,0.10) 3px,
+                rgba(0,0,0,0.10) 4px
+            );
+            pointer-events: none;
+            z-index: 99999;
+        }
+        h1 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.85rem;
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: #ffff55;
+            color: #ffff55;
+            text-shadow: 3px 3px 0 #880000;
+            letter-spacing: 3px;
+        }
+        .gen-btn {
+            border-radius: 0;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.5rem;
+            border: 2px solid #555577;
+            background: #111133;
+            color: #7777bb;
+            padding: 0.5rem 1rem;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .gen-btn:first-child, .gen-btn:last-child { border-radius: 0; }
+        .gen-btn:hover { background: #1a1a44; color: #aaaaff; box-shadow: 3px 3px 0 #000; }
+        .gen-btn.active-leyendas {
+            background: #664400;
+            color: #ffdd00;
+            border-color: #ffdd00;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .gen-btn.active-coetaneos {
+            background: #003366;
+            color: #66aaff;
+            border-color: #66aaff;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .summary-item {
+            border-radius: 0;
+            border: 2px solid #333355;
+            background: #0a0a33;
+            box-shadow: 2px 2px 0 #000;
+        }
+        .summary-number, .summary-label { font-family: 'Press Start 2P', monospace; }
+        .summary-label { font-size: 0.38rem; }
+        .side-panel {
+            border-radius: 0;
+            background: #0a0a33;
+            border: 2px solid #333366;
+            border-top: 3px solid #666;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .side-panel.racional { border-top-color: #cc3333; }
+        .side-panel.creativo { border-top-color: #3333cc; }
+        .side-title { font-family: 'Press Start 2P', monospace; font-size: 0.55rem; }
+        .member-name { font-family: 'Press Start 2P', monospace; font-size: 0.55rem; }
+        .member-role { font-family: 'Press Start 2P', monospace; font-size: 0.38rem; }
+        .member-row { border-radius: 0; }
+        .machine-tag { border-radius: 0; font-family: 'Press Start 2P', monospace; font-size: 0.35rem; }
+        .status-dot { border-radius: 0; }
+        .power-btn { border-radius: 0; box-shadow: 2px 2px 0 #000; }
+        .council-image {
+            border-radius: 0;
+            box-shadow: 4px 4px 0 #000;
+        }
+        /* SCUMM bar — classic Monkey Island brown */
+        .scumm-bar {
+            border-radius: 0;
+            background: #5a3a1e;
+            border: 3px solid #8b5a14;
+            border-top: 3px solid #a07828;
+        }
+        .action-line {
+            background: #3a2410;
+            border-bottom: 2px solid #2a1a08;
+        }
+        .action-input { color: #ffee88; text-shadow: none; }
+        .action-input::placeholder { color: #886633; }
+        .action-send {
+            border-radius: 0;
+            border: 2px solid #ddcc00;
+            color: #ffee00;
+            background: #2a1a08;
+            box-shadow: 2px 2px 0 #000;
+        }
+        .action-send:hover { background: #ddcc00; color: #000; border-color: #ffff44; box-shadow: none; }
+        .verb-btn { border-radius: 0; color: #ffffff; text-shadow: none; }
+        .verb-btn:hover { color: #ffff00; text-shadow: none; background: #7a5a2e; }
+        .verb-btn.active { color: #ffff00; text-shadow: none; background: #7a5a2e; }
+        .verb-btn.verb-primary { color: #ffaaaa; text-shadow: none; }
+        .verb-btn.verb-primary:hover { color: #ffff00; background: #7a5a2e; text-shadow: none; }
+        .verb-btn.verb-primary.active { color: #ffff00; background: #7a5a2e; text-shadow: none; }
+        .inventory { border-left: 2px solid #3a2410; }
+        .inventory-title { color: #ffee88; }
+        .inv-item { border-radius: 0; }
+        .inv-item:hover { background: rgba(255,238,0,0.12); color: #ffee88; }
+        .inv-item.selected,
+        .inv-item.llm-option.selected,
+        .inv-item.leer-option.selected,
+        .inv-item.mirar-option.selected {
+            background: rgba(255,238,0,0.15);
+            color: #ffff00;
+            border-left: 3px solid #ffff00;
+            padding-left: 3px;
+        }
+        .llm-free, .llm-paid { border-radius: 0; }
+        .speech-bubble {
+            border-radius: 0;
+            background: #000044;
+            border: 2px solid #ffff00;
+            box-shadow: 3px 3px 0 #000;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.5rem;
+        }
+        .speech-bubble::after { border-top-color: #ffff00; }
+        .round-indicator {
+            border-radius: 0;
+            border: 2px solid #ffff00;
+            box-shadow: 2px 2px 0 #000;
+            background: rgba(0,0,40,0.95);
+        }
+        .np-toggle {
+            border-radius: 0;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.38rem;
+            border: 2px solid #555;
+            background: rgba(0,0,40,0.9);
+            box-shadow: 2px 2px 0 #000;
+        }
+        .output-panel {
+            border-radius: 0;
+            background: #0a0a33;
+            border: 2px solid #333366;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .output-text { font-size: 0.65rem; line-height: 1.8; }
+        .conv-panel {
+            border-radius: 0;
+            background: #0a0a33;
+            border: 2px solid #333366;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .conv-panel.racional { border-top: 3px solid #cc3333; }
+        .conv-panel.creativo { border-top: 3px solid #3333cc; }
+        .conv-panel-title { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; }
+        .conv-speaker { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; }
+        .conv-text { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; line-height: 2; }
+        .back-status {
+            border-radius: 0;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.45rem;
+            box-shadow: 2px 2px 0 #000;
+        }
+        .hack-toggle, .control-toggle, .demo-toggle {
+            border-radius: 0;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.42rem;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .hack-dot, .control-dot, .demo-dot { border-radius: 0; }
+        .hack-toggle.active {
+            background: #006600;
+            border-color: #00ff41;
+            box-shadow: 3px 3px 0 #000;
+            animation: none;
+        }
+        .demo-toggle.active {
+            background: #880000;
+            border-color: #ff4444;
+            box-shadow: 3px 3px 0 #000;
+            animation: none;
+        }
+        .subtitle { font-family: 'Press Start 2P', monospace; font-size: 0.38rem; }
+        .council-dropdown {
+            border-radius: 0;
+            background: #0a0a33;
+            border: 2px solid #555577;
+            box-shadow: 4px 4px 0 #000;
+        }
+        .hack-terminal { border-radius: 0; }
+        .screen-overlay img { border-radius: 0; box-shadow: 4px 4px 0 #000; }
+        .screen-overlay-time { border-radius: 0; }
+        /* ── fin retro override ── */
     </style>
 </head>
 <body>
