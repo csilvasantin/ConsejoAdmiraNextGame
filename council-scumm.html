@@ -1311,9 +1311,7 @@
             <!-- Vídeo de presentación: cubre la imagen del consejo. Su poster (primer fotograma generado
                  con qlmanage) ya muestra el Apple II integrado en la mesa con el mismo estilo SCUMM. -->
             <video id="presentation-video" class="presentation-video"
-                   poster="https://macmini.tail48b61c.ts.net/council/presentations/ConsejoAppleII.mp4.png"
-                   src="https://macmini.tail48b61c.ts.net/council/presentations/ConsejoAppleII.mp4"
-                   preload="auto" playsinline></video>
+                   preload="none" playsinline></video>
             <!-- Hotspot del verbo MIRAR: cubre la pantalla del Apple II del primer fotograma del vídeo -->
             <div class="apple-ii-hotspot" id="apple-ii-hotspot"
                  style="left:46%;top:53%;width:10%;height:11%"
@@ -2524,17 +2522,26 @@
     // ── MIRAR: el vídeo está superpuesto a la imagen del consejo, su poster (primer
     //          fotograma) ya muestra el Apple II en la mesa. MIRAR + click reproduce
     //          el vídeo en su sitio, sin abrir nada nuevo.
+    const VIDEO_SRC    = "https://macmini.tail48b61c.ts.net/council/presentations/ConsejoAppleII.mp4";
+    const VIDEO_POSTER = "https://macmini.tail48b61c.ts.net/council/presentations/ConsejoAppleII.mp4.png";
+
     function enterMirarMode() {
         const hotspot = document.getElementById("apple-ii-hotspot");
         if (!hotspot) return;
         hotspot.classList.add("mirar-active");
+        // Carga lazy: solo se conecta a Tailscale cuando el usuario selecciona MIRAR
+        const video = document.getElementById("presentation-video");
+        if (video && !video.src) {
+            video.poster = VIDEO_POSTER;
+            video.src    = VIDEO_SRC;
+            video.load();
+        }
         setActionLine("👁 Mira el Apple II… haz clic para reproducirlo");
     }
 
     function exitMirarMode() {
         const hotspot = document.getElementById("apple-ii-hotspot");
         if (hotspot) hotspot.classList.remove("mirar-active");
-        // Si el vídeo está reproduciéndose, lo paramos y volvemos al primer fotograma
         const video = document.getElementById("presentation-video");
         if (video && !video.paused) {
             video.pause();
