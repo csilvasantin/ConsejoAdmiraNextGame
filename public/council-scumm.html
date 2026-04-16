@@ -1271,7 +1271,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>AdmiraNext Consejo <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;text-decoration:none;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.webkitTextFillColor='#daa520'" onmouseout="this.style.webkitTextFillColor='#555'">v26.16.04.9</a></h1>
+        <h1>AdmiraNext Consejo <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;text-decoration:none;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.webkitTextFillColor='#daa520'" onmouseout="this.style.webkitTextFillColor='#555'">v26.16.04.10</a></h1>
 
         <div class="top-bar">
             <div class="gen-toggle">
@@ -1353,6 +1353,7 @@
                             <div class="inv-item llm-option selected" data-llm="llama-70b" onclick="selectLLM(this)">🦙 Llama 3.3 70B <span class="llm-free">FREE</span></div>
                             <div class="inv-item llm-option" data-llm="deepseek-r1" onclick="selectLLM(this)">🔮 DeepSeek R1 <span class="llm-free">FREE</span></div>
                             <div class="inv-item llm-option" data-llm="gemma-9b" onclick="selectLLM(this)">🌀 Gemma 2 9B <span class="llm-free">FREE</span></div>
+                            <div class="inv-item llm-option" data-llm="gemini-flash" data-paid="true" onclick="selectLLM(this)">✨ Gemini 2.0 Flash <span class="llm-paid">€ YT</span></div>
                         </div>
                     </div>
                     <!-- Panel LEER: cómo nos cuenta el libro del día -->
@@ -2962,6 +2963,24 @@
     // ═══════════════════════════════════
     // ANALIZAR
     // ═══════════════════════════════════
+    const YT_RE = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?[^\s]*v=|youtu\.be\/)[\w-]+/;
+
+    function analizarUrlHint(val) {
+        const hint = document.getElementById("analizar-url-hint");
+        if (!hint) return;
+        if (YT_RE.test(val)) {
+            hint.textContent = "▶ YouTube detectado — usa ✨ Gemini 2.0 Flash para analizar vídeo";
+            // Auto-switch LLM to Gemini if not already selected
+            const geminiBtn = document.querySelector('.llm-option[data-llm="gemini-flash"]');
+            const currentLlm = document.querySelector('.llm-option.selected')?.dataset?.llm;
+            if (geminiBtn && currentLlm !== "gemini-flash") {
+                geminiBtn.click();
+            }
+        } else {
+            hint.textContent = "";
+        }
+    }
+
     function triggerAnalizar() {
         const old = document.getElementById("analizar-overlay");
         if (old) { old.remove(); return; }
@@ -2977,7 +2996,8 @@
                 ${isUrl ? `
                 <div style="margin-bottom:1rem;">
                     <label style="color:#aaa;font-size:0.5rem;display:block;margin-bottom:0.5rem;letter-spacing:1px;">🔗 URL</label>
-                    <input id="analizar-url" type="url" placeholder="https://..." style="width:100%;box-sizing:border-box;background:#000033;border:2px solid #555;color:#eee;padding:0.5rem 0.6rem;border-radius:0;font-size:0.75rem;font-family:monospace;">
+                    <input id="analizar-url" type="url" placeholder="https://..." style="width:100%;box-sizing:border-box;background:#000033;border:2px solid #555;color:#eee;padding:0.5rem 0.6rem;border-radius:0;font-size:0.75rem;font-family:monospace;" oninput="analizarUrlHint(this.value)">
+                    <div id="analizar-url-hint" style="margin-top:0.4rem;font-size:0.45rem;color:#ffaa00;letter-spacing:1px;min-height:1em;"></div>
                 </div>
                 ` : `
                 <div style="margin-bottom:1rem;">

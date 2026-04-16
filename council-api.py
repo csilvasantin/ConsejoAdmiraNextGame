@@ -55,6 +55,7 @@ from admiranext.agents.creativo.coetaneos import (
     CCO_Coetaneo, CDO_Coetaneo, CXO_Coetaneo, CSO_Coetaneo,
 )
 
+import re
 import anthropic
 
 try:
@@ -92,10 +93,20 @@ LLM_MODELS = {
         "free": True,
         "icon": "🌀",
     },
+    "gemini-flash": {
+        "name": "Gemini 2.0 Flash",
+        "provider": "gemini",
+        "model_id": "gemini-2.0-flash",
+        "free": False,
+        "icon": "✨",
+    },
 }
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+
+YOUTUBE_RE = re.compile(r'https?://(?:www\.)?(?:youtube\.com/watch\?[^\s]*v=|youtu\.be/)[\w-]+')
 
 # ── Config ──────────────────────────────────────────────────
 COUNCIL_API_TOKEN = os.environ.get("COUNCIL_API_TOKEN", "")
@@ -494,6 +505,55 @@ def agent_ask_groq(agent: CouncilAgent, message: str, context: Optional[list], m
     return text, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
 
 
+def agent_ask_gemini(agent: CouncilAgent, message: str, context: Optional[list], model_id: str, max_tokens: int = 300) -> tuple:
+    """Call Google Gemini API. Supports YouTube URLs as native video input."""
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        raise ValueError("google-generativeai not installed — pip install google-generativeai")
+
+    if not GOOGLE_API_KEY:
+        raise ValueError("GOOGLE_API_KEY not set — añade GOOGLE_API_KEY al .env (obtén la clave en aistudio.google.com)")
+
+    genai.configure(api_key=GOOGLE_API_KEY)
+    conv_system, _ = _build_conversation(agent, message, context)
+
+    model = genai.GenerativeModel(
+        model_name=model_id,
+        system_instruction=conv_system,
+    )
+
+    # Detect YouTube URL → pass as native video part
+    yt_match = YOUTUBE_RE.search(message)
+    if yt_match:
+        yt_url = yt_match.group(0)
+        text_part = (message[:yt_match.start()] + message[yt_match.end():]).strip()
+        text_part = text_part or "Analiza este vídeo desde tu perspectiva y expertise:"
+        parts = [
+            text_part,
+            genai.protos.Part(file_data=genai.protos.FileData(
+                file_uri=yt_url,
+                mime_type="video/youtube",
+            )),
+        ]
+    else:
+        parts = [message]
+
+    response = model.generate_content(
+        parts,
+        generation_config=genai.GenerationConfig(
+            max_output_tokens=max_tokens,
+            temperature=0.7,
+        ),
+    )
+
+    text = response.text
+    usage = response.usage_metadata
+    in_tok = getattr(usage, "prompt_token_count", 0) or 0
+    out_tok = getattr(usage, "candidates_token_count", 0) or 0
+    return text, in_tok, out_tok
+
+
 def agent_ask(agent: CouncilAgent, message: str, context: Optional[list], llm_key: str = "claude-sonnet", max_tokens: int = 300) -> tuple:
     """Route to the correct LLM provider. Returns (text, input_tokens, output_tokens)."""
     model_cfg = LLM_MODELS.get(llm_key, LLM_MODELS["claude-sonnet"])
@@ -502,6 +562,8 @@ def agent_ask(agent: CouncilAgent, message: str, context: Optional[list], llm_ke
         return agent_ask_anthropic(agent, message, context, model_cfg["model_id"], max_tokens)
     elif model_cfg["provider"] == "groq":
         return agent_ask_groq(agent, message, context, model_cfg["model_id"], max_tokens)
+    elif model_cfg["provider"] == "gemini":
+        return agent_ask_gemini(agent, message, context, model_cfg["model_id"], max_tokens)
     else:
         raise ValueError(f"Unknown provider: {model_cfg['provider']}")
 
@@ -648,6 +710,8 @@ async def list_models():
     for key, cfg in LLM_MODELS.items():
         available = True
         if cfg["provider"] == "groq" and not GROQ_API_KEY:
+            available = False
+        if cfg["provider"] == "gemini" and not GOOGLE_API_KEY:
             available = False
         models.append({
             "key": key,
@@ -1014,5 +1078,6 @@ if __name__ == "__main__":
     print(f"📱 Telegram alerts: {'✅' if TELEGRAM_BOT_TOKEN else '❌'}")
     print(f"📧 Email alerts: {'✅' if SMTP_USER else '⚠️ Set SMTP_USER/SMTP_PASS in .env'}")
     print(f"🤖 LLM Models: Claude {'✅' if os.environ.get('ANTHROPIC_API_KEY') else '❌'} | "
-          f"Groq (Llama/DeepSeek/Gemma) {'✅' if GROQ_API_KEY else '⚠️ Set GROQ_API_KEY in .env (free at console.groq.com)'}")
+          f"Groq (Llama/DeepSeek/Gemma) {'✅' if GROQ_API_KEY else '⚠️  Set GROQ_API_KEY in .env'} | "
+          f"Gemini {'✅' if GOOGLE_API_KEY else '⚠️  Set GOOGLE_API_KEY in .env (aistudio.google.com)'}")
     uvicorn.run(app, host="0.0.0.0", port=8420)
