@@ -1067,7 +1067,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>AdmiraNext Consejo <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;text-decoration:none;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.webkitTextFillColor='#daa520'" onmouseout="this.style.webkitTextFillColor='#555'">v26.13.04.6</a></h1>
+        <h1>AdmiraNext Consejo <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;text-decoration:none;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.webkitTextFillColor='#daa520'" onmouseout="this.style.webkitTextFillColor='#555'">v26.16.04.7</a></h1>
 
         <div class="top-bar">
             <div class="gen-toggle">
@@ -1107,8 +1107,8 @@
             <!-- Vídeo de presentación: cubre la imagen del consejo. Su poster (primer fotograma generado
                  con qlmanage) ya muestra el Apple II integrado en la mesa con el mismo estilo SCUMM. -->
             <video id="presentation-video" class="presentation-video"
-                   poster="https://macmini.tail48b61c.ts.net/api/presentations/ConsejoAppleII.mp4.png"
-                   src="https://macmini.tail48b61c.ts.net/api/presentations/ConsejoAppleII.mp4"
+                   poster="https://macmini.tail48b61c.ts.net/council/presentations/ConsejoAppleII.mp4.png"
+                   src="https://macmini.tail48b61c.ts.net/council/presentations/ConsejoAppleII.mp4"
                    preload="auto" playsinline></video>
             <!-- Hotspot del verbo MIRAR: cubre la pantalla del Apple II del primer fotograma del vídeo -->
             <div class="apple-ii-hotspot" id="apple-ii-hotspot"
@@ -1729,7 +1729,7 @@
 
     let hackMode = false;
     let hackIntervals = [];
-    const HACK_API = DEMO_API.replace("/status", "");  // http://localhost:3032
+    const HACK_API = DEMO_API.replace("/status", "");  // https://macmini.../demo
 
     const HACK_LINES = [
         "$ ssh -o StrictHostKeyChecking=no root@{ip}",
@@ -2154,11 +2154,11 @@
 
     // ── Council API config ──
     // Tailscale Funnel del Mac Mini (Gran de Gracia) → council-api.py:8420
-    // El mount /api hace strip del prefijo, por eso la baseUrl ya incluye /api:
-    // baseUrl + "/api/council/ask" → ".../api/api/council/ask" → backend /api/council/ask
+    // El mount /council hace strip del prefijo:
+    // baseUrl + "/api/council/ask" → ".../council/api/council/ask" → backend /api/council/ask
     const COUNCIL_API_URLS = [
-        "https://macmini.tail48b61c.ts.net/api",  // Tailscale Funnel (estable)
-        "http://localhost:8420",                   // Local dev fallback
+        "https://macmini.tail48b61c.ts.net/council",  // Tailscale Funnel /council → 8420
+        "http://localhost:8420",                       // Local dev fallback
     ];
     const COUNCIL_API_TOKEN = "G3ADHakfWlP6JfzZMkhcT3NXyGp5r8UXXZu5gX0uGMA";
     let activeApiUrl = null;
