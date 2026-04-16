@@ -965,6 +965,7 @@
             transition: all 0.3s ease;
             border: 2px solid transparent;
             background: transparent;
+            pointer-events: auto;
         }
         .body-hotspot:hover {
             background: radial-gradient(ellipse at 50% 30%, rgba(52, 152, 219, 0.25), rgba(52, 152, 219, 0.05));
@@ -1054,6 +1055,28 @@
             50% { box-shadow: 0 0 14px rgba(52, 152, 219, 0.5); transform: translate(-50%, -100%) scale(1.08); }
         }
         @keyframes blink-led { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Mouth pixel — retro 16-bit lip sync */
+        .mouth-pixel {
+            position: absolute;
+            left: 50%;
+            top: 30%;
+            transform: translateX(-50%);
+            width: 7px;
+            height: 2px;
+            background: rgba(35, 10, 5, 0.72);
+            pointer-events: none;
+            border-radius: 0;
+            image-rendering: pixelated;
+        }
+        .body-hotspot:hover .mouth-pixel {
+            animation: lip-talk 0.18s steps(1) infinite;
+        }
+        @keyframes lip-talk {
+            0%   { height: 2px; width: 7px; background: rgba(35,10,5,0.72); border-radius: 0; }
+            33%  { height: 5px; width: 8px; background: rgba(18,4,4,0.85); border-radius: 0 0 4px 4px; }
+            66%  { height: 1px; width: 5px; background: rgba(35,10,5,0.65); border-radius: 0; }
+        }
 
         /* Output panel */
         .output-panel { max-width: 1000px; margin: 12px auto; background: #1a1a2e; border-radius: 12px; padding: 1rem 1.2rem; display: none; max-height: 400px; overflow-y: auto; }
@@ -1735,7 +1758,8 @@
             if (!p.body) return '';
             const b = p.body;
             return `<div class="body-hotspot" data-persona="${p.persona}" title="${p.persona} (${p.role})"
-                style="left:${b.left}%;top:${b.top}%;width:${b.width}%;height:${b.height}%"></div>`;
+                style="left:${b.left}%;top:${b.top}%;width:${b.width}%;height:${b.height}%">
+                <div class="mouth-pixel"></div></div>`;
         }).join("");
 
         // Re-apply preguntar styles after DOM rebuild
