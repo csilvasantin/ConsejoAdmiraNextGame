@@ -203,10 +203,10 @@
             left: 1%; top: 2%;
             width: 28%; height: 38%;
         }
-        /* Right window (Creativo) — alineada con la ventana real del rascacielos */
+        /* Right window (Creativo) — encajada en la ventana real del rascacielos (mitad de tamaño) */
         .window-overlay.creativo {
             right: 2%; top: 3%;
-            width: 36%; height: 30%;
+            width: 18%; height: 16%;
         }
         /* Analizar history (en la ventana Racional) */
         .analizar-list {
@@ -1308,7 +1308,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.19.04.5</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.19.04.6</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1339,7 +1339,7 @@
             <div class="window-overlay racional" id="win-racional">
                 <div class="window-overlay-title">🧠 Racional</div>
             </div>
-            <div class="window-overlay creativo active" id="win-creativo">
+            <div class="window-overlay creativo" id="win-creativo">
                 <div class="window-overlay-title">🔍 URLs ANALIZADAS</div>
                 <ol class="analizar-list" id="analizar-list"></ol>
             </div>
@@ -2223,6 +2223,17 @@
         currentVerb = btn.dataset.verb;
         updateInventoryPanel(currentVerb);
 
+        // Historial URLs analizadas: sólo visible con verbo Analizar
+        const winCreativo = document.getElementById('win-creativo');
+        if (winCreativo) {
+            if (currentVerb === 'analizar') {
+                winCreativo.classList.add('active');
+                renderAnalyzedList();
+            } else {
+                winCreativo.classList.remove('active');
+            }
+        }
+
         // Exit preguntar mode if switching to another verb
         if (currentVerb !== 'preguntar') {
             exitPreguntarMode();
@@ -3016,7 +3027,7 @@
     // ANALIZAR
     // ═══════════════════════════════════
     const ANALIZAR_HIST_KEY = "admiranext_analizar_urls";
-    const ANALIZAR_HIST_MAX = 10;
+    const ANALIZAR_HIST_MAX = 5;
     function loadAnalyzedUrls() {
         try { return JSON.parse(localStorage.getItem(ANALIZAR_HIST_KEY) || "[]"); }
         catch { return []; }
