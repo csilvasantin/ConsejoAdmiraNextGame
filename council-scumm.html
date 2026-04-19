@@ -1121,6 +1121,25 @@
             border-color: #66aaff;
             box-shadow: 3px 3px 0 #000;
         }
+        .version-badge {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.5rem;
+            color: #ffdd00;
+            background: #111133;
+            border: 2px solid #555577;
+            padding: 0.6rem 0.8rem;
+            box-shadow: 3px 3px 0 #000;
+            text-decoration: none;
+            letter-spacing: 1px;
+            align-self: center;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .version-badge:hover {
+            background: #664400;
+            border-color: #ffdd00;
+            color: #fff;
+        }
         .summary-item {
             border-radius: 0;
             border: 2px solid #333355;
@@ -1271,9 +1290,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>AdmiraNext Consejo <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" style="font-size:0.45em;-webkit-text-fill-color:#555;background:none;text-decoration:none;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.webkitTextFillColor='#daa520'" onmouseout="this.style.webkitTextFillColor='#555'">admira.v26.19.04.1</a></h1>
+        <h1>AdmiraNext Consejo</h1>
 
         <div class="top-bar">
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext.v26.19.04.2</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
