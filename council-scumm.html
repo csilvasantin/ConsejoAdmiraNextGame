@@ -203,10 +203,10 @@
             left: 1%; top: 2%;
             width: 28%; height: 38%;
         }
-        /* Right window (Creativo) — behind right group */
+        /* Right window (Creativo) — alineada con la ventana real del rascacielos */
         .window-overlay.creativo {
-            right: 1%; top: 2%;
-            width: 28%; height: 38%;
+            right: 2%; top: 3%;
+            width: 36%; height: 30%;
         }
         /* Analizar history (en la ventana Racional) */
         .analizar-list {
@@ -1308,7 +1308,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.19.04.4</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.19.04.5</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1336,12 +1336,12 @@
         <div class="council-image">
             <img id="council-img" src="assets/council-leyendas.jpg?v=5" alt="Consejo AdmiraNext">
             <!-- Conversation overlays on background windows -->
-            <div class="window-overlay racional active" id="win-racional">
+            <div class="window-overlay racional" id="win-racional">
+                <div class="window-overlay-title">🧠 Racional</div>
+            </div>
+            <div class="window-overlay creativo active" id="win-creativo">
                 <div class="window-overlay-title">🔍 URLs ANALIZADAS</div>
                 <ol class="analizar-list" id="analizar-list"></ol>
-            </div>
-            <div class="window-overlay creativo" id="win-creativo">
-                <div class="window-overlay-title">🎨 Creativo</div>
             </div>
             <div class="body-hotspots" id="body-hotspots"></div>
             <!-- Vídeo de presentación: cubre la imagen del consejo. Su poster (primer fotograma generado
