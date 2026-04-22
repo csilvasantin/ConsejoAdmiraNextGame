@@ -1449,7 +1449,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.22.04.1</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.22.04.2</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1634,10 +1634,10 @@
         <span class="demo-dot"></span> DEMO
     </button>
 
-    <button class="design-toggle" id="design-btn" onclick="toggleDesign()">
+    <button class="design-toggle" id="design-btn" onclick="toggleDesign()" style="display:none">
         <span class="design-dot"></span> DISEÑO
     </button>
-    <div class="design-readout" id="design-readout">—</div>
+    <div class="design-readout" id="design-readout" style="display:none">—</div>
 
     <script>
     const CONTROL_API = "https://macmini.tail48b61c.ts.net/api/machines";
@@ -2303,6 +2303,32 @@
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && hackMode) toggleHack();
     });
+
+    // Al cargar: sincronizar con el servidor. Si un hack quedó activo de
+    // una sesión anterior, marcamos el botón como "activo" para que el
+    // siguiente click pare los Terminales en los consejeros en vez de
+    // relanzar otra oleada encima.
+    (async () => {
+        try {
+            const r = await fetch(HACK_API + "/hack/status?t=" + Date.now(), {
+                signal: AbortSignal.timeout(3000)
+            });
+            if (!r.ok) return;
+            const d = await r.json();
+            if (d && d.active === true) {
+                hackMode = true;
+                const btn = document.getElementById("hack-btn");
+                if (btn) {
+                    btn.classList.add("active");
+                    const dot = btn.querySelector(".hack-dot");
+                    if (dot) dot.style.background = "#000";
+                }
+                console.log("HACK: server reports active — next click will STOP");
+            }
+        } catch (e) {
+            // server inaccesible: mantener hackMode=false (default)
+        }
+    })();
 
     // ═══════════════════════════════════
     // SCUMM VERB BAR
