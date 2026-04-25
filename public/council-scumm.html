@@ -1362,7 +1362,15 @@
         .presentar-gen-btn { width:100%; padding:10px; background:#2a1a08; border:2px solid #daa520; border-top-color:#f0c040; color:#daa520; font-family:'Press Start 2P',monospace; font-size:8px; cursor:pointer; margin-top:8px; }
         .presentar-gen-btn:hover { background:#daa520; color:#000; }
         .presentar-cancel-btn { width:100%; padding:5px; background:transparent; border:1px solid #3a2a1a; color:#554433; font-family:'Press Start 2P',monospace; font-size:6px; cursor:pointer; margin-top:4px; }
-        .presentar-status { font-family:'Press Start 2P',monospace; font-size:7px; color:#ffee88; line-height:2; white-space:pre-wrap; text-align:left; min-height:60px; }
+        .presentar-status { font-family:'Press Start 2P',monospace; font-size:7px; color:#ffee88; line-height:2; white-space:pre-wrap; text-align:left; min-height:40px; }
+        .presentar-progress-wrap { margin:12px 0 4px; border:2px solid #5a3a1e; padding:3px; background:#0d0800; }
+        .presentar-progress-bar { height:10px; background:#daa520; width:0%; transition:width 0.6s ease; position:relative; }
+        .presentar-progress-bar::after { content:''; position:absolute; top:0; right:0; bottom:0; width:4px; background:#f0c040; animation:pp-blink .5s step-end infinite; }
+        @keyframes pp-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        .presentar-progress-bar.done { background:#44cc44; }
+        .presentar-progress-bar.done::after { display:none; }
+        .presentar-progress-pct { font-family:'Press Start 2P',monospace; font-size:6px; color:#886633; text-align:right; margin-bottom:8px; }
+        .presentar-step { font-family:'Press Start 2P',monospace; font-size:6px; color:#daa520; margin:6px 0 2px; }
         .presentar-result-item { display:block; padding:8px; background:#2a1a08; border:2px solid #5a3a1e; color:#daa520; font-family:'Press Start 2P',monospace; font-size:7px; text-align:center; text-decoration:none; margin-bottom:8px; }
         .presentar-result-item:hover { background:#daa520; color:#000; }
         .presentar-section-list { font-family:'Press Start 2P',monospace; font-size:6px; color:#ffee88; line-height:2.2; }
@@ -1470,7 +1478,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.2</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.3</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1549,8 +1557,13 @@
                     <button class="presentar-cancel-btn" onclick="closePresentarOverlay()">CANCELAR</button>
                 </div>
                 <!-- Estado: LOADING -->
-                <div class="presentar-dialog" id="pdlg-loading" style="display:none;text-align:center;">
+                <div class="presentar-dialog" id="pdlg-loading" style="display:none;">
                     <div class="presentar-title">⚡ GENERANDO...</div>
+                    <div class="presentar-step" id="presentar-step">Iniciando...</div>
+                    <div class="presentar-progress-wrap">
+                        <div class="presentar-progress-bar" id="presentar-progress-bar"></div>
+                    </div>
+                    <div class="presentar-progress-pct" id="presentar-progress-pct">0%</div>
                     <div class="presentar-status" id="presentar-status"></div>
                 </div>
                 <!-- Estado: RESULT -->
@@ -3546,6 +3559,15 @@
         }
     }
 
+    function _setProgress(pct, step) {
+        const bar = document.getElementById('presentar-progress-bar');
+        const pctEl = document.getElementById('presentar-progress-pct');
+        const stepEl = document.getElementById('presentar-step');
+        if (bar) { bar.style.width = pct + '%'; if (pct >= 100) bar.classList.add('done'); }
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (stepEl && step) stepEl.textContent = step;
+    }
+
     async function generatePresentacion() {
         const prompt = document.getElementById('presentar-prompt').value.trim();
         if (!prompt && !_presentarFileContent) {
@@ -3555,8 +3577,30 @@
 
         document.getElementById('pdlg-input').style.display   = 'none';
         document.getElementById('pdlg-loading').style.display = '';
+        document.getElementById('presentar-progress-bar').classList.remove('done');
         const statusEl = document.getElementById('presentar-status');
-        statusEl.textContent = '🤖 Claude generando estructura...\n';
+        statusEl.textContent = '';
+        _setProgress(5, '🤖 Claude generando estructura...');
+
+        // Simulated progress ticker while waiting for API
+        let _fakePct = 5;
+        const STEPS = [
+            [15, '📡 Conectando con la API...'],
+            [30, '🤖 Claude analizando el tema...'],
+            [50, '✍️ Generando contenido estructurado...'],
+            [68, _presentarFmt === 'audio' ? '🎙️ Sintetizando audio...' :
+                 _presentarFmt === 'pdf'   ? '📄 Compilando PDF...' :
+                 _presentarFmt === 'slides'? '📊 Construyendo slides...' : '🎙️ Generando audio + PDF...'],
+            [82, '⚙️ Procesando y guardando archivos...'],
+            [92, '📦 Empaquetando resultado...'],
+        ];
+        let _stepIdx = 0;
+        const _ticker = setInterval(() => {
+            if (_stepIdx < STEPS.length) {
+                const [p, s] = STEPS[_stepIdx++];
+                if (p > _fakePct) _setProgress(p, s);
+            }
+        }, 4000);
 
         try {
             const urls = activeApiUrl ? [activeApiUrl] : COUNCIL_API_URLS;
@@ -3564,7 +3608,6 @@
 
             for (const baseUrl of urls) {
                 try {
-                    statusEl.textContent += `📡 Conectando con ${baseUrl}...\n`;
                     const resp = await fetch(`${baseUrl}/api/council/presentar`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-Council-Token': COUNCIL_API_TOKEN },
@@ -3585,11 +3628,14 @@
                 }
             }
 
+            clearInterval(_ticker);
             if (!result) throw new Error('API no disponible — arranca council-api.py');
-            statusEl.textContent += '✅ Presentación generada\n';
+            _setProgress(100, '✅ ¡Presentación lista!');
+            await new Promise(r => setTimeout(r, 600));
             showPresentarResult(result);
 
         } catch(e) {
+            clearInterval(_ticker);
             document.getElementById('pdlg-loading').style.display = 'none';
             document.getElementById('pdlg-input').style.display   = '';
             setActionLine("❌ " + e.message);
