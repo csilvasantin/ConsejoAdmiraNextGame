@@ -928,25 +928,31 @@ async def council_presentar(req: PresentarRequest, request: Request):
 def _presentar_pdf(data: dict, timestamp: str, safe_title: str) -> "Path | None":
     try:
         from fpdf import FPDF
+
+        def _s(t):
+            """Sanitize text to Latin-1 safe string."""
+            return (t or "").encode("latin-1", errors="replace").decode("latin-1")
+
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
+
         pdf.set_font("Helvetica", "B", 20)
-        title = data.get("title", "Presentación")
-        pdf.multi_cell(0, 12, title, align="C")
+        pdf.multi_cell(0, 12, _s(data.get("title", "Presentacion")), align="C")
+        pdf.ln(2)
         pdf.set_font("Helvetica", "I", 10)
-        pdf.cell(0, 8, f"AdmiraNext Council — {datetime.now().strftime('%d/%m/%Y')}", align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 8, _s(f"AdmiraNext Council — {datetime.now().strftime('%d/%m/%Y')}"), align="C")
         pdf.ln(6)
 
         def section_block(heading, body, bullets=None):
             pdf.set_font("Helvetica", "B", 13)
-            pdf.multi_cell(0, 8, heading)
+            pdf.multi_cell(0, 8, _s(heading))
             pdf.ln(2)
             pdf.set_font("Helvetica", "", 10)
-            pdf.multi_cell(0, 6, body or "")
+            if body:
+                pdf.multi_cell(0, 6, _s(body))
             for b in (bullets or []):
-                pdf.set_font("Helvetica", "", 10)
-                pdf.multi_cell(0, 6, f"  ▶ {b}")
+                pdf.multi_cell(0, 6, _s(f"  - {b}"))
             pdf.ln(4)
 
         if data.get("summary"):
@@ -955,9 +961,9 @@ def _presentar_pdf(data: dict, timestamp: str, safe_title: str) -> "Path | None"
             if isinstance(s, dict):
                 section_block(s.get("title", ""), s.get("content", ""), s.get("bullets", []))
         if data.get("conclusion"):
-            section_block("Conclusión", data["conclusion"])
+            section_block("Conclusion", data["conclusion"])
         if data.get("sources"):
-            section_block("Fuentes", "\n".join(f"• {src}" for src in data["sources"]))
+            section_block("Fuentes", "\n".join(f"- {src}" for src in data["sources"]))
 
         pdf_path = PRESENTATIONS_DIR / f"{timestamp}_{safe_title}.pdf"
         pdf.output(str(pdf_path))
