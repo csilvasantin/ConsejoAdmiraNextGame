@@ -1499,7 +1499,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.8</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.9</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2696,8 +2696,9 @@
     // El mount /council hace strip del prefijo:
     // baseUrl + "/api/council/ask" → ".../council/api/council/ask" → backend /api/council/ask
     const COUNCIL_API_URLS = [
-        "https://macmini.tail48b61c.ts.net/council",  // Tailscale Funnel /council → 8420
-        "http://localhost:8420",                       // Local dev fallback
+        "https://three2-consejoadmiranextgame.onrender.com", // Render.com — siempre online
+        "https://macmini.tail48b61c.ts.net/council",         // Tailscale Funnel /council → 8420
+        "http://localhost:8420",                              // Local dev fallback
     ];
     const COUNCIL_API_TOKEN = "G3ADHakfWlP6JfzZMkhcT3NXyGp5r8UXXZu5gX0uGMA";
     let activeApiUrl = null;
