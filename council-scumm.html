@@ -1488,7 +1488,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.4</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.5</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3656,26 +3656,39 @@
         document.getElementById('pdlg-loading').style.display = 'none';
         document.getElementById('pdlg-result').style.display  = '';
 
+        // Los archivos viven en el servidor API local — prefijar baseUrl
+        const base = (activeApiUrl || '').replace(/\/$/, '');
+        const absUrl = u => u ? (u.startsWith('http') ? u : base + u) : null;
+
         let html = '';
         if (result.title) {
             html += `<div style="font-family:'Press Start 2P',monospace;font-size:8px;color:#daa520;margin-bottom:12px;text-align:center">${result.title}</div>`;
         }
-        if (result.audio_url) {
+        const audioUrl = absUrl(result.audio_url);
+        if (audioUrl) {
             html += `<div style="margin-bottom:10px">
                 <div style="font-family:'Press Start 2P',monospace;font-size:6px;color:#886633;margin-bottom:6px">🎙️ AUDIO</div>
-                <audio controls style="width:100%" src="${result.audio_url}"></audio>
+                <audio controls style="width:100%" src="${audioUrl}"></audio>
+                <a class="presentar-result-item" href="${audioUrl}" download style="margin-top:4px">⬇️ DESCARGAR AUDIO</a>
             </div>`;
         }
-        if (result.pdf_url) {
-            html += `<a class="presentar-result-item" href="${result.pdf_url}" target="_blank">📄 DESCARGAR PDF</a>`;
+        const pdfUrl = absUrl(result.pdf_url);
+        if (pdfUrl) {
+            html += `<a class="presentar-result-item" href="${pdfUrl}" target="_blank">📄 DESCARGAR PDF</a>`;
         }
-        if (result.slides_url) {
-            html += `<a class="presentar-result-item" href="${result.slides_url}" target="_blank">📊 VER SLIDES</a>`;
+        const slidesUrl = absUrl(result.slides_url);
+        if (slidesUrl) {
+            html += `<a class="presentar-result-item" href="${slidesUrl}" target="_blank">📊 VER SLIDES</a>`;
         }
         if (result.sections?.length) {
             html += `<div style="font-family:'Press Start 2P',monospace;font-size:6px;color:#886633;margin:10px 0 4px">ESTRUCTURA:</div>
             <div class="presentar-section-list">
                 ${result.sections.map((s,i) => `<div>${i+1}. ${s}</div>`).join('')}
+            </div>`;
+        }
+        if (!audioUrl && !pdfUrl && !slidesUrl) {
+            html += `<div style="font-family:'Press Start 2P',monospace;font-size:6px;color:#886633;text-align:center;padding:10px">
+                ⚠️ Arranca council-api.py<br>para generar archivos reales
             </div>`;
         }
         document.getElementById('presentar-result-content').innerHTML = html;
