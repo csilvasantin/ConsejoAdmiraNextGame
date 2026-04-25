@@ -357,6 +357,10 @@ def check_budget():
 # ── App ──────────────────────────────────────────────────────
 app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.25.04.9"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
