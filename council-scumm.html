@@ -1499,7 +1499,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.7</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.8</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3573,8 +3573,12 @@
     }
 
     function closePresentarOverlay() {
+        // Parar todo audio activo en el overlay antes de cerrar
+        document.querySelectorAll('#presentar-overlay audio').forEach(a => {
+            a.pause();
+            a.currentTime = 0;
+        });
         document.getElementById('presentar-overlay').classList.remove('active');
-        // Volver a PREGUNTAR
         const btn = document.querySelector('[data-verb="preguntar"]');
         if (btn) selectVerb(btn);
     }
