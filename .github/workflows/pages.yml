@@ -25,6 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Sync root HTML from public/
+        run: cp public/council-scumm.html council-scumm.html
+
       - name: Prepare static site
         run: |
           mkdir -p _site
