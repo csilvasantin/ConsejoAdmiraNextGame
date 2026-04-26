@@ -1715,7 +1715,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.8</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.9</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3128,7 +3128,35 @@
         }
         return "other";
     }
-    function executeEntrenar(text) {
+    async function _fetchUrlTitle(url) {
+        const yId = _youtubeId(url);
+        if (yId) {
+            try {
+                const r = await fetch('https://www.youtube.com/oembed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + yId) + '&format=json');
+                if (r.ok) { const d = await r.json(); return (d.title || '') + ' ' + (d.author_name || ''); }
+            } catch(e) {}
+        }
+        const vId = _vimeoId(url);
+        if (vId) {
+            try {
+                const r = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(url));
+                if (r.ok) { const d = await r.json(); return (d.title || '') + ' ' + (d.author_name || ''); }
+            } catch(e) {}
+        }
+        return '';
+    }
+    function _normalizeHaystack(s) {
+        return (s || '').toLowerCase().replace(/[-_+%20]/g, ' ');
+    }
+    function _detectTargetConsejeros(haystack, gen) {
+        const hay = _normalizeHaystack(haystack);
+        const members = COUNCIL.filter(m => m.gen === gen);
+        const matches = members.filter(m => hay.includes(m.persona.toLowerCase()));
+        // Si solo hay un nombre presente, pero el "miembro real" también lo menciona, también lo añadimos
+        // (skipped por ahora para evitar falsos positivos)
+        return matches;
+    }
+    async function executeEntrenar(text) {
         if (!isLikelyUrl(text)) {
             setActionLine("❌ Eso no parece una URL — pega un enlace que empiece por http(s):// o www.");
             return;
@@ -3137,28 +3165,51 @@
         const source = detectVideoSource(url);
         const kind = classifyEntrenarUrl(url);
         const ts = Date.now();
-        const members = COUNCIL.filter(m => m.gen === currentGen);
-        for (const m of members) {
+        const allMembers = COUNCIL.filter(m => m.gen === currentGen);
+
+        setActionLine("🔍 Buscando destinatario para esta URL…");
+        const title = await _fetchUrlTitle(url);
+        const detected = _detectTargetConsejeros(title + ' ' + url, currentGen);
+        const wasTargeted = detected.length > 0;
+        const targets = wasTargeted ? detected : allMembers;
+
+        for (const m of targets) {
             const arr = loadEntrenar(currentGen, m.persona);
-            arr.push({ url: url, source: source, kind: kind, ts: ts });
+            arr.push({ url: url, source: source, kind: kind, ts: ts, title: title || undefined });
             saveEntrenar(currentGen, m.persona, arr);
         }
+
         enterConversation();
         const kindIcon = kind === "book" ? "📚" : kind === "video" ? "📼" : "🔗";
         const kindLabel = kind === "book" ? "Libro" : kind === "video" ? "Vídeo" : "Enlace";
-        addUserEntry('🎓 ' + kindLabel + ' de entrenamiento (' + source + '): <a href="' + url + '" target="_blank" style="color:#8cf">' + url + '</a>');
-        const racionales = members.filter(m => m.side === "racional");
-        const creativos  = members.filter(m => m.side === "creativo");
-        for (const m of racionales) {
-            addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional",
-                kindIcon + " Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
-        }
-        for (const m of creativos) {
-            addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo",
-                kindIcon + " Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+        const titleEsc = title ? title.replace(/</g,'&lt;').slice(0, 80) : '';
+        const titleHtml = titleEsc ? ' <span style="color:#ccc">"' + titleEsc + '"</span>' : '';
+        const targetTag = wasTargeted
+            ? ' → <span style="color:#daa520">' + targets.map(m => m.persona).join(', ') + '</span>'
+            : ' → <span style="opacity:0.7">todos</span>';
+        addUserEntry('🎓 ' + kindLabel + ' (' + source + ')' + titleHtml + targetTag + '<br><a href="' + url + '" target="_blank" style="color:#8cf">' + url + '</a>');
+
+        if (wasTargeted) {
+            for (const m of targets) {
+                const panel = m.side === 'racional' ? 'conv-racional' : 'conv-creativo';
+                addConvEntry(panel, m.icon, m.name, m.persona, m.side,
+                    kindIcon + " Específicamente para mí. Lo archivo desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+            }
+            setActionLine("✅ " + kindLabel + " asignado a " + targets.map(m => m.persona).join(', '));
+        } else {
+            const racionales = targets.filter(m => m.side === "racional");
+            const creativos  = targets.filter(m => m.side === "creativo");
+            for (const m of racionales) {
+                addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional",
+                    kindIcon + " Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+            }
+            for (const m of creativos) {
+                addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo",
+                    kindIcon + " Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+            }
+            setActionLine("ℹ️ Sin destinatario claro — archivado por los " + targets.length + " consejeros");
         }
         renderEntrenarList();
-        setActionLine("✅ " + kindLabel + " guardado — " + members.length + " consejeros lo han archivado");
     }
 
     // ── Council API config ──
