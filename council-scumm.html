@@ -208,10 +208,10 @@
             text-align: center;
             opacity: 0.8;
         }
-        /* Left window (Racional) — behind left group */
+        /* Left window (Racional) — mismo tamaño y altura que la derecha */
         .window-overlay.racional {
-            left: 1%; top: 2%;
-            width: 28%; height: 38%;
+            left: 1%; top: 5.3%;
+            width: 19.5%; height: 16%;
         }
         /* Right window (Creativo) — encajada exactamente en la ventana del rascacielos
            Coords usuario (modo Diseño): 655,30 → 850,120 sobre imagen 1000×565 */
@@ -1501,7 +1501,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.2</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.3</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2518,10 +2518,8 @@
             winCreativo.classList.add('active');
             winRacional.classList.remove('active');
             renderAnalyzedList();
-        } else if (currentVerb === 'entrenar') {
-            winCreativo.classList.add('active');
-            winRacional.classList.add('active');
         } else {
+            // entrenar tampoco activa las ventanas aquí: aparecen sólo al hover sobre un consejero
             winCreativo.classList.remove('active');
             winRacional.classList.remove('active');
         }
@@ -2771,11 +2769,9 @@
             return '<li><a href="' + _entrenarEsc(it.url) + '" target="_blank" rel="noopener" title="' + _entrenarEsc(it.url) + '">' + _entrenarEsc(short) + '</a></li>';
         }).join('');
     }
-    function showEntrenarPlaceholder() {
-        const left = '<div class="window-overlay-title">🎓 VÍDEOS</div><ol class="analizar-list"><li class="empty">Pasa el ratón sobre un consejero…</li></ol>';
-        const right = '<div class="window-overlay-title">📚 LIBROS</div><ol class="analizar-list"><li class="empty">Pasa el ratón sobre un consejero…</li></ol>';
-        document.getElementById('win-racional').innerHTML = left;
-        document.getElementById('win-creativo').innerHTML = right;
+    function hideEntrenarOverlays() {
+        document.getElementById('win-racional').classList.remove('active');
+        document.getElementById('win-creativo').classList.remove('active');
     }
     function showEntrenarFor(persona) {
         const items = loadEntrenar(currentGen, persona);
@@ -2787,13 +2783,16 @@
         document.getElementById('win-creativo').innerHTML =
             '<div class="window-overlay-title">📚 LIBROS · ' + _entrenarEsc(persona) + ' (' + books.length + ')</div>' +
             '<ol class="analizar-list">' + _entrenarItemsHtml(books) + '</ol>';
+        document.getElementById('win-racional').classList.add('active');
+        document.getElementById('win-creativo').classList.add('active');
     }
+    let _entrenarLeaveHandler = null;
     function enterEntrenarMode() {
         captureOverlayOriginals();
         if (!nameplatesVisible) toggleNameplates();
         document.getElementById('nameplates').classList.add('entrenar-active');
         document.getElementById('body-hotspots').classList.add('entrenar-active');
-        showEntrenarPlaceholder();
+        const councilImg = document.querySelector('.council-image');
         if (!_entrenarHoverHandler) {
             _entrenarHoverHandler = (e) => {
                 if (currentVerb !== 'entrenar') return;
@@ -2804,6 +2803,13 @@
             document.getElementById('body-hotspots').addEventListener('mouseover', _entrenarHoverHandler);
             document.getElementById('nameplates').addEventListener('mouseover', _entrenarHoverHandler);
         }
+        if (!_entrenarLeaveHandler && councilImg) {
+            _entrenarLeaveHandler = () => {
+                if (currentVerb !== 'entrenar') return;
+                hideEntrenarOverlays();
+            };
+            councilImg.addEventListener('mouseleave', _entrenarLeaveHandler);
+        }
     }
     function exitEntrenarMode() {
         document.getElementById('nameplates').classList.remove('entrenar-active');
@@ -2813,6 +2819,12 @@
             document.getElementById('nameplates').removeEventListener('mouseover', _entrenarHoverHandler);
             _entrenarHoverHandler = null;
         }
+        const councilImg = document.querySelector('.council-image');
+        if (_entrenarLeaveHandler && councilImg) {
+            councilImg.removeEventListener('mouseleave', _entrenarLeaveHandler);
+            _entrenarLeaveHandler = null;
+        }
+        hideEntrenarOverlays();
         restoreOverlayOriginals();
     }
     function isLikelyUrl(s) {
