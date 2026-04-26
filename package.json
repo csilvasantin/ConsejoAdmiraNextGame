@@ -6,8 +6,12 @@
   "scripts": {
     "start": "node src/server.js",
     "start:gui": "bash ./ops/macos/start-control-agent.sh",
+    "crear:worker": "node tools/chatgpt-crear-worker.mjs",
     "agent:doctor": "bash ./ops/macos/doctor-gui-capture.sh",
     "agent:install": "bash ./ops/macos/install-launchagent.sh",
     "agent:uninstall": "bash ./ops/macos/uninstall-launchagent.sh"
+  },
+  "dependencies": {
+    "playwright-core": "^1.59.1"
   }
 }

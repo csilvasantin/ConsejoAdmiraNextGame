@@ -1210,8 +1210,10 @@
         /* ── ENTRENAR table viewer: pinta el vídeo/libro seleccionado sobre la mesa ── */
         .table-viewer {
             position: absolute;
-            left: 32%; top: 65%;
-            width: 36%; height: 26%;
+            left: 28%;
+            bottom: 1.5%;
+            width: 44%;
+            height: 39%;
             display: none;
             z-index: 12;
         }
@@ -1335,6 +1337,47 @@
             overflow: hidden;
             text-overflow: ellipsis;
             word-break: break-word;
+        }
+        .crear-meta {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.48rem;
+            line-height: 1.5;
+            letter-spacing: 0.6px;
+            opacity: 0.72;
+            max-width: 92%;
+        }
+        .crear-result-shell {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .crear-result-shell img {
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .crear-result-caption {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px 0;
+            text-align: center;
+        }
+        .crear-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .crear-actions .tv-open {
+            font-size: 0.52rem;
+            padding: 6px 10px;
         }
         @keyframes crear-spin {
             0%, 100% { transform: scale(1) rotate(0deg); }
@@ -1837,7 +1880,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.51</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.27.04.1</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1962,7 +2005,7 @@
                     <button class="verb-btn verb-primary" data-verb="entrenar" onclick="selectVerb(this)">Entrenar</button>
                     <button class="verb-btn" data-verb="crear" onclick="selectVerb(this)">Crear</button>
                     <button class="verb-btn" data-verb="hablar" onclick="selectVerb(this)">Hablar con</button>
-                    <button class="verb-btn" data-verb="leer" onclick="selectVerb(this)">Leer</button>
+                    <button class="verb-btn" data-verb="leer" onclick="selectVerb(this)">Pensar</button>
                     <button class="verb-btn" data-verb="votar" onclick="selectVerb(this)">Votar</button>
                     <button class="verb-btn" data-verb="analizar" onclick="selectVerb(this)">Analizar</button>
                     <button class="verb-btn" data-verb="presentar" onclick="selectVerb(this)">Presentar</button>
@@ -1980,7 +2023,7 @@
                             <div class="inv-item llm-option" data-llm="gemini-flash" data-paid="true" onclick="selectLLM(this)">✨ Gemini 2.5 Flash <span class="llm-paid">€ YT</span></div>
                         </div>
                     </div>
-                    <!-- Panel LEER: cómo nos cuenta el libro del día -->
+                    <!-- Panel PENSAR: cómo nos cuenta el libro del día -->
                     <div class="inv-panel" data-panel="leer">
                         <div class="inventory-title">Modo de lectura</div>
                         <div class="inventory-list">
@@ -2790,7 +2833,7 @@
     let selectedAgent = null; // { name, persona, side, icon } of selected agent for "Preguntar"
     let preguntarMode = false;
     let selectedLLM = "llama-70b"; // Active LLM model key (default: free model)
-    let selectedLeer = "audio";         // Sub-opción del verbo LEER
+    let selectedLeer = "audio";         // Sub-opción del verbo PENSAR
     let selectedMirar = "presentacion"; // [legacy] sub-opción del verbo MIRAR (sustituido por CREAR)
     let selectedCrear = "standard-square"; // Sub-opción del verbo CREAR (calidad/tamaño)
     let selectedVotar = "favor";        // Sub-opción del verbo VOTAR
@@ -2970,7 +3013,7 @@
     }
 
     function updateActionLine() {
-        const names = { preguntar:"Preguntar", debatir:"Debatir", entrenar:"Entrenar", crear:"Crear", hablar:"Hablar con", leer:"Leer", votar:"Votar", analizar:"Analizar", presentar:"Presentar", previo:"▶ Ver Previo" };
+        const names = { preguntar:"Preguntar", debatir:"Debatir", entrenar:"Entrenar", crear:"Crear", hablar:"Hablar con", leer:"Pensar", votar:"Votar", analizar:"Analizar", presentar:"Presentar", previo:"▶ Ver Previo" };
         const v = names[currentVerb] || "";
         const p = currentProject ? ' "' + currentProject + '"' : "";
         if (v && !preguntarMode) document.getElementById("action-input").placeholder = v + p + "...";
@@ -3065,14 +3108,175 @@
         simulateCouncilResponse(text);
     }
 
-    // ── ENTRENAR: corpus de URLs por consejero (localStorage) ──
-    function entrenarKey(gen, persona) { return "entrenar:" + gen + ":" + persona; }
+    // ── ENTRENAR: corpus compartido por consejero (API + caché local) ──
+    const ENTRENAR_LEGACY_PREFIX = "entrenar:";
+    let entrenarCache = {};
+    let entrenarLoadPromises = {};
+    let entrenarLoadedGens = new Set();
+    function entrenarKey(gen, persona) { return gen + "::" + persona; }
+    function entrenarLegacyKey(gen, persona) { return ENTRENAR_LEGACY_PREFIX + gen + ":" + persona; }
+    function _normalizeEntrenarItem(raw) {
+        if (!raw) return null;
+        if (typeof raw === 'string') {
+            const url = raw.trim();
+            if (!url) return null;
+            return {
+                url,
+                source: detectVideoSource(url),
+                kind: classifyEntrenarUrl(url),
+                ts: Date.now(),
+            };
+        }
+        if (typeof raw !== 'object') return null;
+        const url = String(raw.url || '').trim();
+        if (!url) return null;
+        return {
+            url,
+            source: raw.source || detectVideoSource(url),
+            kind: raw.kind || classifyEntrenarUrl(url),
+            ts: Number(raw.ts) || Date.now(),
+            title: raw.title ? String(raw.title) : undefined,
+        };
+    }
+    function _mergeEntrenarItems(existing, incoming) {
+        const merged = new Map();
+        (Array.isArray(existing) ? existing : []).map(_normalizeEntrenarItem).filter(Boolean).forEach(it => merged.set(it.url, it));
+        (Array.isArray(incoming) ? incoming : []).map(_normalizeEntrenarItem).filter(Boolean).forEach(it => {
+            const prev = merged.get(it.url);
+            if (!prev || (it.ts || 0) >= (prev.ts || 0)) merged.set(it.url, it);
+        });
+        return Array.from(merged.values()).sort((a, b) => (a.ts || 0) - (b.ts || 0) || a.url.localeCompare(b.url));
+    }
+    function _setEntrenarCache(gen, persona, arr) {
+        if (!entrenarCache[gen]) entrenarCache[gen] = {};
+        entrenarCache[gen][persona] = _mergeEntrenarItems([], arr);
+    }
     function loadEntrenar(gen, persona) {
-        try { return JSON.parse(localStorage.getItem(entrenarKey(gen, persona)) || "[]"); }
-        catch(e) { return []; }
+        return ((entrenarCache[gen] || {})[persona] || []).slice();
     }
     function saveEntrenar(gen, persona, arr) {
-        localStorage.setItem(entrenarKey(gen, persona), JSON.stringify(arr));
+        const normalized = _mergeEntrenarItems([], arr);
+        _setEntrenarCache(gen, persona, normalized);
+        try { localStorage.setItem(entrenarLegacyKey(gen, persona), JSON.stringify(normalized)); } catch(e) {}
+    }
+    function _legacyEntrenarItems(gen, persona) {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(entrenarLegacyKey(gen, persona)) || "[]");
+            return Array.isArray(parsed) ? parsed.map(_normalizeEntrenarItem).filter(Boolean) : [];
+        } catch(e) {
+            return [];
+        }
+    }
+    function _applyEntrenarSnapshot(snapshot, genHint) {
+        const gen = (snapshot && snapshot.gen) || genHint || currentGen;
+        const personas = (snapshot && snapshot.personas && typeof snapshot.personas === 'object') ? snapshot.personas : {};
+        entrenarCache[gen] = entrenarCache[gen] || {};
+        for (const m of COUNCIL.filter(x => x.gen === gen)) {
+            const items = Array.isArray(personas[m.persona]) ? personas[m.persona] : [];
+            saveEntrenar(gen, m.persona, items);
+        }
+    }
+    async function _fetchEntrenarSnapshot(gen) {
+        const urls = activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice();
+        let lastErr = null;
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + '/api/council/entrenar/' + encodeURIComponent(gen), {
+                    headers: { 'X-Council-Token': COUNCIL_API_TOKEN },
+                    signal: AbortSignal.timeout(12000)
+                });
+                if ([404, 405, 429, 500, 502, 503, 504].includes(res.status)) {
+                    lastErr = new Error('HTTP ' + res.status);
+                    continue;
+                }
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                activeApiUrl = baseUrl;
+                return res.json();
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        throw lastErr || new Error('Entrenar API no disponible');
+    }
+    async function _mergeEntrenarPersonaRemote(gen, persona, items) {
+        const mergedLocal = _mergeEntrenarItems(loadEntrenar(gen, persona), items);
+        saveEntrenar(gen, persona, mergedLocal);
+        const urls = activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice();
+        let lastErr = null;
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + '/api/council/entrenar/' + encodeURIComponent(gen) + '/' + encodeURIComponent(persona) + '/merge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Council-Token': COUNCIL_API_TOKEN
+                    },
+                    body: JSON.stringify({ items: Array.isArray(items) ? items.map(_normalizeEntrenarItem).filter(Boolean) : [] }),
+                    signal: AbortSignal.timeout(15000)
+                });
+                if ([404, 405, 429, 500, 502, 503, 504].includes(res.status)) {
+                    lastErr = new Error('HTTP ' + res.status);
+                    continue;
+                }
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                activeApiUrl = baseUrl;
+                const payload = await res.json();
+                saveEntrenar(gen, persona, payload.items || mergedLocal);
+                return loadEntrenar(gen, persona);
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        throw lastErr || new Error('Entrenar API no disponible');
+    }
+    async function _migrateLegacyEntrenar(gen) {
+        let migrated = false;
+        for (const m of COUNCIL.filter(x => x.gen === gen)) {
+            const legacy = _legacyEntrenarItems(gen, m.persona);
+            if (!legacy.length) continue;
+            await _mergeEntrenarPersonaRemote(gen, m.persona, legacy);
+            migrated = true;
+        }
+        return migrated;
+    }
+    function _refreshEntrenarUi() {
+        if (currentVerb === 'entrenar') renderEntrenarList();
+        const activeRow = document.querySelector('.entrenar-corpus-row.active[data-persona]');
+        if (!activeRow) return;
+        const persona = activeRow.getAttribute('data-persona');
+        if (persona && persona !== '__all__') showEntrenarFor(persona);
+    }
+    async function ensureEntrenarLoaded(gen, force) {
+        if (!force && entrenarLoadedGens.has(gen)) {
+            _refreshEntrenarUi();
+            return;
+        }
+        if (!force && entrenarLoadPromises[gen]) return entrenarLoadPromises[gen];
+        entrenarLoadPromises[gen] = (async () => {
+            let needsRefetch = force || !entrenarLoadedGens.has(gen);
+            try {
+                const snapshot = await _fetchEntrenarSnapshot(gen);
+                _applyEntrenarSnapshot(snapshot, gen);
+            } catch (e) {
+                console.warn('Entrenar snapshot unavailable', e);
+            }
+            try {
+                if (await _migrateLegacyEntrenar(gen)) needsRefetch = true;
+            } catch (e) {
+                console.warn('Entrenar legacy migration failed', e);
+            }
+            if (needsRefetch) {
+                try {
+                    const snapshot = await _fetchEntrenarSnapshot(gen);
+                    _applyEntrenarSnapshot(snapshot, gen);
+                } catch (e) {
+                    console.warn('Entrenar refresh failed', e);
+                }
+            }
+            entrenarLoadedGens.add(gen);
+            _refreshEntrenarUi();
+        })().finally(() => { delete entrenarLoadPromises[gen]; });
+        return entrenarLoadPromises[gen];
     }
     function entrenarSummary(gen) {
         const out = [];
@@ -3096,6 +3300,7 @@
     function triggerEntrenar() {
         renderEntrenarList();
         setActionLine("🎓 Entrenar — pega la URL (vídeo o libro) y pulsa Enviar");
+        void ensureEntrenarLoaded(currentGen);
     }
 
     // ── ENTRENAR: overlays de fondo (vídeos izq · libros der) por consejero ──
@@ -3222,12 +3427,17 @@
         const items = loadEntrenar(currentGen, persona);
         const videos = items.filter(it => (it.kind || classifyEntrenarUrl(it.url)) === 'video');
         const books  = items.filter(it => (it.kind || classifyEntrenarUrl(it.url)) === 'book');
+        const links  = items.filter(it => (it.kind || classifyEntrenarUrl(it.url)) === 'other');
         document.getElementById('win-racional').innerHTML =
             '<div class="window-overlay-title">🎓 VÍDEOS · ' + _entrenarEsc(persona) + ' (' + videos.length + ')</div>' +
             '<ol class="analizar-list">' + _entrenarItemsHtml(videos) + '</ol>';
         document.getElementById('win-creativo').innerHTML =
             '<div class="window-overlay-title">📚 LIBROS · ' + _entrenarEsc(persona) + ' (' + books.length + ')</div>' +
-            '<ol class="analizar-list">' + _entrenarItemsHtml(books) + '</ol>';
+            '<ol class="analizar-list">' + _entrenarItemsHtml(books) + '</ol>' +
+            (links.length
+                ? '<div class="window-overlay-title" style="margin-top:8px">🔗 ENLACES · ' + _entrenarEsc(persona) + ' (' + links.length + ')</div>' +
+                  '<ol class="analizar-list">' + _entrenarItemsHtml(links) + '</ol>'
+                : '');
         document.getElementById('win-racional').classList.add('active');
         document.getElementById('win-creativo').classList.add('active');
     }
@@ -3345,6 +3555,7 @@
         return null;
     }
     async function executeEntrenar(text) {
+        await ensureEntrenarLoaded(currentGen);
         if (!isLikelyUrl(text)) {
             setActionLine("❌ Eso no parece una URL — pega un enlace que empiece por http(s):// o www.");
             return;
@@ -3417,10 +3628,13 @@
         }
 
         // Match automático: archivar en los detectados
-        for (const m of detected) {
-            const arr = loadEntrenar(currentGen, m.persona);
-            arr.push({ url, source, kind, ts, title: title || undefined });
-            saveEntrenar(currentGen, m.persona, arr);
+        const entry = { url, source, kind, ts, title: title || undefined };
+        try {
+            await Promise.all(detected.map(m => _mergeEntrenarPersonaRemote(currentGen, m.persona, [entry])));
+        } catch (e) {
+            setActionLine("⚠️ Guardado local, pero la sincronización compartida falló — " + (e && e.message ? e.message : e));
+            renderEntrenarList();
+            return;
         }
         enterConversation();
         const titleEsc = title ? title.replace(/</g,'&lt;').slice(0, 80) : '';
@@ -3454,11 +3668,16 @@
         const allMembers = COUNCIL.filter(m => m.gen === currentGen);
         const targets = persona === '__all__' ? allMembers : allMembers.filter(m => m.persona === persona);
         if (targets.length === 0) return false;
-        for (const m of targets) {
-            const arr = loadEntrenar(currentGen, m.persona);
-            arr.push({ url: e.url, source: e.source, kind: e.kind, ts: e.ts, title: e.title || undefined });
-            saveEntrenar(currentGen, m.persona, arr);
-        }
+        Promise.all(targets.map(m => _mergeEntrenarPersonaRemote(currentGen, m.persona, [{
+            url: e.url,
+            source: e.source,
+            kind: e.kind,
+            ts: e.ts,
+            title: e.title || undefined
+        }]))).catch(err => {
+            console.warn('Entrenar manual sync failed', err);
+            setActionLine("⚠️ Se asignó, pero la sincronización compartida falló — " + (err && err.message ? err.message : err));
+        });
         _pendingEntrenar = null;
         renderEntrenarList();
         enterConversation();
@@ -3502,19 +3721,22 @@
     const COUNCIL_API_TOKEN = "admira2026";
     let activeApiUrl = null;
     let conversationHistory = [];
+    window._crearRequestSeq = window._crearRequestSeq || 0;
+    window._crearActiveJobId = window._crearActiveJobId || null;
+    window._crearPollTimer = window._crearPollTimer || null;
 
-    // ── LEER: libro del día ──────────────────────────────────
+    // ── PENSAR: libro del día ────────────────────────────────
     async function triggerLeer() {
         // Sub-opciones todavía no implementadas — solo "audio" hace algo
         if (selectedLeer !== "audio") {
-            setActionLine("📚 Modo '" + selectedLeer + "' aún no implementado — usa Audio por ahora");
+            setActionLine("💭 Modo Pensar '" + selectedLeer + "' aún no implementado — usa Audio por ahora");
             return;
         }
         // Si ya hay overlay abierto, ciérralo (toggle)
         const existing = document.getElementById("daily-book-overlay");
         if (existing) { existing.remove(); return; }
 
-        setActionLine("📖 Buscando el libro del día… (puede tardar ~30s la primera vez)");
+        setActionLine("💭 Buscando el pensamiento del día… (puede tardar ~30s la primera vez)");
 
         const urls = activeApiUrl ? [activeApiUrl] : COUNCIL_API_URLS;
         let entry = null;
@@ -3558,12 +3780,12 @@
         }
 
         if (!entry) {
-            setActionLine("⚠️ No se pudo generar el libro del día — " + (lastErr ? lastErr.message : "API no disponible"));
+            setActionLine("⚠️ No se pudo generar el pensamiento del día — " + (lastErr ? lastErr.message : "API no disponible"));
             return;
         }
 
         showDailyBookOverlay(entry);
-        setActionLine("📖 " + entry.agent_persona + " trae: " + entry.title);
+        setActionLine("💭 " + entry.agent_persona + " trae: " + entry.title);
     }
 
     function showDailyBookOverlay(entry) {
@@ -3688,6 +3910,12 @@
 
     // ── CREAR: generación de imagen sobre la mesa ──
     function enterCrearMode() {
+        const last = _loadCrearSnapshot(currentGen);
+        if (last && last.imageUrl) {
+            _renderCrearImage(last.imageUrl, last.prompt || '', last.meta || 'ÚLTIMA IMAGEN');
+            setActionLine("🎨 Crear — la última imagen sigue sobre la mesa; escribe un nuevo prompt para reemplazarla");
+            return;
+        }
         setActionLine("🎨 Crear — describe la imagen y pulsa Enviar");
     }
     function exitCrearMode() {
@@ -3699,69 +3927,92 @@
             return;
         }
         const ts = Date.now();
-        _renderCrearGenerating(prompt);
+        const requestSeq = ++window._crearRequestSeq;
+        _stopCrearPolling();
+        _renderCrearGenerating(prompt, _crearOptionLabel(selectedCrear) + " · " + (currentGen === 'coetaneos' ? 'COETÁNEOS' : 'LEYENDAS'));
         setActionLine("🎨 Encolando trabajo en el backend…");
-        // Encolar en el backend
-        const baseUrl = activeApiUrl || COUNCIL_API_URLS[0];
+        let job = null;
         let jobId = null;
         try {
-            const r = await fetch(baseUrl + '/api/council/crear', {
+            const { res, baseUrl } = await _crearApiFetch('/api/council/crear', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Council-Token': COUNCIL_API_TOKEN },
                 body: JSON.stringify({ prompt, calidad: selectedCrear, gen: currentGen, ts })
-            });
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            const data = await r.json();
-            jobId = data.id;
+            }, 15000);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            activeApiUrl = baseUrl;
+            job = await res.json();
+            jobId = job.id;
+            window._crearActiveJobId = jobId;
+            _updateCrearLoadingStatus('EN COLA…', _crearJobMeta(job));
             setActionLine("🎨 Generando imagen #" + jobId + " — el agente la dejará en la mesa");
         } catch (e) {
+            _renderCrearError(prompt, "No se pudo encolar el trabajo");
             setActionLine("⚠️ No se pudo encolar — " + e.message);
             return;
         }
-        // Polling cada 3 s contra el backend
-        if (window._crearPollTimer) clearInterval(window._crearPollTimer);
+
         let attempts = 0;
-        const maxAttempts = 80; // ~4 min
-        window._crearPollTimer = setInterval(async () => {
+        const maxAttempts = 80;
+        const poll = async () => {
+            if (requestSeq !== window._crearRequestSeq || jobId !== window._crearActiveJobId) return;
             attempts++;
             if (attempts > maxAttempts) {
-                clearInterval(window._crearPollTimer);
-                window._crearPollTimer = null;
+                _stopCrearPolling();
+                _renderCrearError(prompt, "Timeout — el agente no respondió en 4 min");
                 setActionLine("⚠️ Timeout — el agente no respondió en 4 min");
                 return;
             }
             try {
-                const r = await fetch(baseUrl + '/api/council/crear/' + encodeURIComponent(jobId), {
+                const { res, baseUrl } = await _crearApiFetch('/api/council/crear/' + encodeURIComponent(jobId), {
                     headers: { 'X-Council-Token': COUNCIL_API_TOKEN }
-                });
-                if (!r.ok) return;
-                const j = await r.json();
+                }, 12000);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                activeApiUrl = baseUrl;
+                const j = await res.json();
+                if (requestSeq !== window._crearRequestSeq || jobId !== window._crearActiveJobId) return;
                 if (j.status === 'done' && j.imageUrl) {
-                    clearInterval(window._crearPollTimer);
-                    window._crearPollTimer = null;
-                    _renderCrearImage(j.imageUrl, prompt);
+                    _stopCrearPolling();
+                    const meta = 'LISTA · ' + _crearOptionLabel(j.calidad || selectedCrear) + ' · ' + _formatCrearElapsed(j.ageSeconds || 0);
+                    _saveCrearSnapshot(currentGen, {
+                        imageUrl: j.imageUrl,
+                        prompt,
+                        meta,
+                    });
+                    _renderCrearImage(j.imageUrl, prompt, meta);
                     setActionLine("✅ Imagen lista — sobre la mesa");
                 } else if (j.status === 'error') {
-                    clearInterval(window._crearPollTimer);
-                    window._crearPollTimer = null;
+                    _stopCrearPolling();
+                    _renderCrearError(prompt, j.error || 'Error desconocido');
                     setActionLine("⚠️ Error generando: " + (j.error || 'desconocido'));
+                } else {
+                    const phase = j.status === 'processing' ? 'UN AGENTE LA ESTÁ PINTANDO…' : 'EN COLA…';
+                    _updateCrearLoadingStatus(phase, _crearJobMeta(j));
+                    window._crearPollTimer = setTimeout(poll, 3000);
                 }
-            } catch(e) {}
-        }, 3000);
+            } catch(e) {
+                if (requestSeq !== window._crearRequestSeq || jobId !== window._crearActiveJobId) return;
+                _updateCrearLoadingStatus('REINTENTANDO API…', 'conexión inestable · intento ' + attempts + '/' + maxAttempts);
+                window._crearPollTimer = setTimeout(poll, 3000);
+            }
+        };
+        poll();
     }
     let _crearPhaseTimer = null;
-    function _renderCrearGenerating(prompt) {
+    function _renderCrearGenerating(prompt, metaText) {
         const viewer = document.getElementById('table-viewer');
         const content = document.getElementById('table-viewer-content');
         if (!viewer || !content) return;
         viewer.classList.remove('mode-mac', 'mode-hologram');
         viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
-        const promptEsc = (prompt || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const promptEsc = _crearEscapeHtml(prompt || '');
+        const metaEsc = _crearEscapeHtml(metaText || '');
         content.innerHTML =
             '<div class="tv-card crear-loading">' +
             '<div class="crear-spinner">🎨</div>' +
             '<div class="crear-progress"></div>' +
             '<div class="crear-phase" id="crear-phase">CONECTANDO…</div>' +
+            '<div class="crear-meta" id="crear-meta">' + metaEsc + '</div>' +
             '<div class="crear-prompt-text" title="' + promptEsc + '">' + promptEsc + '</div>' +
             '</div>';
         viewer.classList.add('active');
@@ -3783,15 +4034,123 @@
             el.textContent = phases[i];
         }, 2400);
     }
-    function _renderCrearImage(imageUrl, prompt) {
+    function _renderCrearImage(imageUrl, prompt, metaText) {
         const viewer = document.getElementById('table-viewer');
         const content = document.getElementById('table-viewer-content');
         if (!viewer || !content) return;
         if (_crearPhaseTimer) { clearInterval(_crearPhaseTimer); _crearPhaseTimer = null; }
         viewer.classList.remove('mode-mac', 'mode-hologram');
         viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
-        content.innerHTML = '<img src="' + imageUrl + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block">';
+        const safeUrl = _crearEscapeHtml(imageUrl || '');
+        const promptEsc = _crearEscapeHtml(prompt || '');
+        const metaEsc = _crearEscapeHtml(metaText || _crearOptionLabel(selectedCrear));
+        content.innerHTML =
+            '<div class="crear-result-shell">' +
+            '<img src="' + safeUrl + '" alt="">' +
+            '<div class="crear-result-caption">' +
+            '<div class="crear-meta">' + metaEsc + '</div>' +
+            '<div class="crear-prompt-text" title="' + promptEsc + '">' + promptEsc + '</div>' +
+            '<div class="crear-actions">' +
+            '<a class="tv-open" href="' + safeUrl + '" target="_blank" rel="noopener">ABRIR ↗</a>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
         viewer.classList.add('active');
+    }
+    function _renderCrearError(prompt, message) {
+        const viewer = document.getElementById('table-viewer');
+        const content = document.getElementById('table-viewer-content');
+        if (!viewer || !content) return;
+        if (_crearPhaseTimer) { clearInterval(_crearPhaseTimer); _crearPhaseTimer = null; }
+        const promptEsc = _crearEscapeHtml(prompt || '');
+        const msgEsc = _crearEscapeHtml(message || 'Error desconocido');
+        viewer.classList.remove('mode-mac', 'mode-hologram');
+        viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
+        content.innerHTML =
+            '<div class="tv-card crear-loading">' +
+            '<div class="crear-phase">FALLO EN CREAR</div>' +
+            '<div class="crear-meta">' + msgEsc + '</div>' +
+            '<div class="crear-prompt-text" title="' + promptEsc + '">' + promptEsc + '</div>' +
+            '</div>';
+        viewer.classList.add('active');
+    }
+    function _updateCrearLoadingStatus(phase, metaText) {
+        const phaseEl = document.getElementById('crear-phase');
+        const metaEl = document.getElementById('crear-meta');
+        if (phaseEl && phase) phaseEl.textContent = phase;
+        if (metaEl) metaEl.textContent = metaText || '';
+    }
+    function _stopCrearPolling() {
+        if (window._crearPollTimer) {
+            clearTimeout(window._crearPollTimer);
+            window._crearPollTimer = null;
+        }
+    }
+    function _crearEscapeHtml(value) {
+        return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;');
+    }
+    function _crearOptionLabel(value) {
+        const labels = {
+            'standard-square': 'ESTÁNDAR · CUADRADA',
+            'standard-wide': 'ESTÁNDAR · APAISADA',
+            'hd-square': 'HD · CUADRADA',
+            'hd-wide': 'HD · APAISADA',
+        };
+        return labels[value] || String(value || 'ESTÁNDAR').toUpperCase();
+    }
+    function _formatCrearElapsed(totalSeconds) {
+        const s = Math.max(0, totalSeconds || 0);
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return m + ':' + String(r).padStart(2, '0');
+    }
+    function _crearJobMeta(job) {
+        if (!job) return '';
+        const bits = [];
+        if (job.queuePosition) bits.push('cola #' + job.queuePosition);
+        if (job.processingCount) bits.push(job.processingCount + ' procesando');
+        bits.push(_crearOptionLabel(job.calidad || selectedCrear));
+        if (typeof job.ageSeconds === 'number') bits.push(_formatCrearElapsed(job.ageSeconds));
+        return bits.join(' · ');
+    }
+    async function _crearApiFetch(path, init, timeoutMs) {
+        const urls = activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice();
+        let lastErr = null;
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + path, { ...(init || {}), signal: AbortSignal.timeout(timeoutMs || 12000) });
+                if ([429, 500, 502, 503, 504].includes(res.status)) {
+                    lastErr = new Error('HTTP ' + res.status);
+                    continue;
+                }
+                return { res, baseUrl };
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        throw lastErr || new Error('API no disponible');
+    }
+    function _crearStorageKey(gen) {
+        return 'crear:lastResult:' + (gen || 'leyendas');
+    }
+    function _saveCrearSnapshot(gen, data) {
+        try {
+            localStorage.setItem(_crearStorageKey(gen), JSON.stringify({
+                imageUrl: data.imageUrl || '',
+                prompt: data.prompt || '',
+                meta: data.meta || '',
+                savedAt: Date.now(),
+            }));
+        } catch(e) {}
+    }
+    function _loadCrearSnapshot(gen) {
+        try {
+            const raw = localStorage.getItem(_crearStorageKey(gen));
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch(e) {
+            return null;
+        }
     }
 
     function playPresentation() {
@@ -3859,6 +4218,7 @@
             });
         }
         renderAnalyzedList();
+        void ensureEntrenarLoaded(currentGen);
     });
 
     async function askCouncilAPI(message) {

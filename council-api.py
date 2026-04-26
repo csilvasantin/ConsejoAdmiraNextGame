@@ -21,6 +21,7 @@ import os
 import json
 import asyncio
 import time
+import uuid
 import smtplib
 import random
 import threading
@@ -163,10 +164,82 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "")
 
 # Budget tracking file
 BUDGET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "budget.json")
+ENTRENAR_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entrenar_corpus.json")
 
 # ── Budget tracker ───────────────────────────────────────────
 _budget_lock = threading.Lock()
 _alert_sent = {"warn": False, "critical": False, "blocked": False}
+_entrenar_lock = threading.Lock()
+
+
+def _normalize_entrenar_item(raw) -> Optional[dict]:
+    if not isinstance(raw, dict):
+        return None
+    url = str(raw.get("url", "")).strip()
+    if not url:
+        return None
+    source = str(raw.get("source", "Enlace")).strip() or "Enlace"
+    kind = str(raw.get("kind", "other")).strip() or "other"
+    title = str(raw.get("title", "")).strip()
+    try:
+        ts = int(raw.get("ts") or int(time.time() * 1000))
+    except (TypeError, ValueError):
+        ts = int(time.time() * 1000)
+    item = {
+        "url": url,
+        "source": source[:80],
+        "kind": kind[:40],
+        "ts": ts,
+    }
+    if title:
+        item["title"] = title[:300]
+    return item
+
+
+def _load_entrenar_store() -> dict:
+    if Path(ENTRENAR_FILE).exists():
+        try:
+            with open(ENTRENAR_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+
+def _save_entrenar_store(data: dict):
+    with open(ENTRENAR_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def _merge_entrenar_items(existing: list, incoming: list) -> list:
+    merged: dict[str, dict] = {}
+    for item in (existing or []):
+        norm = _normalize_entrenar_item(item)
+        if norm:
+            merged[norm["url"]] = norm
+    for item in (incoming or []):
+        norm = _normalize_entrenar_item(item)
+        if not norm:
+            continue
+        prev = merged.get(norm["url"])
+        if not prev or norm.get("ts", 0) >= prev.get("ts", 0):
+            merged[norm["url"]] = norm
+    return sorted(merged.values(), key=lambda x: (x.get("ts", 0), x.get("url", "")))
+
+
+def _entrenar_gen_snapshot(gen: str) -> dict:
+    store = _load_entrenar_store()
+    raw_gen = store.get(gen, {})
+    personas = {}
+    total = 0
+    if isinstance(raw_gen, dict):
+        for persona, items in raw_gen.items():
+            merged = _merge_entrenar_items([], items if isinstance(items, list) else [])
+            personas[persona] = merged
+            total += len(merged)
+    return {"gen": gen, "personas": personas, "total": total}
 
 
 def _load_budget() -> dict:
@@ -1315,13 +1388,45 @@ app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
 # Agente   → POST /api/council/crear/<id>/result {imageUrl} (entrega)
 _crear_jobs: dict = {}
 _CREAR_JOB_TTL = 3600  # 1h
+_CREAR_PROCESSING_TIMEOUT = 900  # 15 min
 
 
 def _crear_cleanup():
     cutoff = time.time() - _CREAR_JOB_TTL
+    now = time.time()
+    for job in _crear_jobs.values():
+        if (
+            job.get("status") == "processing"
+            and job.get("startedAt")
+            and (now - job["startedAt"]) > _CREAR_PROCESSING_TIMEOUT
+        ):
+            job["status"] = "pending"
+            job.pop("startedAt", None)
+            job.pop("workerId", None)
+            job["requeuedAt"] = now
     expired = [k for k, j in list(_crear_jobs.items()) if j.get("createdAt", 0) < cutoff]
     for k in expired:
         _crear_jobs.pop(k, None)
+
+
+def _crear_queue_counts():
+    pending_jobs = sorted(
+        (j for j in _crear_jobs.values() if j.get("status") == "pending"),
+        key=lambda j: j.get("createdAt", 0),
+    )
+    pending_order = {j["id"]: idx + 1 for idx, j in enumerate(pending_jobs)}
+    processing_count = sum(1 for j in _crear_jobs.values() if j.get("status") == "processing")
+    return pending_order, len(pending_jobs), processing_count
+
+
+def _crear_public_job(job: dict):
+    pending_order, pending_count, processing_count = _crear_queue_counts()
+    out = dict(job)
+    out["ageSeconds"] = max(0, int(time.time() - job.get("createdAt", time.time())))
+    out["pendingCount"] = pending_count
+    out["processingCount"] = processing_count
+    out["queuePosition"] = pending_order.get(job["id"]) if job.get("status") == "pending" else None
+    return out
 
 
 class CrearJobRequest(BaseModel):
@@ -1339,10 +1444,47 @@ class CrearErrorRequest(BaseModel):
     error: str
 
 
+class CrearClaimRequest(BaseModel):
+    workerId: Optional[str] = None
+
+
+class EntrenarItemsRequest(BaseModel):
+    items: list[dict]
+
+
+@app.get("/api/council/entrenar/{gen}")
+async def entrenar_get_gen(gen: str, _auth=Depends(verify_token)):
+    with _entrenar_lock:
+        return _entrenar_gen_snapshot(gen)
+
+
+@app.get("/api/council/entrenar/{gen}/{persona}")
+async def entrenar_get_persona(gen: str, persona: str, _auth=Depends(verify_token)):
+    with _entrenar_lock:
+        snapshot = _entrenar_gen_snapshot(gen)
+    items = snapshot["personas"].get(persona, [])
+    return {"gen": gen, "persona": persona, "items": items, "count": len(items)}
+
+
+@app.post("/api/council/entrenar/{gen}/{persona}/merge")
+async def entrenar_merge_persona(gen: str, persona: str, req: EntrenarItemsRequest, _auth=Depends(verify_token)):
+    with _entrenar_lock:
+        store = _load_entrenar_store()
+        gen_bucket = store.setdefault(gen, {})
+        if not isinstance(gen_bucket, dict):
+            gen_bucket = {}
+            store[gen] = gen_bucket
+        existing = gen_bucket.get(persona, [])
+        merged = _merge_entrenar_items(existing if isinstance(existing, list) else [], req.items)
+        gen_bucket[persona] = merged
+        _save_entrenar_store(store)
+    return {"gen": gen, "persona": persona, "items": merged, "count": len(merged)}
+
+
 @app.post("/api/council/crear")
 async def crear_enqueue(req: CrearJobRequest, _auth=Depends(verify_token)):
     _crear_cleanup()
-    job_id = str(req.ts or int(time.time() * 1000))
+    job_id = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     _crear_jobs[job_id] = {
         "id": job_id,
         "prompt": req.prompt,
@@ -1351,7 +1493,7 @@ async def crear_enqueue(req: CrearJobRequest, _auth=Depends(verify_token)):
         "createdAt": time.time(),
         "status": "pending",
     }
-    return {"id": job_id, "status": "pending"}
+    return _crear_public_job(_crear_jobs[job_id])
 
 
 @app.get("/api/council/crear/{job_id}")
@@ -1360,7 +1502,7 @@ async def crear_status(job_id: str, _auth=Depends(verify_token)):
     job = _crear_jobs.get(job_id)
     if not job:
         raise HTTPException(404, "Job not found or expired")
-    return job
+    return _crear_public_job(job)
 
 
 @app.get("/api/council/crear-pending")
@@ -1370,7 +1512,23 @@ async def crear_list_pending(_auth=Depends(verify_token)):
         (j for j in _crear_jobs.values() if j["status"] == "pending"),
         key=lambda j: j["createdAt"],
     )
-    return {"jobs": pending}
+    return {"jobs": [_crear_public_job(j) for j in pending]}
+
+
+@app.post("/api/council/crear/claim")
+async def crear_claim(req: CrearClaimRequest, _auth=Depends(verify_token)):
+    _crear_cleanup()
+    pending = sorted(
+        (j for j in _crear_jobs.values() if j["status"] == "pending"),
+        key=lambda j: j["createdAt"],
+    )
+    if not pending:
+        return {"job": None}
+    job = pending[0]
+    job["status"] = "processing"
+    job["startedAt"] = time.time()
+    job["workerId"] = (req.workerId or "anonymous-worker")[:120]
+    return {"job": _crear_public_job(job)}
 
 
 @app.post("/api/council/crear/{job_id}/result")
@@ -1381,7 +1539,7 @@ async def crear_set_result(job_id: str, req: CrearResultRequest, _auth=Depends(v
     job["status"] = "done"
     job["imageUrl"] = req.imageUrl
     job["completedAt"] = time.time()
-    return job
+    return _crear_public_job(job)
 
 
 @app.post("/api/council/crear/{job_id}/error")
@@ -1392,7 +1550,7 @@ async def crear_set_error(job_id: str, req: CrearErrorRequest, _auth=Depends(ver
     job["status"] = "error"
     job["error"] = req.error[:500]
     job["completedAt"] = time.time()
-    return job
+    return _crear_public_job(job)
 
 
 # ── Run ──────────────────────────────────────────────────────
