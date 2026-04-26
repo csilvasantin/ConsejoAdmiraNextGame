@@ -1837,7 +1837,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.50</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.51</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3328,6 +3328,22 @@
         // (skipped por ahora para evitar falsos positivos)
         return matches;
     }
+    function _resolveTrainTarget(target, gen) {
+        if (!target) return null;
+        const t = String(target).toLowerCase().trim();
+        if (!t || ['all','todos','everyone','*'].includes(t)) return 'all';
+        const members = COUNCIL.filter(m => m.gen === gen);
+        // Exact persona
+        let m = members.filter(x => x.persona.toLowerCase() === t);
+        if (m.length === 1) return m;
+        // Persona contains
+        m = members.filter(x => x.persona.toLowerCase().includes(t));
+        if (m.length === 1) return m;
+        // Role abbreviation (CEO, CTO…)
+        m = members.filter(x => x.name.toLowerCase() === t);
+        if (m.length >= 1) return m; // sólo hay 1 por rol por gen
+        return null;
+    }
     async function executeEntrenar(text) {
         if (!isLikelyUrl(text)) {
             setActionLine("❌ Eso no parece una URL — pega un enlace que empiece por http(s):// o www.");
@@ -3337,12 +3353,62 @@
         const source = detectVideoSource(url);
         const kind = classifyEntrenarUrl(url);
         const ts = Date.now();
+        const kindIcon = kind === "book" ? "📚" : kind === "video" ? "📼" : "🔗";
+        const kindLabel = kind === "book" ? "Libro" : kind === "video" ? "Vídeo" : "Enlace";
+
+        // Si vino target explícito desde magic link (?target=…)
+        const explicitTarget = window._trainTarget;
+        window._trainTarget = null; // consumido
+        if (explicitTarget) {
+            const resolved = _resolveTrainTarget(explicitTarget, currentGen);
+            const all = COUNCIL.filter(m => m.gen === currentGen);
+            const targets = resolved === 'all' ? all : (resolved || []);
+            if (targets.length === 0) {
+                setActionLine('⚠️ Destinatario "' + explicitTarget + '" no reconocido — abriendo picker');
+                const title = await _fetchUrlTitle(url);
+                _renderEntrenarPicker({ url, source, kind, ts, title, kindIcon, kindLabel });
+                return;
+            }
+            const title = await _fetchUrlTitle(url);
+            for (const m of targets) {
+                const arr = loadEntrenar(currentGen, m.persona);
+                arr.push({ url, source, kind, ts, title: title || undefined });
+                saveEntrenar(currentGen, m.persona, arr);
+            }
+            enterConversation();
+            const titleEsc = title ? title.replace(/</g,'&lt;').slice(0, 80) : '';
+            const titleHtml = titleEsc ? ' <span style="color:#ccc">"' + titleEsc + '"</span>' : '';
+            const tag = (resolved === 'all')
+                ? ' → <span style="color:#daa520">todos</span>'
+                : ' → <span style="color:#daa520">' + targets.map(m => m.persona).join(', ') + '</span>';
+            addUserEntry('🎓 ' + kindLabel + ' (' + source + ')' + titleHtml + tag + '<br><a href="' + url + '" target="_blank" style="color:#8cf">' + url + '</a>');
+            if (resolved === 'all') {
+                const racionales = targets.filter(m => m.side === 'racional');
+                const creativos  = targets.filter(m => m.side === 'creativo');
+                for (const m of racionales) {
+                    addConvEntry('conv-racional', m.icon, m.name, m.persona, 'racional',
+                        kindIcon + " Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+                }
+                for (const m of creativos) {
+                    addConvEntry('conv-creativo', m.icon, m.name, m.persona, 'creativo',
+                        kindIcon + " Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+                }
+                setActionLine('✅ ' + kindLabel + ' archivado por los ' + targets.length + ' consejeros (Telegram)');
+            } else {
+                for (const m of targets) {
+                    const panel = m.side === 'racional' ? 'conv-racional' : 'conv-creativo';
+                    addConvEntry(panel, m.icon, m.name, m.persona, m.side,
+                        kindIcon + " Específicamente para mí. Lo archivo desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+                }
+                setActionLine('✅ ' + kindLabel + ' asignado a ' + targets.map(m => m.persona).join(', ') + ' (Telegram)');
+            }
+            renderEntrenarList();
+            return;
+        }
 
         setActionLine("🔍 Buscando destinatario para esta URL…");
         const title = await _fetchUrlTitle(url);
         const detected = _detectTargetConsejeros(title + ' ' + url, currentGen);
-        const kindIcon = kind === "book" ? "📚" : kind === "video" ? "📼" : "🔗";
-        const kindLabel = kind === "book" ? "Libro" : kind === "video" ? "Vídeo" : "Enlace";
 
         if (detected.length === 0) {
             // Sin match: abrir picker manual sobre el panel del corpus
@@ -3755,18 +3821,21 @@
         // Magic link Telegram: ?train=<url> auto-activa Entrenar y procesa la URL
         const params = new URLSearchParams(location.search);
         const trainUrl = params.get('train');
+        const trainTarget = params.get('target');
         if (trainUrl) {
             const entrenarBtn = document.querySelector('button[data-verb="entrenar"]');
             if (entrenarBtn) selectVerb(entrenarBtn);
+            window._trainTarget = trainTarget || null;
             setTimeout(() => {
                 const input = document.getElementById('action-input');
                 if (input) {
                     input.value = trainUrl;
                     sendMessage();
                 }
-                // Limpiar el param para que un refresh no re-dispare
+                // Limpiar los params para que un refresh no re-dispare
                 const clean = new URLSearchParams(location.search);
                 clean.delete('train');
+                clean.delete('target');
                 history.replaceState({}, '', location.pathname + '?' + clean.toString());
             }, 200);
         } else {
