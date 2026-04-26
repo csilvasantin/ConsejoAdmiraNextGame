@@ -1499,7 +1499,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.25.04.9</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.1</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1612,7 +1612,7 @@
                 <div class="verb-grid">
                     <button class="verb-btn verb-primary" data-verb="preguntar" onclick="selectVerb(this)">Preguntar</button>
                     <button class="verb-btn verb-primary" data-verb="debatir" onclick="selectVerb(this)">Debatir</button>
-                    <button class="verb-btn verb-primary" data-verb="sintetizar" onclick="selectVerb(this)">Sintetizar</button>
+                    <button class="verb-btn verb-primary" data-verb="entrenar" onclick="selectVerb(this)">Entrenar</button>
                     <button class="verb-btn" data-verb="mirar" onclick="selectVerb(this)">Mirar</button>
                     <button class="verb-btn" data-verb="hablar" onclick="selectVerb(this)">Hablar con</button>
                     <button class="verb-btn" data-verb="leer" onclick="selectVerb(this)">Leer</button>
@@ -1622,7 +1622,7 @@
                     <button class="verb-btn" data-verb="previo" id="btn-previo" onclick="selectVerb(this)" style="display:none;border-left:2px solid #5a3a1e">▶ Previo</button>
                 </div>
                 <div class="inventory">
-                    <!-- Panel LLM: por defecto y para verbos que usan modelo (preguntar, debatir, sintetizar, hablar) -->
+                    <!-- Panel LLM: por defecto y para verbos que usan modelo (preguntar, debatir, hablar) -->
                     <div class="inv-panel active" data-panel="llm">
                         <div class="inventory-title">Motor LLM</div>
                         <div class="inventory-list" id="llm-list">
@@ -1670,6 +1670,13 @@
                             <div class="inv-item analizar-option selected" data-analizar="url" onclick="selectSubOption('analizar', this)">🔗 URL</div>
                             <div class="inv-item analizar-option" data-analizar="texto" onclick="selectSubOption('analizar', this)">📋 Texto</div>
                             <div class="inv-item analizar-option" data-analizar="fichero" onclick="selectSubOption('analizar', this)">📄 Fichero</div>
+                        </div>
+                    </div>
+                    <!-- Panel ENTRENAR: corpus de URLs guardadas por consejero -->
+                    <div class="inv-panel" data-panel="entrenar">
+                        <div class="inventory-title">Corpus de entrenamiento</div>
+                        <div class="inventory-list" id="entrenar-list">
+                            <div class="inv-item" style="font-size:0.7rem;opacity:0.7">Pega una URL en la línea superior y pulsa Enviar</div>
                         </div>
                     </div>
                     <!-- Panel PRESENTAR: formato de salida -->
@@ -1817,6 +1824,7 @@
             img.style.opacity = "1";
         }, 300);
         render();
+        if (currentVerb === 'entrenar') renderEntrenarList();
     }
 
     function loadMachines(data) {
@@ -2443,7 +2451,7 @@
     const VERB_TO_PANEL = {
         preguntar: "llm",
         debatir:   "llm",
-        sintetizar:"llm",
+        entrenar:  "entrenar",
         hablar:    "llm",
         leer:      "leer",
         mirar:     "mirar",
@@ -2518,9 +2526,12 @@
         if (currentVerb === 'preguntar') {
             enterPreguntarMode();
         }
-        if (['debatir','sintetizar'].includes(currentVerb)) {
+        if (currentVerb === 'debatir') {
             if (!currentProject) { setActionLine("Selecciona un proyecto del inventario"); return; }
             executeCouncilVerb(currentVerb);
+        }
+        if (currentVerb === 'entrenar') {
+            triggerEntrenar();
         }
         if (currentVerb === 'mirar') {
             enterMirarMode();
@@ -2606,7 +2617,7 @@
     }
 
     function updateActionLine() {
-        const names = { preguntar:"Preguntar", debatir:"Debatir", sintetizar:"Sintetizar", mirar:"Mirar", hablar:"Hablar con", leer:"Leer", votar:"Votar", analizar:"Analizar", presentar:"Presentar", previo:"▶ Ver Previo" };
+        const names = { preguntar:"Preguntar", debatir:"Debatir", entrenar:"Entrenar", mirar:"Mirar", hablar:"Hablar con", leer:"Leer", votar:"Votar", analizar:"Analizar", presentar:"Presentar", previo:"▶ Ver Previo" };
         const v = names[currentVerb] || "";
         const p = currentProject ? ' "' + currentProject + '"' : "";
         if (v && !preguntarMode) document.getElementById("action-input").placeholder = v + p + "...";
@@ -2686,9 +2697,88 @@
             return;
         }
 
+        if (currentVerb === 'entrenar') {
+            executeEntrenar(text);
+            return;
+        }
+
         enterConversation();
         addUserEntry(text);
         simulateCouncilResponse(text);
+    }
+
+    // ── ENTRENAR: corpus de URLs por consejero (localStorage) ──
+    function entrenarKey(gen, persona) { return "entrenar:" + gen + ":" + persona; }
+    function loadEntrenar(gen, persona) {
+        try { return JSON.parse(localStorage.getItem(entrenarKey(gen, persona)) || "[]"); }
+        catch(e) { return []; }
+    }
+    function saveEntrenar(gen, persona, arr) {
+        localStorage.setItem(entrenarKey(gen, persona), JSON.stringify(arr));
+    }
+    function entrenarSummary(gen) {
+        const out = [];
+        for (const m of COUNCIL.filter(x => x.gen === gen)) {
+            out.push({ name: m.name, persona: m.persona, count: loadEntrenar(gen, m.persona).length });
+        }
+        return out;
+    }
+    function renderEntrenarList() {
+        const ul = document.getElementById("entrenar-list");
+        if (!ul) return;
+        const summary = entrenarSummary(currentGen);
+        const total = summary.reduce((s, x) => s + x.count, 0);
+        if (total === 0) {
+            ul.innerHTML = '<div class="inv-item" style="font-size:0.7rem;opacity:0.7">Pega una URL en la línea superior y pulsa Enviar</div>';
+            return;
+        }
+        ul.innerHTML = '<div class="inv-item" style="font-size:0.7rem;opacity:0.85;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:4px;">📼 Total: ' + total + ' vídeos · ' + currentGen + '</div>' +
+            summary.map(s => '<div class="inv-item" style="font-size:0.7rem;display:flex;justify-content:space-between"><span>' + s.persona + '</span><span style="color:#daa520">' + s.count + '</span></div>').join('');
+    }
+    function triggerEntrenar() {
+        renderEntrenarList();
+        setActionLine("🎓 Entrenar — pega la URL del vídeo y pulsa Enviar");
+    }
+    function isLikelyUrl(s) {
+        return /^(https?:\/\/|www\.)\S+$/i.test(s);
+    }
+    function detectVideoSource(url) {
+        if (/youtu\.be\/|youtube\.com\//i.test(url)) return "YouTube";
+        if (/vimeo\.com\//i.test(url)) return "Vimeo";
+        if (/twitch\.tv\//i.test(url)) return "Twitch";
+        if (/tiktok\.com\//i.test(url)) return "TikTok";
+        if (/instagram\.com\//i.test(url)) return "Instagram";
+        if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)) return "Vídeo";
+        return "Enlace";
+    }
+    function executeEntrenar(text) {
+        if (!isLikelyUrl(text)) {
+            setActionLine("❌ Eso no parece una URL — pega un enlace que empiece por http(s):// o www.");
+            return;
+        }
+        const url = text.startsWith("http") ? text : "https://" + text;
+        const source = detectVideoSource(url);
+        const ts = Date.now();
+        const members = COUNCIL.filter(m => m.gen === currentGen);
+        for (const m of members) {
+            const arr = loadEntrenar(currentGen, m.persona);
+            arr.push({ url: url, source: source, ts: ts });
+            saveEntrenar(currentGen, m.persona, arr);
+        }
+        enterConversation();
+        addUserEntry('🎓 URL de entrenamiento (' + source + '): <a href="' + url + '" target="_blank" style="color:#8cf">' + url + '</a>');
+        const racionales = members.filter(m => m.side === "racional");
+        const creativos  = members.filter(m => m.side === "creativo");
+        for (const m of racionales) {
+            addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional",
+                "📼 Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+        }
+        for (const m of creativos) {
+            addConvEntry("conv-creativo", m.icon, m.name, m.persona, "creativo",
+                "📼 Guardado. " + m.persona + " lo archivará desde la perspectiva de " + (m.territory || m.role).toLowerCase() + ".");
+        }
+        renderEntrenarList();
+        setActionLine("✅ Vídeo guardado para entrenamiento — " + members.length + " consejeros lo han archivado");
     }
 
     // ── Council API config ──
@@ -3150,15 +3240,14 @@
         const members = COUNCIL.filter(m => m.gen === currentGen);
         const racionales = members.filter(m => m.side === "racional");
         const creativos = members.filter(m => m.side === "creativo");
-        const roundName = { debatir:"Debate", sintetizar:"Síntesis" }[verb] || verb;
-        const verbGerund = { debatir:"debatiendo", sintetizar:"sintetizando" }[verb] || verb;
+        const roundName = { debatir:"Debate" }[verb] || verb;
+        const verbGerund = { debatir:"debatiendo" }[verb] || verb;
         document.getElementById("round-indicator").textContent = "Ronda: " + roundName;
         setActionLine("🧠 " + roundName + " en curso — los consejeros deliberan con Claude...");
 
         // Build the prompt based on the verb + project
         const verbPrompts = {
             debatir: "Estamos en fase de debate sobre el proyecto '" + (currentProject || "nuevo proyecto") + "'. Analiza las propuestas anteriores del consejo, valida lo fuerte, cuestiona lo débil, y propón mejoras.",
-            sintetizar: "Genera tu síntesis final sobre el proyecto '" + (currentProject || "nuevo proyecto") + "'. Integra las mejores ideas del debate y da tu conclusión ejecutiva.",
         };
         const prompt = verbPrompts[verb] || verbPrompts.debatir;
 
@@ -3202,7 +3291,7 @@
         } else {
             // Fallback offline
             setActionLine("⚠️ API no disponible — modo offline");
-            const verbAction = { debatir:"debate los puntos", sintetizar:"ofrece su síntesis" }[verb] || "responde";
+            const verbAction = { debatir:"debate los puntos" }[verb] || "responde";
             for (const m of racionales) {
                 addConvEntry("conv-racional", m.icon, m.name, m.persona, "racional", "[Offline] " + m.persona + " " + verbAction + ".");
                 await new Promise(r => setTimeout(r, 200));
