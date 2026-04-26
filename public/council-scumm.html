@@ -1837,7 +1837,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.17</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.18</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3115,14 +3115,23 @@
     function _entrenarEsc(s) {
         return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+    function _entrenarItemDesc(it) {
+        if (it.title) return it.title.slice(0, 120);
+        const date = new Date(it.ts || Date.now()).toLocaleDateString('es', { day: '2-digit', month: '2-digit' });
+        return (it.source || 'Enlace') + ' · ' + date;
+    }
     function _entrenarItemsHtml(arr) {
         if (!arr.length) return '<li class="empty">(vacío)</li>';
-        return arr.map(it => {
+        // Más nuevo arriba (los items se guardan con push() así que invertimos)
+        const sorted = arr.slice().reverse();
+        return sorted.map(it => {
             const short = it.url.replace(/^https?:\/\//,'').slice(0, 26);
             const url = _entrenarEsc(it.url);
+            const desc = _entrenarEsc(_entrenarItemDesc(it));
             return '<li>' +
                 '<a href="' + url + '" data-entrenar-url="' + url + '" rel="noopener" title="' + url + '">' + _entrenarEsc(short) + '</a>' +
                 '<a href="' + url + '" data-entrenar-ext="1" target="_blank" rel="noopener" class="ext-link" title="Abrir en pestaña">↗</a>' +
+                '<div class="analizar-desc">' + desc + '</div>' +
                 '</li>';
         }).join('');
     }
@@ -3285,16 +3294,27 @@
         if (yId) {
             try {
                 const r = await fetch('https://www.youtube.com/oembed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + yId) + '&format=json');
-                if (r.ok) { const d = await r.json(); return (d.title || '') + ' ' + (d.author_name || ''); }
+                if (r.ok) { const d = await r.json(); return ((d.title || '') + ' ' + (d.author_name || '')).trim(); }
             } catch(e) {}
         }
         const vId = _vimeoId(url);
         if (vId) {
             try {
                 const r = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(url));
-                if (r.ok) { const d = await r.json(); return (d.title || '') + ' ' + (d.author_name || ''); }
+                if (r.ok) { const d = await r.json(); return ((d.title || '') + ' ' + (d.author_name || '')).trim(); }
             } catch(e) {}
         }
+        // Fallback: microlink para libros y otros (free tier ~50 req/IP/día)
+        try {
+            const r = await fetch('https://api.microlink.io?url=' + encodeURIComponent(url));
+            if (r.ok) {
+                const d = await r.json();
+                if (d.status === 'success' && d.data) {
+                    const parts = [d.data.title, d.data.author].filter(Boolean);
+                    return parts.join(' · ').trim();
+                }
+            }
+        } catch(e) {}
         return '';
     }
     function _normalizeHaystack(s) {
