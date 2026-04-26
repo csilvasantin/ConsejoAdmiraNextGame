@@ -220,10 +220,10 @@
             text-align: center;
             opacity: 0.8;
         }
-        /* Left window (Racional) — sobre la ventana del fondo izquierda */
+        /* Left window (Racional) — espejo de la derecha (mismo tamaño y altura) */
         .window-overlay.racional {
-            left: 17%; top: 10%;
-            width: 21%; height: 21%;
+            left: 15%; top: 5.3%;
+            width: 19.5%; height: 16%;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -1715,7 +1715,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.7</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.8</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2969,7 +2969,6 @@
 
     // ── ENTRENAR: overlays de fondo (vídeos izq · libros der) por consejero ──
     let _winOriginalHtml = null;
-    let _entrenarHoverHandler = null;
     function captureOverlayOriginals() {
         if (_winOriginalHtml) return;
         _winOriginalHtml = {
@@ -3079,31 +3078,9 @@
         document.getElementById('win-racional').classList.add('active');
         document.getElementById('win-creativo').classList.add('active');
     }
-    let _entrenarLeaveHandler = null;
     let _entrenarPanelHandler = null;
     function enterEntrenarMode() {
         captureOverlayOriginals();
-        if (!nameplatesVisible) toggleNameplates();
-        document.getElementById('nameplates').classList.add('entrenar-active');
-        document.getElementById('body-hotspots').classList.add('entrenar-active');
-        const councilImg = document.querySelector('.council-image');
-        if (!_entrenarHoverHandler) {
-            _entrenarHoverHandler = (e) => {
-                if (currentVerb !== 'entrenar') return;
-                const tgt = e.target.closest('[data-persona]');
-                if (!tgt) return;
-                showEntrenarFor(tgt.getAttribute('data-persona'));
-            };
-            document.getElementById('body-hotspots').addEventListener('mouseover', _entrenarHoverHandler);
-            document.getElementById('nameplates').addEventListener('mouseover', _entrenarHoverHandler);
-        }
-        if (!_entrenarLeaveHandler && councilImg) {
-            _entrenarLeaveHandler = () => {
-                if (currentVerb !== 'entrenar') return;
-                hideEntrenarOverlays();
-            };
-            councilImg.addEventListener('mouseleave', _entrenarLeaveHandler);
-        }
         document.getElementById('win-racional').addEventListener('click', _entrenarListClick);
         document.getElementById('win-creativo').addEventListener('click', _entrenarListClick);
         if (!_entrenarPanelHandler) {
@@ -3118,18 +3095,6 @@
         }
     }
     function exitEntrenarMode() {
-        document.getElementById('nameplates').classList.remove('entrenar-active');
-        document.getElementById('body-hotspots').classList.remove('entrenar-active');
-        if (_entrenarHoverHandler) {
-            document.getElementById('body-hotspots').removeEventListener('mouseover', _entrenarHoverHandler);
-            document.getElementById('nameplates').removeEventListener('mouseover', _entrenarHoverHandler);
-            _entrenarHoverHandler = null;
-        }
-        const councilImg = document.querySelector('.council-image');
-        if (_entrenarLeaveHandler && councilImg) {
-            councilImg.removeEventListener('mouseleave', _entrenarLeaveHandler);
-            _entrenarLeaveHandler = null;
-        }
         document.getElementById('win-racional').removeEventListener('click', _entrenarListClick);
         document.getElementById('win-creativo').removeEventListener('click', _entrenarListClick);
         if (_entrenarPanelHandler) {
