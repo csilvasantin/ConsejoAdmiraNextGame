@@ -1276,7 +1276,7 @@
         }
         .table-viewer-content .tv-card .tv-open:hover { background: rgba(255,255,255,0.22); }
         .crear-spinner {
-            font-size: 32px;
+            font-size: 28px;
             animation: crear-spin 1.4s linear infinite;
         }
         @keyframes crear-spin {
@@ -1285,6 +1285,41 @@
         }
         .table-viewer.mode-mac .crear-spinner { filter: drop-shadow(0 0 6px #50ff78); }
         .table-viewer.mode-hologram .crear-spinner { filter: drop-shadow(0 0 8px #aaeeff); }
+        /* Barra de progreso indeterminada para Crear */
+        .crear-progress {
+            width: 80%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid currentColor;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .crear-progress::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -35%;
+            width: 35%; height: 100%;
+            background: currentColor;
+            box-shadow: 0 0 8px currentColor;
+            animation: crear-bar-sweep 1.6s ease-in-out infinite;
+        }
+        @keyframes crear-bar-sweep {
+            0%   { left: -35%; }
+            100% { left: 100%; }
+        }
+        /* Mensaje de fase rotativo */
+        .crear-phase {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 6px;
+            letter-spacing: 1px;
+            opacity: 0.85;
+            animation: crear-phase-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes crear-phase-pulse {
+            0%, 100% { opacity: 0.65; }
+            50%      { opacity: 1; }
+        }
         /* Mode: MAC (leyendas) — marco beige Apple II + scanlines */
         .table-viewer.mode-mac .table-viewer-frame {
             background: #d4cdb6;
@@ -1745,7 +1780,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.12</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.13</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3094,6 +3129,7 @@
         if (!viewer) return;
         viewer.classList.remove('active');
         if (content) content.innerHTML = '';
+        if (_crearPhaseTimer) { clearInterval(_crearPhaseTimer); _crearPhaseTimer = null; }
     }
     function _entrenarListClick(e) {
         if (currentVerb !== 'entrenar') return;
@@ -3513,6 +3549,7 @@
         // y arrancar polling cada 3s a /api/council/crear/<ts>. Por ahora el placeholder se mantiene
         // visible hasta que se cargue manualmente la imagen resultado o se cambie de verbo.
     }
+    let _crearPhaseTimer = null;
     function _renderCrearGenerating(prompt) {
         const viewer = document.getElementById('table-viewer');
         const content = document.getElementById('table-viewer-content');
@@ -3524,14 +3561,34 @@
             '<div class="tv-card crear-loading">' +
             '<div class="crear-spinner">🎨</div>' +
             '<div class="tv-domain">Generando imagen…</div>' +
+            '<div class="crear-progress"></div>' +
+            '<div class="crear-phase" id="crear-phase">CONECTANDO…</div>' +
             '<div style="font-size:0.55rem;opacity:0.85;line-height:1.5;max-width:90%;text-align:center;">' + promptEsc + '</div>' +
             '</div>';
         viewer.classList.add('active');
+        // Rotar mensaje de fase para dar sensación de progreso
+        const phases = [
+            'CONECTANDO…',
+            'INTERPRETANDO PROMPT…',
+            'TRAZANDO BOCETO…',
+            'COLOREANDO…',
+            'AFINANDO DETALLES…',
+            'RENDERIZANDO…',
+        ];
+        let i = 0;
+        if (_crearPhaseTimer) clearInterval(_crearPhaseTimer);
+        _crearPhaseTimer = setInterval(() => {
+            i = (i + 1) % phases.length;
+            const el = document.getElementById('crear-phase');
+            if (!el) { clearInterval(_crearPhaseTimer); _crearPhaseTimer = null; return; }
+            el.textContent = phases[i];
+        }, 2400);
     }
     function _renderCrearImage(imageUrl, prompt) {
         const viewer = document.getElementById('table-viewer');
         const content = document.getElementById('table-viewer-content');
         if (!viewer || !content) return;
+        if (_crearPhaseTimer) { clearInterval(_crearPhaseTimer); _crearPhaseTimer = null; }
         viewer.classList.remove('mode-mac', 'mode-hologram');
         viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
         content.innerHTML = '<img src="' + imageUrl + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block">';
