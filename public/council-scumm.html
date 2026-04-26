@@ -1275,6 +1275,16 @@
             font-size: 0.6rem;
         }
         .table-viewer-content .tv-card .tv-open:hover { background: rgba(255,255,255,0.22); }
+        .crear-spinner {
+            font-size: 32px;
+            animation: crear-spin 1.4s linear infinite;
+        }
+        @keyframes crear-spin {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.18) rotate(15deg); }
+        }
+        .table-viewer.mode-mac .crear-spinner { filter: drop-shadow(0 0 6px #50ff78); }
+        .table-viewer.mode-hologram .crear-spinner { filter: drop-shadow(0 0 8px #aaeeff); }
         /* Mode: MAC (leyendas) — marco beige Apple II + scanlines */
         .table-viewer.mode-mac .table-viewer-frame {
             background: #d4cdb6;
@@ -1735,7 +1745,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.11</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.12</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1857,7 +1867,7 @@
                     <button class="verb-btn verb-primary" data-verb="preguntar" onclick="selectVerb(this)">Preguntar</button>
                     <button class="verb-btn verb-primary" data-verb="debatir" onclick="selectVerb(this)">Debatir</button>
                     <button class="verb-btn verb-primary" data-verb="entrenar" onclick="selectVerb(this)">Entrenar</button>
-                    <button class="verb-btn" data-verb="mirar" onclick="selectVerb(this)">Mirar</button>
+                    <button class="verb-btn" data-verb="crear" onclick="selectVerb(this)">Crear</button>
                     <button class="verb-btn" data-verb="hablar" onclick="selectVerb(this)">Hablar con</button>
                     <button class="verb-btn" data-verb="leer" onclick="selectVerb(this)">Leer</button>
                     <button class="verb-btn" data-verb="votar" onclick="selectVerb(this)">Votar</button>
@@ -1887,14 +1897,14 @@
                             <div class="inv-item leer-option" data-leer="interactivo" onclick="selectSubOption('leer', this)">💭 Interactivo</div>
                         </div>
                     </div>
-                    <!-- Panel MIRAR: tipo de contenido en el Apple II -->
-                    <div class="inv-panel" data-panel="mirar">
-                        <div class="inventory-title">Tipo de contenido</div>
+                    <!-- Panel CREAR: opciones de generación de imagen -->
+                    <div class="inv-panel" data-panel="crear">
+                        <div class="inventory-title">Calidad / Tamaño</div>
                         <div class="inventory-list">
-                            <div class="inv-item mirar-option" data-mirar="debate" onclick="selectSubOption('mirar', this)">💬 Debate</div>
-                            <div class="inv-item mirar-option selected" data-mirar="presentacion" onclick="selectSubOption('mirar', this)">📊 Presentación</div>
-                            <div class="inv-item mirar-option" data-mirar="exposicion" onclick="selectSubOption('mirar', this)">🎓 Exposición</div>
-                            <div class="inv-item mirar-option" data-mirar="random" onclick="selectSubOption('mirar', this)">🎲 Random</div>
+                            <div class="inv-item crear-option selected" data-crear="standard-square" onclick="selectSubOption('crear', this)">🎨 Estándar · Cuadrada</div>
+                            <div class="inv-item crear-option" data-crear="standard-wide" onclick="selectSubOption('crear', this)">🖼️ Estándar · Apaisada</div>
+                            <div class="inv-item crear-option" data-crear="hd-square" onclick="selectSubOption('crear', this)">💎 HD · Cuadrada</div>
+                            <div class="inv-item crear-option" data-crear="hd-wide" onclick="selectSubOption('crear', this)">💎 HD · Apaisada</div>
                         </div>
                     </div>
                     <!-- Panel VOTAR: sentido del voto -->
@@ -2688,7 +2698,8 @@
     let preguntarMode = false;
     let selectedLLM = "llama-70b"; // Active LLM model key (default: free model)
     let selectedLeer = "audio";         // Sub-opción del verbo LEER
-    let selectedMirar = "presentacion"; // Sub-opción del verbo MIRAR
+    let selectedMirar = "presentacion"; // [legacy] sub-opción del verbo MIRAR (sustituido por CREAR)
+    let selectedCrear = "standard-square"; // Sub-opción del verbo CREAR (calidad/tamaño)
     let selectedVotar = "favor";        // Sub-opción del verbo VOTAR
     let selectedAnalizar = "url";        // Sub-opción del verbo ANALIZAR
     let selectedPresentar = "audio"; // Sub-opción del verbo PRESENTAR (formato salida)
@@ -2698,9 +2709,9 @@
         preguntar: "llm",
         debatir:   "llm",
         entrenar:  "entrenar",
+        crear:     "crear",
         hablar:    "llm",
         leer:      "leer",
-        mirar:     "mirar",
         votar:     "votar",
         analizar:  "analizar",
         presentar: "presentar",
@@ -2721,6 +2732,7 @@
         el.classList.add('selected');
         if (verb === "leer")     selectedLeer     = el.dataset.leer;
         if (verb === "mirar")    selectedMirar    = el.dataset.mirar;
+        if (verb === "crear")    selectedCrear    = el.dataset.crear;
         if (verb === "votar")    selectedVotar    = el.dataset.votar;
         if (verb === "analizar") selectedAnalizar = el.dataset.analizar;
         if (verb === "presentar") selectedPresentar = el.dataset.presentar;
@@ -2781,10 +2793,10 @@
             enterEntrenarMode();
             triggerEntrenar();
         }
-        if (currentVerb === 'mirar') {
-            enterMirarMode();
+        if (currentVerb === 'crear') {
+            enterCrearMode();
         } else {
-            exitMirarMode();
+            exitCrearMode();
         }
         if (currentVerb === 'hablar') setActionLine("Hablar con... selecciona un consejero");
         if (currentVerb === 'leer') {
@@ -2865,7 +2877,7 @@
     }
 
     function updateActionLine() {
-        const names = { preguntar:"Preguntar", debatir:"Debatir", entrenar:"Entrenar", mirar:"Mirar", hablar:"Hablar con", leer:"Leer", votar:"Votar", analizar:"Analizar", presentar:"Presentar", previo:"▶ Ver Previo" };
+        const names = { preguntar:"Preguntar", debatir:"Debatir", entrenar:"Entrenar", crear:"Crear", hablar:"Hablar con", leer:"Leer", votar:"Votar", analizar:"Analizar", presentar:"Presentar", previo:"▶ Ver Previo" };
         const v = names[currentVerb] || "";
         const p = currentProject ? ' "' + currentProject + '"' : "";
         if (v && !preguntarMode) document.getElementById("action-input").placeholder = v + p + "...";
@@ -2947,6 +2959,11 @@
 
         if (currentVerb === 'entrenar') {
             executeEntrenar(text);
+            return;
+        }
+
+        if (currentVerb === 'crear') {
+            executeCrear(text);
             return;
         }
 
@@ -3475,6 +3492,50 @@
             video.pause();
             video.currentTime = 0;
         }
+    }
+
+    // ── CREAR: generación de imagen sobre la mesa ──
+    function enterCrearMode() {
+        setActionLine("🎨 Crear — describe la imagen y pulsa Enviar");
+    }
+    function exitCrearMode() {
+        // No state to clear; el viewer se cierra al cambiar de verbo via closeTableViewer()
+    }
+    async function executeCrear(prompt) {
+        if (!prompt) {
+            setActionLine("✏️ Escribe un prompt para generar la imagen y pulsa Enviar");
+            return;
+        }
+        const ts = Date.now();
+        _renderCrearGenerating(prompt);
+        setActionLine("🎨 Generando imagen — el agente la dejará en la mesa cuando esté lista");
+        // TODO: cuando el backend exponga /api/council/crear, postear { prompt, calidad: selectedCrear, ts }
+        // y arrancar polling cada 3s a /api/council/crear/<ts>. Por ahora el placeholder se mantiene
+        // visible hasta que se cargue manualmente la imagen resultado o se cambie de verbo.
+    }
+    function _renderCrearGenerating(prompt) {
+        const viewer = document.getElementById('table-viewer');
+        const content = document.getElementById('table-viewer-content');
+        if (!viewer || !content) return;
+        viewer.classList.remove('mode-mac', 'mode-hologram');
+        viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
+        const promptEsc = (prompt || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        content.innerHTML =
+            '<div class="tv-card crear-loading">' +
+            '<div class="crear-spinner">🎨</div>' +
+            '<div class="tv-domain">Generando imagen…</div>' +
+            '<div style="font-size:0.55rem;opacity:0.85;line-height:1.5;max-width:90%;text-align:center;">' + promptEsc + '</div>' +
+            '</div>';
+        viewer.classList.add('active');
+    }
+    function _renderCrearImage(imageUrl, prompt) {
+        const viewer = document.getElementById('table-viewer');
+        const content = document.getElementById('table-viewer-content');
+        if (!viewer || !content) return;
+        viewer.classList.remove('mode-mac', 'mode-hologram');
+        viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
+        content.innerHTML = '<img src="' + imageUrl + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block">';
+        viewer.classList.add('active');
     }
 
     function playPresentation() {
