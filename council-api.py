@@ -133,7 +133,9 @@ ALLOWED_ORIGINS = [
     "https://csilvasantin.github.io",
     "http://localhost:8080",
     "http://localhost:3000",
+    "http://localhost:3030",
     "http://127.0.0.1:8080",
+    "http://127.0.0.1:3030",
 ]
 
 # Rate limiting: max requests per IP per window
@@ -1304,6 +1306,93 @@ async def council_leer(
 
 # Sirve los MP4/M4A generados. Externa via Funnel: /api/audio/X.m4a → backend /audio/X.m4a
 app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
+
+
+# ── CREAR: cola de jobs para generación de imágenes ──────────
+# Frontend → POST /api/council/crear        (encola)
+# Frontend → GET  /api/council/crear/<id>   (polling)
+# Agente   → GET  /api/council/crear-pending (lee cola)
+# Agente   → POST /api/council/crear/<id>/result {imageUrl} (entrega)
+_crear_jobs: dict = {}
+_CREAR_JOB_TTL = 3600  # 1h
+
+
+def _crear_cleanup():
+    cutoff = time.time() - _CREAR_JOB_TTL
+    expired = [k for k, j in list(_crear_jobs.items()) if j.get("createdAt", 0) < cutoff]
+    for k in expired:
+        _crear_jobs.pop(k, None)
+
+
+class CrearJobRequest(BaseModel):
+    prompt: str
+    calidad: Optional[str] = None
+    gen: Optional[str] = "leyendas"
+    ts: Optional[int] = None
+
+
+class CrearResultRequest(BaseModel):
+    imageUrl: str
+
+
+class CrearErrorRequest(BaseModel):
+    error: str
+
+
+@app.post("/api/council/crear")
+async def crear_enqueue(req: CrearJobRequest, _auth=Depends(verify_token)):
+    _crear_cleanup()
+    job_id = str(req.ts or int(time.time() * 1000))
+    _crear_jobs[job_id] = {
+        "id": job_id,
+        "prompt": req.prompt,
+        "calidad": req.calidad,
+        "gen": req.gen,
+        "createdAt": time.time(),
+        "status": "pending",
+    }
+    return {"id": job_id, "status": "pending"}
+
+
+@app.get("/api/council/crear/{job_id}")
+async def crear_status(job_id: str, _auth=Depends(verify_token)):
+    _crear_cleanup()
+    job = _crear_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found or expired")
+    return job
+
+
+@app.get("/api/council/crear-pending")
+async def crear_list_pending(_auth=Depends(verify_token)):
+    _crear_cleanup()
+    pending = sorted(
+        (j for j in _crear_jobs.values() if j["status"] == "pending"),
+        key=lambda j: j["createdAt"],
+    )
+    return {"jobs": pending}
+
+
+@app.post("/api/council/crear/{job_id}/result")
+async def crear_set_result(job_id: str, req: CrearResultRequest, _auth=Depends(verify_token)):
+    job = _crear_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found or expired")
+    job["status"] = "done"
+    job["imageUrl"] = req.imageUrl
+    job["completedAt"] = time.time()
+    return job
+
+
+@app.post("/api/council/crear/{job_id}/error")
+async def crear_set_error(job_id: str, req: CrearErrorRequest, _auth=Depends(verify_token)):
+    job = _crear_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found or expired")
+    job["status"] = "error"
+    job["error"] = req.error[:500]
+    job["completedAt"] = time.time()
+    return job
 
 
 # ── Run ──────────────────────────────────────────────────────

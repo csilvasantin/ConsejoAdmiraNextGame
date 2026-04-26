@@ -1236,6 +1236,44 @@
             line-height: 1;
         }
         .table-viewer-close:hover { background: rgba(255,80,80,0.9); }
+        .table-viewer-fullscreen {
+            position: absolute;
+            top: 4px; right: 30px;
+            width: 22px; height: 22px;
+            background: rgba(0,0,0,0.65);
+            color: #fff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 3;
+            user-select: none;
+            line-height: 1;
+        }
+        .table-viewer-fullscreen:hover { background: rgba(80,200,255,0.85); }
+        /* Cuando el viewer está en fullscreen, ocupa toda la pantalla y deja la imagen contenida */
+        .table-viewer:fullscreen {
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .table-viewer:fullscreen .table-viewer-frame {
+            width: 100%; height: 100%;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            animation: none !important;
+        }
+        .table-viewer:fullscreen .table-viewer-content {
+            inset: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        .table-viewer:fullscreen .table-viewer-frame::before,
+        .table-viewer:fullscreen .table-viewer-frame::after,
+        .table-viewer:fullscreen .table-viewer-content::before,
+        .table-viewer:fullscreen .table-viewer-content::after { display: none !important; }
+        .table-viewer:fullscreen .table-viewer-content img { object-fit: contain; }
         .table-viewer-content {
             position: absolute;
             inset: 6%;
@@ -1780,7 +1818,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.14</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.15</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1841,6 +1879,7 @@
                  mode-mac (leyendas) → marco Apple II beige · mode-hologram (coetáneos) → holograma cian -->
             <div class="table-viewer" id="table-viewer">
                 <div class="table-viewer-frame">
+                    <div class="table-viewer-fullscreen" onclick="toggleTableViewerFullscreen()" title="Pantalla completa">⛶</div>
                     <div class="table-viewer-close" onclick="closeTableViewer()" title="Cerrar">✕</div>
                     <div class="table-viewer-content" id="table-viewer-content"></div>
                 </div>
@@ -3127,9 +3166,21 @@
         const viewer = document.getElementById('table-viewer');
         const content = document.getElementById('table-viewer-content');
         if (!viewer) return;
+        if (document.fullscreenElement === viewer) {
+            document.exitFullscreen?.();
+        }
         viewer.classList.remove('active');
         if (content) content.innerHTML = '';
         if (_crearPhaseTimer) { clearInterval(_crearPhaseTimer); _crearPhaseTimer = null; }
+    }
+    function toggleTableViewerFullscreen() {
+        const viewer = document.getElementById('table-viewer');
+        if (!viewer) return;
+        if (document.fullscreenElement) {
+            document.exitFullscreen?.();
+        } else {
+            (viewer.requestFullscreen || viewer.webkitRequestFullscreen || (() => {})).call(viewer);
+        }
     }
     function _entrenarListClick(e) {
         if (currentVerb !== 'entrenar') return;
@@ -3543,26 +3594,55 @@
             return;
         }
         const ts = Date.now();
-        const job = { prompt, ts, calidad: selectedCrear, gen: currentGen, status: 'pending' };
-        try { localStorage.setItem('crear:lastJob', JSON.stringify(job)); } catch(e) {}
         _renderCrearGenerating(prompt);
-        setActionLine("🎨 Generando imagen — el agente la dejará en la mesa cuando esté lista");
-        // Polling: el agente dejará { status:'done', imageUrl } en localStorage 'crear:lastJob'
-        // cuando termine. Aquí pollemos cada 2 s hasta detectarlo y rendear la imagen.
+        setActionLine("🎨 Encolando trabajo en el backend…");
+        // Encolar en el backend
+        const baseUrl = activeApiUrl || COUNCIL_API_URLS[0];
+        let jobId = null;
+        try {
+            const r = await fetch(baseUrl + '/api/council/crear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Council-Token': COUNCIL_API_TOKEN },
+                body: JSON.stringify({ prompt, calidad: selectedCrear, gen: currentGen, ts })
+            });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const data = await r.json();
+            jobId = data.id;
+            setActionLine("🎨 Generando imagen #" + jobId + " — el agente la dejará en la mesa");
+        } catch (e) {
+            setActionLine("⚠️ No se pudo encolar — " + e.message);
+            return;
+        }
+        // Polling cada 3 s contra el backend
         if (window._crearPollTimer) clearInterval(window._crearPollTimer);
-        window._crearPollTimer = setInterval(() => {
+        let attempts = 0;
+        const maxAttempts = 80; // ~4 min
+        window._crearPollTimer = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(window._crearPollTimer);
+                window._crearPollTimer = null;
+                setActionLine("⚠️ Timeout — el agente no respondió en 4 min");
+                return;
+            }
             try {
-                const raw = localStorage.getItem('crear:lastJob');
-                if (!raw) return;
-                const j = JSON.parse(raw);
-                if (j.ts === ts && j.status === 'done' && j.imageUrl) {
+                const r = await fetch(baseUrl + '/api/council/crear/' + encodeURIComponent(jobId), {
+                    headers: { 'X-Council-Token': COUNCIL_API_TOKEN }
+                });
+                if (!r.ok) return;
+                const j = await r.json();
+                if (j.status === 'done' && j.imageUrl) {
                     clearInterval(window._crearPollTimer);
                     window._crearPollTimer = null;
                     _renderCrearImage(j.imageUrl, prompt);
                     setActionLine("✅ Imagen lista — sobre la mesa");
+                } else if (j.status === 'error') {
+                    clearInterval(window._crearPollTimer);
+                    window._crearPollTimer = null;
+                    setActionLine("⚠️ Error generando: " + (j.error || 'desconocido'));
                 }
             } catch(e) {}
-        }, 2000);
+        }, 3000);
     }
     let _crearPhaseTimer = null;
     function _renderCrearGenerating(prompt) {
