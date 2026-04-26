@@ -1188,6 +1188,174 @@
             0%, 100% { box-shadow: 0 0 18px rgba(80, 255, 120, 0.4), inset 0 0 12px rgba(80, 255, 120, 0.2); }
             50% { box-shadow: 0 0 28px rgba(80, 255, 120, 0.6), inset 0 0 18px rgba(80, 255, 120, 0.35); }
         }
+        /* ── ENTRENAR table viewer: pinta el vídeo/libro seleccionado sobre la mesa ── */
+        .table-viewer {
+            position: absolute;
+            left: 22%; top: 36%;
+            width: 56%; height: 38%;
+            display: none;
+            z-index: 12;
+        }
+        .table-viewer.active { display: block; }
+        .table-viewer-frame {
+            position: relative;
+            width: 100%; height: 100%;
+            box-sizing: border-box;
+        }
+        .table-viewer-close {
+            position: absolute;
+            top: 4px; right: 4px;
+            width: 22px; height: 22px;
+            background: rgba(0,0,0,0.65);
+            color: #fff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 3;
+            user-select: none;
+            line-height: 1;
+        }
+        .table-viewer-close:hover { background: rgba(255,80,80,0.9); }
+        .table-viewer-content {
+            position: absolute;
+            inset: 6%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .table-viewer-content iframe {
+            width: 100%; height: 100%;
+            border: 0; display: block;
+        }
+        .table-viewer-content .tv-card {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 12px;
+            padding: 12px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .table-viewer-content .tv-card img {
+            width: 56px; height: 56px;
+        }
+        .table-viewer-content .tv-card .tv-domain {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.65rem;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+        .table-viewer-content .tv-card .tv-open {
+            padding: 7px 14px;
+            background: rgba(255,255,255,0.10);
+            color: inherit;
+            text-decoration: none;
+            border: 1px solid currentColor;
+            border-radius: 4px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.6rem;
+        }
+        .table-viewer-content .tv-card .tv-open:hover { background: rgba(255,255,255,0.22); }
+        /* Mode: MAC (leyendas) — marco beige Apple II + scanlines */
+        .table-viewer.mode-mac .table-viewer-frame {
+            background: #d4cdb6;
+            border: 4px solid #8c8474;
+            border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 0 0 2px #b3a98c;
+        }
+        .table-viewer.mode-mac .table-viewer-content {
+            background: #000;
+            border-radius: 4px;
+            box-shadow: inset 0 0 12px rgba(80,255,120,0.3);
+        }
+        .table-viewer.mode-mac .table-viewer-content::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(255,255,255,0.045) 0,
+                rgba(255,255,255,0.045) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 2;
+        }
+        .table-viewer.mode-mac .tv-card { color: #50ff78; }
+        /* Mode: HOLOGRAM (coetáneos) — translúcido cian con scanlines y esquinas */
+        .table-viewer.mode-hologram .table-viewer-frame {
+            background: rgba(10, 60, 130, 0.22);
+            border: 1px solid rgba(120, 220, 255, 0.7);
+            border-radius: 4px;
+            box-shadow:
+                0 0 28px rgba(80, 200, 255, 0.75),
+                0 0 60px rgba(80, 200, 255, 0.4),
+                inset 0 0 24px rgba(80, 200, 255, 0.3);
+            animation: hologram-flicker 2.4s infinite;
+        }
+        /* Esquinas tipo sci-fi UI */
+        .table-viewer.mode-hologram .table-viewer-frame::before,
+        .table-viewer.mode-hologram .table-viewer-frame::after {
+            content: '';
+            position: absolute;
+            width: 14px; height: 14px;
+            border: 2px solid #aaeeff;
+            box-shadow: 0 0 8px rgba(120, 220, 255, 0.9);
+            pointer-events: none;
+        }
+        .table-viewer.mode-hologram .table-viewer-frame::before {
+            top: -1px; left: -1px;
+            border-right: none; border-bottom: none;
+        }
+        .table-viewer.mode-hologram .table-viewer-frame::after {
+            bottom: -1px; right: -1px;
+            border-left: none; border-top: none;
+        }
+        .table-viewer.mode-hologram .table-viewer-content {
+            background: rgba(0, 30, 60, 0.5);
+            border-radius: 2px;
+            box-shadow: inset 0 0 18px rgba(80, 220, 255, 0.4);
+        }
+        /* Tinte cian sobre el iframe (scanlines + screen blend) */
+        .table-viewer.mode-hologram .table-viewer-content::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: rgba(80, 200, 255, 0.18);
+            mix-blend-mode: screen;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .table-viewer.mode-hologram .table-viewer-content::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(120,220,255,0.18) 0,
+                rgba(120,220,255,0.18) 1px,
+                transparent 1px,
+                transparent 4px
+            );
+            pointer-events: none;
+            mix-blend-mode: screen;
+            z-index: 3;
+        }
+        .table-viewer.mode-hologram .tv-card { color: #aaeeff; }
+        @keyframes hologram-flicker {
+            0%, 92%, 100% { opacity: 1; }
+            93% { opacity: 0.78; }
+            94% { opacity: 1; }
+            95% { opacity: 0.85; }
+            96% { opacity: 1; }
+        }
+        /* External link icon en items del corpus */
+        .ext-link {
+            color: #ccc;
+            font-size: 0.85em;
+            margin-left: 4px;
+            opacity: 0.55;
+            text-decoration: none;
+        }
+        .ext-link:hover { opacity: 1; color: #fff; }
         /* Preguntar mode — nameplates become clickable selectors */
         /* Preguntar mode — enable pointer events on nameplates */
         .nameplates.preguntar-active,
@@ -1501,7 +1669,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.3</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.26.04.4</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -1556,6 +1724,14 @@
                 <div class="speech-bubble" id="speech-bubble">
                     <div class="speaker"></div>
                     <div class="speech-text"></div>
+                </div>
+            </div>
+            <!-- ENTRENAR table viewer: render del item seleccionado sobre la mesa.
+                 mode-mac (leyendas) → marco Apple II beige · mode-hologram (coetáneos) → holograma cian -->
+            <div class="table-viewer" id="table-viewer">
+                <div class="table-viewer-frame">
+                    <div class="table-viewer-close" onclick="closeTableViewer()" title="Cerrar">✕</div>
+                    <div class="table-viewer-content" id="table-viewer-content"></div>
                 </div>
             </div>
             <!-- ── PRESENTAR overlay ─────────────────────────────── -->
@@ -1827,6 +2003,7 @@
         }, 300);
         render();
         if (currentVerb === 'entrenar') renderEntrenarList();
+        closeTableViewer();
     }
 
     function loadMachines(data) {
@@ -2765,13 +2942,83 @@
     function _entrenarItemsHtml(arr) {
         if (!arr.length) return '<li class="empty">(vacío)</li>';
         return arr.map(it => {
-            const short = it.url.replace(/^https?:\/\//,'').slice(0, 32);
-            return '<li><a href="' + _entrenarEsc(it.url) + '" target="_blank" rel="noopener" title="' + _entrenarEsc(it.url) + '">' + _entrenarEsc(short) + '</a></li>';
+            const short = it.url.replace(/^https?:\/\//,'').slice(0, 26);
+            const url = _entrenarEsc(it.url);
+            return '<li>' +
+                '<a href="' + url + '" data-entrenar-url="' + url + '" rel="noopener" title="' + url + '">' + _entrenarEsc(short) + '</a>' +
+                '<a href="' + url + '" data-entrenar-ext="1" target="_blank" rel="noopener" class="ext-link" title="Abrir en pestaña">↗</a>' +
+                '</li>';
         }).join('');
     }
     function hideEntrenarOverlays() {
         document.getElementById('win-racional').classList.remove('active');
         document.getElementById('win-creativo').classList.remove('active');
+    }
+    // ── Table viewer: pinta el item seleccionado en el centro de la mesa ──
+    function _youtubeId(url) {
+        try {
+            const u = new URL(url);
+            if (u.hostname.includes('youtu.be')) return u.pathname.slice(1).split('/')[0];
+            if (u.hostname.includes('youtube.com')) {
+                if (u.pathname.startsWith('/embed/')) return u.pathname.slice(7).split('/')[0];
+                if (u.pathname.startsWith('/shorts/')) return u.pathname.slice(8).split('/')[0];
+                return u.searchParams.get('v');
+            }
+        } catch(e) {}
+        return null;
+    }
+    function _vimeoId(url) {
+        try {
+            const u = new URL(url);
+            if (u.hostname.includes('vimeo.com')) {
+                const id = u.pathname.slice(1).split('/')[0];
+                return /^\d+$/.test(id) ? id : null;
+            }
+        } catch(e) {}
+        return null;
+    }
+    function openInTableViewer(url) {
+        const viewer = document.getElementById('table-viewer');
+        const content = document.getElementById('table-viewer-content');
+        if (!viewer || !content) return;
+        viewer.classList.remove('mode-mac', 'mode-hologram');
+        viewer.classList.add(currentGen === 'coetaneos' ? 'mode-hologram' : 'mode-mac');
+        const yId = _youtubeId(url);
+        const vId = _vimeoId(url);
+        let html = '';
+        if (yId) {
+            html = '<iframe src="https://www.youtube-nocookie.com/embed/' + yId + '?rel=0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        } else if (vId) {
+            html = '<iframe src="https://player.vimeo.com/video/' + vId + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+        } else if (/\.pdf(\?|$)/i.test(url)) {
+            html = '<iframe src="' + _entrenarEsc(url) + '"></iframe>';
+        } else {
+            let domain = url;
+            try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e) {}
+            const favicon = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(domain);
+            html = '<div class="tv-card">' +
+                '<img src="' + favicon + '" alt="">' +
+                '<div class="tv-domain">' + _entrenarEsc(domain) + '</div>' +
+                '<a class="tv-open" href="' + _entrenarEsc(url) + '" target="_blank" rel="noopener">ABRIR ↗</a>' +
+                '</div>';
+        }
+        content.innerHTML = html;
+        viewer.classList.add('active');
+    }
+    function closeTableViewer() {
+        const viewer = document.getElementById('table-viewer');
+        const content = document.getElementById('table-viewer-content');
+        if (!viewer) return;
+        viewer.classList.remove('active');
+        if (content) content.innerHTML = '';
+    }
+    function _entrenarListClick(e) {
+        if (currentVerb !== 'entrenar') return;
+        if (e.target.closest('a[data-entrenar-ext]')) return; // dejar que abra en pestaña
+        const main = e.target.closest('a[data-entrenar-url]');
+        if (!main) return;
+        e.preventDefault();
+        openInTableViewer(main.getAttribute('data-entrenar-url'));
     }
     function showEntrenarFor(persona) {
         const items = loadEntrenar(currentGen, persona);
@@ -2810,6 +3057,8 @@
             };
             councilImg.addEventListener('mouseleave', _entrenarLeaveHandler);
         }
+        document.getElementById('win-racional').addEventListener('click', _entrenarListClick);
+        document.getElementById('win-creativo').addEventListener('click', _entrenarListClick);
     }
     function exitEntrenarMode() {
         document.getElementById('nameplates').classList.remove('entrenar-active');
@@ -2824,6 +3073,9 @@
             councilImg.removeEventListener('mouseleave', _entrenarLeaveHandler);
             _entrenarLeaveHandler = null;
         }
+        document.getElementById('win-racional').removeEventListener('click', _entrenarListClick);
+        document.getElementById('win-creativo').removeEventListener('click', _entrenarListClick);
+        closeTableViewer();
         hideEntrenarOverlays();
         restoreOverlayOriginals();
     }
