@@ -1125,8 +1125,10 @@
         .inv-item.llm-option.selected,
         .inv-item.leer-option.selected,
         .inv-item.mirar-option.selected { background: rgba(52,152,219,0.25); color: #fff; border-left: 2px solid #3498db; padding-left: 4px; }
+        .inv-item.llm-option.unavailable { opacity: 0.45; filter: grayscale(0.9); cursor: not-allowed; }
         .llm-free { font-size: 5px; background: #27ae60; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; letter-spacing: 0.5px; }
         .llm-paid { font-size: 5px; background: #e67e22; color: #fff; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; }
+        .llm-nim { font-size: 5px; background: #76b900; color: #111; padding: 1px 3px; border-radius: 2px; margin-left: 2px; vertical-align: middle; font-weight: 700; letter-spacing: 0.5px; }
 
         /* Speech bubble */
         .speech-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10; }
@@ -1797,7 +1799,7 @@
             border-left: 3px solid #ffff00;
             padding-left: 3px;
         }
-        .llm-free, .llm-paid { border-radius: 0; }
+        .llm-free, .llm-paid, .llm-nim { border-radius: 0; }
         .speech-bubble {
             border-radius: 0;
             background: #000044;
@@ -1880,7 +1882,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.27.04.4</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.28.04.1</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2021,6 +2023,10 @@
                             <div class="inv-item llm-option" data-llm="deepseek-r1" onclick="selectLLM(this)">🔮 DeepSeek R1 <span class="llm-free">FREE</span></div>
                             <div class="inv-item llm-option" data-llm="gemma-9b" onclick="selectLLM(this)">🌀 Gemma 2 9B <span class="llm-free">FREE</span></div>
                             <div class="inv-item llm-option" data-llm="gemini-flash" data-paid="true" onclick="selectLLM(this)">✨ Gemini 2.5 Flash <span class="llm-paid">€ YT</span></div>
+                            <div class="inv-item llm-option" data-llm="nvidia-deepseek-v4-flash" onclick="selectLLM(this)">⚡ NVIDIA DeepSeek V4 Flash <span class="llm-nim">NIM</span></div>
+                            <div class="inv-item llm-option" data-llm="nvidia-glm47" onclick="selectLLM(this)">🧠 NVIDIA GLM 4.7 <span class="llm-nim">NIM</span></div>
+                            <div class="inv-item llm-option" data-llm="nvidia-minimax-m27" onclick="selectLLM(this)">🛠️ NVIDIA MiniMax M2.7 <span class="llm-nim">NIM</span></div>
+                            <div class="inv-item llm-option" data-llm="nvidia-gpt-oss-20b" onclick="selectLLM(this)">🧪 NVIDIA GPT OSS 20B <span class="llm-nim">NIM</span></div>
                         </div>
                     </div>
                     <!-- Panel PENSAR: cómo nos cuenta el libro del día -->
@@ -2875,6 +2881,10 @@
     }
 
     function selectLLM(el) {
+        if (el.dataset.available === "false") {
+            setActionLine("⚠️ Ese motor no está disponible aún en este backend");
+            return;
+        }
         const isPaid = el.dataset.paid === "true";
         const name = el.textContent.trim().replace('FREE', '').replace('€', '').trim();
 
@@ -2891,6 +2901,40 @@
         el.classList.add('selected');
         selectedLLM = el.dataset.llm;
         console.log("LLM selected:", selectedLLM, name, isPaid ? "(PAID)" : "(FREE)");
+    }
+
+    async function refreshLLMAvailability() {
+        const urls = activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice();
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + "/api/council/models", {
+                    headers: { "X-Council-Token": COUNCIL_API_TOKEN },
+                    signal: AbortSignal.timeout(8000),
+                });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                const data = await res.json();
+                const byKey = new Map((data.models || []).map(m => [m.key, m]));
+                let selectedStillAvailable = true;
+                document.querySelectorAll('.llm-option').forEach(el => {
+                    const meta = byKey.get(el.dataset.llm);
+                    const available = !!meta && meta.available !== false;
+                    el.dataset.available = available ? "true" : "false";
+                    el.classList.toggle('unavailable', !available);
+                    if (!available && el.classList.contains('selected')) selectedStillAvailable = false;
+                    if (meta && meta.provider) {
+                        el.title = available ? (meta.name + " · " + meta.provider) : (meta.name + " · no disponible en este backend");
+                    }
+                });
+                if (!selectedStillAvailable) {
+                    const fallback = document.querySelector('.llm-option[data-available="true"]');
+                    if (fallback) selectLLM(fallback);
+                }
+                activeApiUrl = baseUrl;
+                return;
+            } catch (e) {
+                console.warn("LLM availability fetch failed at", baseUrl, e);
+            }
+        }
     }
 
     function selectVerb(btn) {
@@ -4253,6 +4297,7 @@
 
     // Wire del click del hotspot y del fin de vídeo
     document.addEventListener("DOMContentLoaded", () => {
+        refreshLLMAvailability();
         // Magic link Telegram: ?train=<url> auto-activa Entrenar y procesa la URL
         const params = new URLSearchParams(location.search);
         const trainUrl = params.get('train');
@@ -4430,6 +4475,10 @@
             "deepseek-r1": "DeepSeek R1",
             "gemma-9b": "Gemma 2 9B",
             "gemini-flash": "Gemini 2.5 Flash",
+            "nvidia-deepseek-v4-flash": "NVIDIA DeepSeek V4 Flash",
+            "nvidia-glm47": "NVIDIA GLM 4.7",
+            "nvidia-minimax-m27": "NVIDIA MiniMax M2.7",
+            "nvidia-gpt-oss-20b": "NVIDIA GPT OSS 20B",
         };
         const llmLabel = llmNameMap[selectedLLM] || selectedLLM;
         const isVideoAnalysis = selectedLLM === "gemini-flash" && YT_RE.test(question);

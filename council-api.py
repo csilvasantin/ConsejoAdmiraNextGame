@@ -1,6 +1,6 @@
 """
 Council API Bridge — Conecta el frontend SCUMM con los agentes del Consejo AdmiraNext.
-Usa FastAPI + Anthropic SDK + Groq (modelos gratuitos) para que cada consejero responda.
+Usa FastAPI + Anthropic SDK + Groq / Gemini / NVIDIA NIM para que cada consejero responda.
 
 Seguridad:
   - COUNCIL_API_TOKEN: token que el frontend debe enviar en header X-Council-Token
@@ -14,6 +14,7 @@ Modelos LLM:
   - Llama 3.3 70B (Groq) — gratuito
   - DeepSeek R1 (Groq) — gratuito
   - Gemma 2 9B (Groq) — gratuito
+  - NVIDIA NIM (DeepSeek / GLM / MiniMax / GPT OSS) — trial / endpoint NVIDIA
 """
 
 import sys
@@ -120,11 +121,41 @@ LLM_MODELS = {
         "free": False,
         "icon": "✨",
     },
+    "nvidia-deepseek-v4-flash": {
+        "name": "NVIDIA DeepSeek V4 Flash",
+        "provider": "nvidia",
+        "model_id": "deepseek-ai/deepseek-v4-flash",
+        "free": True,
+        "icon": "⚡",
+    },
+    "nvidia-glm47": {
+        "name": "NVIDIA GLM 4.7",
+        "provider": "nvidia",
+        "model_id": "z-ai/glm4.7",
+        "free": True,
+        "icon": "🧠",
+    },
+    "nvidia-minimax-m27": {
+        "name": "NVIDIA MiniMax M2.7",
+        "provider": "nvidia",
+        "model_id": "minimaxai/minimax-m2.7",
+        "free": True,
+        "icon": "🛠️",
+    },
+    "nvidia-gpt-oss-20b": {
+        "name": "NVIDIA GPT OSS 20B",
+        "provider": "nvidia",
+        "model_id": "openai/gpt-oss-20b",
+        "free": True,
+        "icon": "🧪",
+    },
 }
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
+NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 
 YOUTUBE_RE = re.compile(r'https?://(?:www\.)?(?:youtube\.com/watch\?[^\s]*v=|youtu\.be/)[\w-]+')
 
@@ -612,6 +643,37 @@ def agent_ask_groq(agent: CouncilAgent, message: str, context: Optional[list], m
     return text, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
 
 
+def agent_ask_nvidia(agent: CouncilAgent, message: str, context: Optional[list], model_id: str, max_tokens: int = 300) -> tuple:
+    """Call NVIDIA NIM API (OpenAI-compatible chat completions)."""
+    if not NVIDIA_API_KEY:
+        raise ValueError("NVIDIA_API_KEY not configured — añade la clave de build.nvidia.com / NIM al .env")
+
+    conv_system, messages = _build_conversation(agent, message, context)
+    nvidia_messages = [{"role": "system", "content": conv_system}] + messages
+
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model_id,
+        "messages": nvidia_messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.7,
+        "stream": False,
+    }
+
+    timeout = 120 if max_tokens > 1000 else 45
+    resp = http_requests.post(NVIDIA_API_URL, json=payload, headers=headers, timeout=timeout)
+    if resp.status_code != 200:
+        raise ValueError(f"NVIDIA API error {resp.status_code}: {resp.text[:200]}")
+
+    data = resp.json()
+    text = data["choices"][0]["message"]["content"]
+    usage = data.get("usage", {})
+    return text, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
+
+
 def agent_ask_gemini(agent: CouncilAgent, message: str, context: Optional[list], model_id: str, max_tokens: int = 300) -> tuple:
     """Call Google Gemini API. Supports YouTube URLs as native video input."""
     try:
@@ -674,6 +736,8 @@ def agent_ask(agent: CouncilAgent, message: str, context: Optional[list], llm_ke
         return agent_ask_groq(agent, message, context, model_cfg["model_id"], max_tokens)
     elif model_cfg["provider"] == "gemini":
         return agent_ask_gemini(agent, message, context, model_cfg["model_id"], max_tokens)
+    elif model_cfg["provider"] == "nvidia":
+        return agent_ask_nvidia(agent, message, context, model_cfg["model_id"], max_tokens)
     else:
         raise ValueError(f"Unknown provider: {model_cfg['provider']}")
 
@@ -822,6 +886,8 @@ async def list_models():
         if cfg["provider"] == "groq" and not GROQ_API_KEY:
             available = False
         if cfg["provider"] == "gemini" and not GOOGLE_API_KEY:
+            available = False
+        if cfg["provider"] == "nvidia" and not NVIDIA_API_KEY:
             available = False
         models.append({
             "key": key,
