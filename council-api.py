@@ -534,7 +534,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.14"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.16"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -1065,16 +1065,31 @@ async def prepare_yar_login_session(_auth=Depends(verify_token)):
     log_dir.mkdir(parents=True, exist_ok=True)
     login_log = log_dir / "yarig-login.log"
     pid_file = log_dir / "yarig-login.pid"
+
+    def _is_same_yarig_login_process(pid: int) -> bool:
+        try:
+            res = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "command="],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            cmdline = (res.stdout or "").strip()
+            return res.returncode == 0 and "yarig-tasks-sync.mjs" in cmdline and "--prepare-login" in cmdline
+        except Exception:
+            return False
+
     if pid_file.exists():
         try:
             existing_pid = int(pid_file.read_text(encoding="utf-8").strip())
-            os.kill(existing_pid, 0)
-            return {
-                "ok": True,
-                "pid": existing_pid,
-                "message": "Ya hay una ventana persistente de login de Yarig.ai abierta",
-                "logPath": str(login_log),
-            }
+            if _is_same_yarig_login_process(existing_pid):
+                return {
+                    "ok": True,
+                    "pid": existing_pid,
+                    "message": "Ya hay una ventana persistente de login de Yarig.ai abierta",
+                    "logPath": str(login_log),
+                }
+            pid_file.unlink()
         except Exception:
             try:
                 pid_file.unlink()
