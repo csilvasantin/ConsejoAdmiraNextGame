@@ -2036,7 +2036,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.4</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.5</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2146,8 +2146,6 @@
                 </div>
             </div>
             <!-- ── end PRESENTAR overlay ───────────────────────── -->
-            <div class="round-indicator" id="round-indicator">Ronda: --</div>
-            <button class="np-toggle off" id="np-toggle" onclick="toggleNameplates()" title="Mostrar/ocultar nameplates">🏷 Mostrar</button>
         </div>
 
         <div class="scumm-bar">
@@ -3179,7 +3177,9 @@
         // Background-window overlays: per-verb activation
         const winCreativo = document.getElementById('win-creativo');
         const winRacional = document.getElementById('win-racional');
-        if (currentVerb === 'analizar') {
+        if (yarigWindowsPinned) {
+            showYarigWindows();
+        } else if (currentVerb === 'analizar') {
             winCreativo.classList.add('active');
             winRacional.classList.remove('active');
             renderAnalyzedList();
@@ -3295,6 +3295,19 @@
 
     function setActionLine(text) { document.getElementById("action-input").placeholder = text; }
 
+    let yarigWindowsPinned = false;
+    function showYarigWindows() {
+        yarigWindowsPinned = true;
+        captureOverlayOriginals();
+        showEntrenarFor(selectedAgent?.persona || '__yarig__');
+    }
+
+    function hideYarigWindows() {
+        yarigWindowsPinned = false;
+        hideEntrenarOverlays();
+        restoreOverlayOriginals();
+    }
+
     function showCliHelp() {
         enterConversation();
         addUserEntry('/help');
@@ -3303,7 +3316,9 @@
             '/help<br>' +
             '/nombres on<br>' +
             '/nombres off<br>' +
-            '/nombres toggle');
+            '/nombres toggle<br>' +
+            '/yarig.ai on<br>' +
+            '/yarig.ai off');
         addConvEntry('conv-creativo', '🧭', 'Yarig.AI', 'Yarig.AI', 'creativo',
             '<strong>Atajos de contexto</strong><br>' +
             'foco: &lt;objetivo&gt;<br>' +
@@ -3331,6 +3346,28 @@
             setActionLine('🏷 Nombres ' + state + ' — usa /help para ver más comandos');
             return true;
         }
+        const yarigMatch = text.match(/^\/yarig\.ai(?:\s+(on|off|toggle))?$/i);
+        if (yarigMatch) {
+            const action = (yarigMatch[1] || 'on').toLowerCase();
+            if (action === 'off') {
+                hideYarigWindows();
+                setActionLine('🧭 Yarig.AI oculto — usa /yarig.ai on para recuperarlo');
+                return true;
+            }
+            if (action === 'toggle') {
+                const active = document.getElementById('win-racional')?.classList.contains('active') || document.getElementById('win-creativo')?.classList.contains('active');
+                if (active) {
+                    hideYarigWindows();
+                    setActionLine('🧭 Yarig.AI oculto — usa /help para ver más comandos');
+                    return true;
+                }
+            }
+            void loadYarContext().then(() => {
+                showYarigWindows();
+                setActionLine('🧭 Yarig.AI visible — Hechos y Pendientes sobre la mesa');
+            });
+            return true;
+        }
         return false;
     }
 
@@ -3346,8 +3383,10 @@
         const btn = document.getElementById("np-toggle");
         nameplatesVisible = !!visible;
         np.classList.toggle("hidden", !nameplatesVisible);
-        btn.textContent = nameplatesVisible ? "🏷 Ocultar" : "🏷 Mostrar";
-        btn.classList.toggle("off", !nameplatesVisible);
+        if (btn) {
+            btn.textContent = nameplatesVisible ? "🏷 Ocultar" : "🏷 Mostrar";
+            btn.classList.toggle("off", !nameplatesVisible);
+        }
     }
     function toggleNameplates() {
         setNameplatesVisible(!nameplatesVisible);
@@ -5125,7 +5164,6 @@
         const creativos = members.filter(m => m.side === "creativo");
         const roundName = { debatir:"Debate" }[verb] || verb;
         const verbGerund = { debatir:"debatiendo" }[verb] || verb;
-        document.getElementById("round-indicator").textContent = "Ronda: " + roundName;
         setActionLine("🧠 " + roundName + " en curso — los consejeros deliberan con Claude...");
 
         // Build the prompt based on the verb + project
@@ -5189,7 +5227,6 @@
         }
 
         debateRunning = false;
-        document.getElementById("round-indicator").textContent = "Ronda: " + roundName + " ✓";
     }
 
     function showSpeechBubble(persona, role, text) {

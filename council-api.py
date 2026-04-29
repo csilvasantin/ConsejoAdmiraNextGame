@@ -525,7 +525,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.4"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.5"}
 
 app.add_middleware(
     CORSMiddleware,
