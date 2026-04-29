@@ -534,7 +534,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.13"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.14"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -1064,6 +1064,22 @@ async def prepare_yar_login_session(_auth=Depends(verify_token)):
     log_dir = Path.home() / "Library" / "Logs" / "council-api"
     log_dir.mkdir(parents=True, exist_ok=True)
     login_log = log_dir / "yarig-login.log"
+    pid_file = log_dir / "yarig-login.pid"
+    if pid_file.exists():
+        try:
+            existing_pid = int(pid_file.read_text(encoding="utf-8").strip())
+            os.kill(existing_pid, 0)
+            return {
+                "ok": True,
+                "pid": existing_pid,
+                "message": "Ya hay una ventana persistente de login de Yarig.ai abierta",
+                "logPath": str(login_log),
+            }
+        except Exception:
+            try:
+                pid_file.unlink()
+            except Exception:
+                pass
     out = open(login_log, "a", encoding="utf-8")
     cmd = ["node", str(tool_path), "--prepare-login"]
     try:
@@ -1079,6 +1095,7 @@ async def prepare_yar_login_session(_auth=Depends(verify_token)):
     except FileNotFoundError:
         out.close()
         raise HTTPException(status_code=501, detail="node no disponible para lanzar yarig login")
+    pid_file.write_text(str(proc.pid), encoding="utf-8")
     return {
         "ok": True,
         "pid": proc.pid,

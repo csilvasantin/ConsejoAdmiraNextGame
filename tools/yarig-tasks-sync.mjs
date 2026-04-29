@@ -77,20 +77,22 @@ async function cloneChromeProfile(targetRoot) {
   return targetRoot;
 }
 
+async function ensureAutomationProfileSeeded() {
+  try {
+    await fs.access(path.join(CHROME_AUTOMATION_USER_DATA_DIR, CHROME_PROFILE_DIR));
+  } catch {
+    log("Creando perfil persistente de automatización para Yarig");
+    await cloneChromeProfile(CHROME_AUTOMATION_USER_DATA_DIR);
+  }
+}
+
 async function ensureBrowser() {
   if (page) return page;
+  await ensureAutomationProfileSeeded();
   try {
-    context = await launchChromeContext(CHROME_USER_DATA_DIR);
-  } catch (error) {
-    if (!String(error.message || "").includes("ProcessSingleton")) throw error;
-    try {
-      await fs.access(path.join(CHROME_AUTOMATION_USER_DATA_DIR, CHROME_PROFILE_DIR));
-      log("Perfil principal en uso; reutilizando perfil persistente de automatización para Yarig");
-    } catch {
-      log("Perfil principal en uso; creando perfil persistente de automatización para Yarig");
-      await cloneChromeProfile(CHROME_AUTOMATION_USER_DATA_DIR);
-    }
     context = await launchChromeContext(CHROME_AUTOMATION_USER_DATA_DIR);
+  } catch (error) {
+    throw error;
   }
   page = context.pages()[0] || await context.newPage();
   page.setDefaultTimeout(15000);
