@@ -286,6 +286,17 @@
             overflow-y: auto;
             overflow-x: hidden;
         }
+        .window-overlay.proceso {
+            left: 50%;
+            top: 7.5%;
+            transform: translateX(-50%);
+            width: 17%;
+            height: 10.5%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: none;
+        }
+        .window-overlay.proceso.active { display: block; }
         /* Analizar history (en la ventana Racional) */
         .analizar-list {
             font-family: 'Press Start 2P', monospace;
@@ -2039,7 +2050,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.19</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.20</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2074,6 +2085,9 @@
             <div class="window-overlay creativo" id="win-creativo">
                 <div class="window-overlay-title">🔍 URLs ANALIZADAS</div>
                 <ol class="analizar-list" id="analizar-list"></ol>
+            </div>
+            <div class="window-overlay proceso" id="win-proceso">
+                <div class="window-overlay-title">EN PROCESO</div>
             </div>
             <div class="design-overlay" id="design-overlay">
                 <div class="design-grid"></div>
@@ -3762,13 +3776,16 @@
         if (_winOriginalHtml) return;
         _winOriginalHtml = {
             racional: document.getElementById('win-racional').innerHTML,
-            creativo: document.getElementById('win-creativo').innerHTML
+            creativo: document.getElementById('win-creativo').innerHTML,
+            proceso: document.getElementById('win-proceso').innerHTML
         };
     }
     function restoreOverlayOriginals() {
         if (!_winOriginalHtml) return;
         document.getElementById('win-racional').innerHTML = _winOriginalHtml.racional;
         document.getElementById('win-creativo').innerHTML = _winOriginalHtml.creativo;
+        document.getElementById('win-proceso').innerHTML = _winOriginalHtml.proceso;
+        document.getElementById('win-proceso').classList.remove('active');
     }
     function _entrenarEsc(s) {
         return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3819,6 +3836,7 @@
     function hideEntrenarOverlays() {
         document.getElementById('win-racional').classList.remove('active');
         document.getElementById('win-creativo').classList.remove('active');
+        document.getElementById('win-proceso').classList.remove('active');
     }
     // ── Table viewer: pinta el item seleccionado en el centro de la mesa ──
     function _youtubeId(url) {
@@ -3902,18 +3920,24 @@
     function showEntrenarFor(persona) {
         if (persona === '__yarig__') {
             const finalizadas = (Array.isArray(yarContext.done) ? yarContext.done : []).slice(-12).reverse();
-            const tareas = (Array.isArray(yarContext.tasks) ? yarContext.tasks : (Array.isArray(yarContext.pending) ? yarContext.pending : [])).slice(-12).reverse();
+            const tareasActivas = (Array.isArray(yarContext.tasks) ? yarContext.tasks : (Array.isArray(yarContext.pending) ? yarContext.pending : [])).slice(-12).reverse();
+            const enProceso = tareasActivas.filter(item => /^En proceso\b/i.test(String(item || '').trim()));
+            const pendientes = tareasActivas.filter(item => !/^En proceso\b/i.test(String(item || '').trim()));
             const foco = yarContext.focus ? '<div class="analizar-desc">Foco: ' + _entrenarEsc(yarContext.focus) + '</div>' : '';
             const ayuda = yarContext.ask ? '<div class="analizar-desc">Ayuda: ' + _entrenarEsc(yarContext.ask) + '</div>' : '';
             document.getElementById('win-racional').innerHTML =
                 '<div class="window-overlay-title">FINALIZADAS · Yarig.AI (' + finalizadas.length + ')</div>' +
                 foco +
                 '<ol class="analizar-list">' + _yarSimpleListHtml(finalizadas, 'sin tareas finalizadas') + '</ol>';
+            document.getElementById('win-proceso').innerHTML =
+                '<div class="window-overlay-title">EN PROCESO · Yarig.AI (' + enProceso.length + ')</div>' +
+                '<ol class="analizar-list">' + _yarSimpleListHtml(enProceso, 'sin tareas en proceso') + '</ol>';
             document.getElementById('win-creativo').innerHTML =
-                '<div class="window-overlay-title">PENDIENTES · Yarig.AI (' + tareas.length + ')</div>' +
+                '<div class="window-overlay-title">PENDIENTES · Yarig.AI (' + pendientes.length + ')</div>' +
                 ayuda +
-                '<ol class="analizar-list">' + _yarSimpleListHtml(tareas, 'sin tareas') + '</ol>';
+                '<ol class="analizar-list">' + _yarSimpleListHtml(pendientes, 'sin tareas pendientes') + '</ol>';
             document.getElementById('win-racional').classList.add('active');
+            document.getElementById('win-proceso').classList.add('active');
             document.getElementById('win-creativo').classList.add('active');
             return;
         }
@@ -3937,6 +3961,7 @@
             '<ol class="analizar-list">' + _entrenarItemsHtml(rightItems) + '</ol>';
         document.getElementById('win-racional').classList.add('active');
         document.getElementById('win-creativo').classList.add('active');
+        document.getElementById('win-proceso').classList.remove('active');
     }
     let _entrenarPanelHandler = null;
     let _pendingEntrenar = null;
