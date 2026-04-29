@@ -2036,7 +2036,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.2</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.3</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -2261,11 +2261,15 @@
                         <textarea class="yar-textarea" id="yar-doing" placeholder="Describe el trabajo en curso para que la mesa tenga contexto real"></textarea>
                     </div>
                     <div class="yar-field full">
+                        <label class="yar-label" for="yar-done">HECHOS / AVANCES</label>
+                        <textarea class="yar-textarea" id="yar-done" placeholder="Un hecho o avance por línea"></textarea>
+                    </div>
+                    <div class="yar-field full">
                         <label class="yar-label" for="yar-pending">LABORES PENDIENTES</label>
                         <textarea class="yar-textarea" id="yar-pending" placeholder="Una tarea por línea"></textarea>
                     </div>
                     <div class="yar-field full">
-                        <div class="yar-help">Este contexto se guarda en el backend del Consejo y se inyecta automáticamente en cada consulta para que la mesa sepa en qué estamos, qué queda pendiente y qué información debe recogerse o enviarse.</div>
+                        <div class="yar-help">Este contexto se guarda en el backend del Consejo y se inyecta automáticamente en cada consulta para que la mesa sepa en qué estamos, qué hechos ya tenemos, qué queda pendiente y qué información debe recogerse o enviarse.</div>
                     </div>
                 </div>
                 <div class="yar-actions">
@@ -3634,9 +3638,14 @@
         renderEntrenarList();
         setActionLine("🎓 Entrenar — pega la URL o usa 'para/to': https://... para Walt Disney");
         void ensureEntrenarLoaded(currentGen);
+        void loadYarContext().then(() => {
+            if (currentVerb !== 'entrenar') return;
+            const persona = selectedAgent ? selectedAgent.persona : '__all__';
+            if (persona && persona !== '__all__') showEntrenarFor(persona);
+        });
     }
 
-    // ── ENTRENAR: overlays de fondo (vídeos izq · libros der) por consejero ──
+    // ── ENTRENAR / YARIG: overlays de fondo (hechos izq · pendientes der) ──
     let _winOriginalHtml = null;
     function captureOverlayOriginals() {
         if (_winOriginalHtml) return;
@@ -3673,6 +3682,17 @@
                 '<div class="analizar-desc">' + (desc && desc !== label ? desc : '') + '</div>' +
                 '</li>';
         }).join('');
+    }
+    function _yarListFromBlock(text) {
+        return String(text || '')
+            .split(/\n+/)
+            .map(line => line.replace(/^[•\-*\d.)\s]+/, '').trim())
+            .filter(Boolean)
+            .slice(0, 12);
+    }
+    function _yarSimpleListHtml(items, emptyLabel) {
+        if (!items.length) return '<li class="empty">(' + _entrenarEsc(emptyLabel) + ')</li>';
+        return items.map(item => '<li><span class="analizar-link">' + _entrenarEsc(item) + '</span></li>').join('');
     }
     function _extractEntrenarPayload(rawText) {
         const text = String(rawText || '').trim();
@@ -3769,20 +3789,19 @@
         openInTableViewer(main.getAttribute('data-entrenar-url'));
     }
     function showEntrenarFor(persona) {
-        const items = loadEntrenar(currentGen, persona);
-        const videos = items.filter(it => (it.kind || classifyEntrenarUrl(it.url)) === 'video');
-        const books  = items.filter(it => (it.kind || classifyEntrenarUrl(it.url)) === 'book');
-        const links  = items.filter(it => (it.kind || classifyEntrenarUrl(it.url)) === 'other');
+        const hechosFuente = (Array.isArray(yarContext.done) ? yarContext.done : []).slice(-12).reverse();
+        const hechos = hechosFuente.length ? hechosFuente : _yarListFromBlock(yarContext.doing).reverse();
+        const pendientes = (Array.isArray(yarContext.pending) ? yarContext.pending : []).slice(-12).reverse();
+        const foco = yarContext.focus ? '<div class="analizar-desc">Foco: ' + _entrenarEsc(yarContext.focus) + '</div>' : '';
+        const ayuda = yarContext.ask ? '<div class="analizar-desc">Ayuda: ' + _entrenarEsc(yarContext.ask) + '</div>' : '';
         document.getElementById('win-racional').innerHTML =
-            '<div class="window-overlay-title">🎓 VÍDEOS · ' + _entrenarEsc(persona) + ' (' + videos.length + ')</div>' +
-            '<ol class="analizar-list">' + _entrenarItemsHtml(videos) + '</ol>';
+            '<div class="window-overlay-title">✅ HECHOS · Yarig.AI (' + hechos.length + ')</div>' +
+            foco +
+            '<ol class="analizar-list">' + _yarSimpleListHtml(hechos, 'sin hechos todavía') + '</ol>';
         document.getElementById('win-creativo').innerHTML =
-            '<div class="window-overlay-title">📚 LIBROS · ' + _entrenarEsc(persona) + ' (' + books.length + ')</div>' +
-            '<ol class="analizar-list">' + _entrenarItemsHtml(books) + '</ol>' +
-            (links.length
-                ? '<div class="window-overlay-title" style="margin-top:8px">🔗 ENLACES · ' + _entrenarEsc(persona) + ' (' + links.length + ')</div>' +
-                  '<ol class="analizar-list">' + _entrenarItemsHtml(links) + '</ol>'
-                : '');
+            '<div class="window-overlay-title">🧩 PENDIENTES · Yarig.AI (' + pendientes.length + ')</div>' +
+            ayuda +
+            '<ol class="analizar-list">' + _yarSimpleListHtml(pendientes, 'sin pendientes') + '</ol>';
         document.getElementById('win-racional').classList.add('active');
         document.getElementById('win-creativo').classList.add('active');
     }
@@ -4072,18 +4091,49 @@
         "http://localhost:8420",                              // Local dev fallback
     ];
     const COUNCIL_API_TOKEN = "admira2026";
+    const YAR_DONE_BLOCK_START = '[YAR_DONE]';
+    const YAR_DONE_BLOCK_END = '[/YAR_DONE]';
     let activeApiUrl = null;
     let conversationHistory = [];
-    let yarContext = { focus: "", doing: "", pending: [], ask: "", updatedAt: "" };
+    let yarContext = { focus: "", doing: "", done: [], pending: [], ask: "", updatedAt: "" };
     window._crearRequestSeq = window._crearRequestSeq || 0;
     window._crearActiveJobId = window._crearActiveJobId || null;
     window._crearPollTimer = window._crearPollTimer || null;
 
+    function _decodeYarDoing(rawDoing, rawDone) {
+        const text = String(rawDoing || '');
+        const start = text.indexOf(YAR_DONE_BLOCK_START);
+        const end = text.indexOf(YAR_DONE_BLOCK_END);
+        let doing = text;
+        let blockDone = [];
+        if (start !== -1 && end !== -1 && end > start) {
+            const block = text.slice(start + YAR_DONE_BLOCK_START.length, end);
+            blockDone = block
+                .split(/\n+/)
+                .map(line => line.replace(/^[•\-*\d.)\s]+/, '').trim())
+                .filter(Boolean);
+            doing = (text.slice(0, start) + text.slice(end + YAR_DONE_BLOCK_END.length)).trim();
+        }
+        const explicitDone = Array.isArray(rawDone) ? rawDone.map(x => String(x || '').trim()).filter(Boolean) : [];
+        const mergedDone = (explicitDone.length ? explicitDone : blockDone).slice(0, 12);
+        return { doing, done: mergedDone };
+    }
+
+    function _encodeYarDoing(doingText, doneItems) {
+        const cleanDoing = _decodeYarDoing(doingText, []).doing.trim();
+        const done = (Array.isArray(doneItems) ? doneItems : []).map(x => String(x || '').trim()).filter(Boolean).slice(0, 12);
+        if (!done.length) return cleanDoing;
+        const block = '\n\n' + YAR_DONE_BLOCK_START + '\n' + done.map(item => '- ' + item).join('\n') + '\n' + YAR_DONE_BLOCK_END;
+        return (cleanDoing + block).trim();
+    }
+
     function _normalizeYarContext(raw) {
+        const parsed = _decodeYarDoing(raw?.doing, raw?.done);
         const pending = Array.isArray(raw?.pending) ? raw.pending.map(x => String(x || '').trim()).filter(Boolean).slice(0, 12) : [];
         return {
             focus: String(raw?.focus || '').trim(),
-            doing: String(raw?.doing || '').trim(),
+            doing: parsed.doing,
+            done: parsed.done,
             pending,
             ask: String(raw?.ask || '').trim(),
             updatedAt: String(raw?.updatedAt || '').trim(),
@@ -4093,22 +4143,25 @@
     function updateYarChip() {
         const chip = document.getElementById('yar-chip');
         if (!chip) return;
+        const doneCount = (yarContext.done || []).length;
         const pendingCount = (yarContext.pending || []).length;
-        if (!yarContext.focus && !yarContext.doing && !pendingCount && !yarContext.ask) {
+        if (!yarContext.focus && !yarContext.doing && !doneCount && !pendingCount && !yarContext.ask) {
             chip.textContent = 'sin contexto';
             return;
         }
         const focus = yarContext.focus ? yarContext.focus.slice(0, 18) : 'contexto activo';
-        chip.textContent = focus + ' · ' + pendingCount + ' pend.';
+        chip.textContent = focus + ' · ' + doneCount + '/' + pendingCount;
     }
 
     function fillYarForm() {
         const focus = document.getElementById('yar-focus');
         const doing = document.getElementById('yar-doing');
+        const done = document.getElementById('yar-done');
         const pending = document.getElementById('yar-pending');
         const ask = document.getElementById('yar-ask');
         if (focus) focus.value = yarContext.focus || '';
         if (doing) doing.value = yarContext.doing || '';
+        if (done) done.value = (yarContext.done || []).join('\n');
         if (pending) pending.value = (yarContext.pending || []).join('\n');
         if (ask) ask.value = yarContext.ask || '';
     }
@@ -4150,7 +4203,11 @@
         if (status) status.textContent = 'GUARDANDO…';
         const payload = {
             focus: document.getElementById('yar-focus')?.value || '',
-            doing: document.getElementById('yar-doing')?.value || '',
+            doing: _encodeYarDoing(
+                document.getElementById('yar-doing')?.value || '',
+                (document.getElementById('yar-done')?.value || '').split('\n').map(x => x.trim()).filter(Boolean)
+            ),
+            done: (document.getElementById('yar-done')?.value || '').split('\n').map(x => x.trim()).filter(Boolean),
             pending: (document.getElementById('yar-pending')?.value || '').split('\n').map(x => x.trim()).filter(Boolean),
             ask: document.getElementById('yar-ask')?.value || '',
         };
@@ -4171,7 +4228,7 @@
                 activeApiUrl = baseUrl;
                 updateYarChip();
                 if (status) status.textContent = 'YAR sincronizado con la mesa';
-                setActionLine('🧭 YAR sincronizado — el Consejo ya conoce foco y pendientes');
+                setActionLine('🧭 YAR sincronizado — el Consejo ya conoce foco, hechos y pendientes');
                 return;
             } catch (e) {
                 console.warn('YAR context save failed at', baseUrl, e.message);
@@ -4185,12 +4242,11 @@
         const raw = String(text || '').trim();
         if (!raw) {
             openYarOverlay();
-            setActionLine('🧭 Yarig.AI — abre el panel o escribe foco:, ayuda:, pend: o una nota libre');
+            setActionLine('🧭 Yarig.AI — abre el panel o escribe foco:, ayuda:, hecho:, pend: o una nota libre');
             return;
         }
         await loadYarContext();
         const next = _normalizeYarContext(yarContext);
-        const lower = raw.toLowerCase();
         let summary = '';
 
         if (/^(focus|foco):/i.test(raw)) {
@@ -4202,6 +4258,10 @@
         } else if (/^(doing|haciendo):/i.test(raw)) {
             next.doing = raw.replace(/^(doing|haciendo):/i, '').trim();
             summary = 'Trabajo en curso actualizado';
+        } else if (/^(done|hecho|hechos):/i.test(raw)) {
+            const item = raw.replace(/^(done|hecho|hechos):/i, '').trim();
+            if (item) next.done = (next.done || []).concat([item]).slice(-12);
+            summary = 'Hecho añadido';
         } else if (/^(pend|pending|todo):/i.test(raw)) {
             const item = raw.replace(/^(pend|pending|todo):/i, '').trim();
             if (item) next.pending = (next.pending || []).concat([item]).slice(-12);
@@ -4222,7 +4282,10 @@
                         'Content-Type': 'application/json',
                         'X-Council-Token': COUNCIL_API_TOKEN,
                     },
-                    body: JSON.stringify(next),
+                    body: JSON.stringify({
+                        ...next,
+                        doing: _encodeYarDoing(next.doing, next.done),
+                    }),
                     signal: AbortSignal.timeout(10000),
                 });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -4256,12 +4319,13 @@
 
     function buildCouncilPrompt(message) {
         const ctx = _normalizeYarContext(yarContext);
-        const hasYar = ctx.focus || ctx.doing || ctx.ask || (ctx.pending && ctx.pending.length);
+        const hasYar = ctx.focus || ctx.doing || ctx.ask || (ctx.done && ctx.done.length) || (ctx.pending && ctx.pending.length);
         if (!hasYar) return message;
         const sections = [
             'CONTEXTO YAR DEL CONSEJO',
             ctx.focus ? ('Foco: ' + ctx.focus) : '',
             ctx.doing ? ('Trabajo en curso: ' + ctx.doing) : '',
+            ctx.done.length ? ('Hechos:\n- ' + ctx.done.join('\n- ')) : '',
             ctx.pending.length ? ('Pendientes:\n- ' + ctx.pending.join('\n- ')) : '',
             ctx.ask ? ('Ayuda esperada del consejo: ' + ctx.ask) : '',
             'Estado vivo de la mesa: ' + buildLiveCouncilState(),

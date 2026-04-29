@@ -287,6 +287,12 @@ def _entrenar_gen_snapshot(gen: str) -> dict:
 
 def _normalize_yar_context(raw) -> dict:
     raw = raw if isinstance(raw, dict) else {}
+    done = raw.get("done") if isinstance(raw.get("done"), list) else []
+    cleaned_done = []
+    for item in done:
+        txt = str(item or "").strip()
+        if txt:
+            cleaned_done.append(txt[:240])
     pending = raw.get("pending") if isinstance(raw.get("pending"), list) else []
     cleaned_pending = []
     for item in pending:
@@ -296,6 +302,7 @@ def _normalize_yar_context(raw) -> dict:
     return {
         "focus": str(raw.get("focus", "") or "").strip()[:240],
         "doing": str(raw.get("doing", "") or "").strip()[:600],
+        "done": cleaned_done[:12],
         "pending": cleaned_pending[:12],
         "ask": str(raw.get("ask", "") or "").strip()[:400],
         "updatedAt": str(raw.get("updatedAt", "") or "").strip() or datetime.now().isoformat(),
@@ -518,7 +525,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.2"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.3"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -605,6 +612,7 @@ class AnalyzeYoutubeRequest(BaseModel):
 class YarContextRequest(BaseModel):
     focus: str = ""
     doing: str = ""
+    done: list[str] = []
     pending: list[str] = []
     ask: str = ""
 
@@ -969,6 +977,7 @@ async def save_yar_context(req: YarContextRequest, _auth=Depends(verify_token)):
         data = {
             "focus": req.focus,
             "doing": req.doing,
+            "done": req.done,
             "pending": req.pending,
             "ask": req.ask,
             "updatedAt": datetime.now().isoformat(),
