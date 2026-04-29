@@ -10,7 +10,9 @@ const API_TOKEN = process.env.COUNCIL_API_TOKEN || "admira2026";
 const YARIG_URL = process.env.YARIG_URL || "https://www.yarig.ai/tasks";
 const ONCE = process.argv.includes("--once");
 const DUMP_JSON = process.argv.includes("--dump-json");
+const PREPARE_LOGIN = process.argv.includes("--prepare-login");
 const POLL_MS = Number(process.env.YARIG_SYNC_POLL_MS || 120000);
+const LOGIN_WAIT_MS = Number(process.env.YARIG_LOGIN_WAIT_MS || 300000);
 
 const CHROME_EXECUTABLE =
   process.env.YARIG_CHROME_EXECUTABLE ||
@@ -166,7 +168,40 @@ async function syncOnce() {
   return saved;
 }
 
+async function prepareLoginWindow() {
+  const activePage = await ensureBrowser();
+  await activePage.goto(YARIG_URL, { waitUntil: "domcontentloaded" });
+  await activePage.waitForLoadState("domcontentloaded");
+  log("Ventana de Yarig.ai abierta para autenticacion");
+  const startedAt = Date.now();
+  let lastError = null;
+  while ((Date.now() - startedAt) < LOGIN_WAIT_MS) {
+    try {
+      const payload = await fetchVisibleTasks(activePage);
+      log(`Sesion de Yarig.ai lista con ${payload.tasks.length} tareas activas y ${payload.done.length} finalizadas`);
+      return payload;
+    } catch (error) {
+      lastError = error;
+      await sleep(1000);
+    }
+  }
+  throw lastError || new Error("Yarig login no se completo a tiempo");
+}
+
 async function main() {
+  if (PREPARE_LOGIN) {
+    const payload = await prepareLoginWindow();
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      prepared: true,
+      currentUrl: payload.currentUrl,
+      title: payload.title,
+      tasks: payload.tasks,
+      done: payload.done,
+    }));
+    await closeBrowser();
+    return;
+  }
   if (DUMP_JSON) {
     const activePage = await ensureBrowser();
     const payload = await fetchVisibleTasks(activePage);

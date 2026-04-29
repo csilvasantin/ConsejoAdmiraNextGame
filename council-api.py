@@ -534,7 +534,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.11"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.12"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -1046,6 +1046,39 @@ async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
             "tasks": len(tasks),
             "done": len(done),
         },
+    }
+
+
+@app.post("/api/council/yar-login")
+async def prepare_yar_login_session(_auth=Depends(verify_token)):
+    tool_path = Path(__file__).resolve().parent / "tools" / "yarig-tasks-sync.mjs"
+    if not tool_path.exists():
+        raise HTTPException(status_code=501, detail="yarig-tasks-sync.mjs no disponible en este backend")
+
+    env = os.environ.copy()
+    log_dir = Path.home() / "Library" / "Logs" / "council-api"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    login_log = log_dir / "yarig-login.log"
+    out = open(login_log, "a", encoding="utf-8")
+    cmd = ["node", str(tool_path), "--prepare-login"]
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=out,
+            stderr=out,
+            text=True,
+            env=env,
+            cwd=str(Path(__file__).resolve().parent),
+            start_new_session=True,
+        )
+    except FileNotFoundError:
+        out.close()
+        raise HTTPException(status_code=501, detail="node no disponible para lanzar yarig login")
+    return {
+        "ok": True,
+        "pid": proc.pid,
+        "message": "Ventana de Yarig.ai abierta para login en el perfil persistente del sync",
+        "logPath": str(login_log),
     }
 
 
