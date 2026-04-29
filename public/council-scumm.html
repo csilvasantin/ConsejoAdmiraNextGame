@@ -288,7 +288,7 @@
         }
         .window-overlay.proceso {
             left: 50%;
-            top: 7.5%;
+            top: 9.4%;
             transform: translateX(-50%);
             width: 17%;
             height: 10.5%;
@@ -297,6 +297,16 @@
             display: none;
         }
         .window-overlay.proceso.active { display: block; }
+        .window-overlay .window-meta {
+            font-size: 5px;
+            color: #ffdd80;
+            font-family: 'Press Start 2P', monospace;
+            line-height: 1.5;
+            margin: 1px 0 4px 0;
+            letter-spacing: 0;
+            white-space: normal;
+            word-break: break-word;
+        }
         /* Analizar history (en la ventana Racional) */
         .analizar-list {
             font-family: 'Press Start 2P', monospace;
@@ -2050,7 +2060,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.22</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.23</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3953,7 +3963,7 @@
             const pendientes = tareasActivas.filter(item => !/^En proceso\b/i.test(String(item || '').trim()));
             const foco = yarContext.focus ? '<div class="analizar-desc">Foco: ' + _entrenarEsc(yarContext.focus) + '</div>' : '';
             const ayuda = yarContext.ask ? '<div class="analizar-desc">Ayuda: ' + _entrenarEsc(yarContext.ask) + '</div>' : '';
-            const jornada = '<div class="analizar-desc">Jornada · inicio ' + _yarFmtTime(yarContext.dayStartAt) + ' · fin ' + _yarFmtTime(yarContext.dayEndAt) + '</div>';
+            const jornada = '<div class="window-meta">Jornada · inicio ' + _yarFmtTime(yarContext.dayStartAt) + ' · fin ' + _yarFmtTime(yarContext.dayEndAt) + '</div>';
             document.getElementById('win-racional').innerHTML =
                 '<div class="window-overlay-title">FINALIZADAS · Yarig.AI (' + finalizadas.length + ')</div>' +
                 foco +
