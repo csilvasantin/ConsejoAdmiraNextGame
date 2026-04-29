@@ -2039,7 +2039,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.17</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.18</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3325,10 +3325,10 @@
             '/nombres toggle<br>' +
             '/tarea &lt;texto&gt;<br>' +
             '/finalizada &lt;texto&gt;<br>' +
-            '/yarig.ai login<br>' +
-            '/yarig.ai sincro<br>' +
-            '/yarig.ai on<br>' +
-            '/yarig.ai off');
+            '/yarig login <span style="opacity:0.7">(alias de /yarig.ai login)</span><br>' +
+            '/yarig sincro <span style="opacity:0.7">(alias de /yarig.ai sincro)</span><br>' +
+            '/yarig on <span style="opacity:0.7">(alias de /yarig.ai on)</span><br>' +
+            '/yarig off <span style="opacity:0.7">(alias de /yarig.ai off)</span>');
         addConvEntry('conv-creativo', '🧭', 'Yarig.AI', 'Yarig.AI', 'creativo',
             '<strong>Atajos de contexto</strong><br>' +
             'foco: &lt;objetivo&gt;<br>' +
@@ -3366,22 +3366,22 @@
             void executeYarig('finalizada: ' + finalizadaMatch[1].trim());
             return true;
         }
-        const yarigLoginMatch = text.match(/^\/yarig\.ai\s+(login|loguear|entrar)$/i);
+        const yarigLoginMatch = text.match(/^\/yarig(?:\.ai)?\s+(login|loguear|entrar)$/i);
         if (yarigLoginMatch) {
             void prepareYarigLoginSession();
             return true;
         }
-        const yarigSyncMatch = text.match(/^\/yarig\.ai\s+(sincro|sync|sincronizar|sincroniza)$/i);
+        const yarigSyncMatch = text.match(/^\/yarig(?:\.ai)?\s+(sincro|sync|sincronizar|sincroniza)$/i);
         if (yarigSyncMatch) {
             void syncYarigFromLoggedSession();
             return true;
         }
-        const yarigMatch = text.match(/^\/yarig\.ai(?:\s+(on|off|toggle))?$/i);
+        const yarigMatch = text.match(/^\/yarig(?:\.ai)?(?:\s+(on|off|toggle))?$/i);
         if (yarigMatch) {
             const action = (yarigMatch[1] || 'on').toLowerCase();
             if (action === 'off') {
                 hideYarigWindows();
-                setActionLine('🧭 Yarig.AI oculto — usa /yarig.ai on para recuperarlo');
+                setActionLine('🧭 Yarig.AI oculto — usa /yarig on o /yarig.ai on para recuperarlo');
                 return true;
             }
             if (action === 'toggle') {
