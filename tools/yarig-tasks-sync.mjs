@@ -24,6 +24,9 @@ const CHROME_PROFILE_DIR = process.env.YARIG_CHROME_PROFILE_DIR || "Profile 1";
 const CHROME_AUTOMATION_USER_DATA_DIR =
   process.env.YARIG_AUTOMATION_USER_DATA_DIR ||
   path.join(os.homedir(), "Library/Application Support/Google/Chrome-YarigSync-Profile1");
+const SNAPSHOT_PATH =
+  process.env.YARIG_SNAPSHOT_PATH ||
+  path.join(os.homedir(), "Library/Logs/council-api/yarig-last.json");
 
 let context = null;
 let page = null;
@@ -37,6 +40,15 @@ function log(message, extra = null) {
   const stamp = new Date().toISOString();
   if (extra == null) console.log(`[${stamp}] ${message}`);
   else console.log(`[${stamp}] ${message}`, extra);
+}
+
+async function saveSnapshot(payload) {
+  const snapshot = {
+    savedAt: new Date().toISOString(),
+    ...payload,
+  };
+  await fs.mkdir(path.dirname(SNAPSHOT_PATH), { recursive: true });
+  await fs.writeFile(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2), "utf8");
 }
 
 async function api(pathname, init = {}) {
@@ -130,9 +142,7 @@ function extractTaskBucketsFromText(text) {
   };
 }
 
-async function fetchVisibleTasks(activePage) {
-  await activePage.goto(YARIG_URL, { waitUntil: "domcontentloaded" });
-  await activePage.waitForLoadState("domcontentloaded");
+async function inspectCurrentPage(activePage) {
   const title = await activePage.title();
   const url = activePage.url();
   if (/login|auth/i.test(url) || !/(^|\.)yarig\.ai/i.test(new URL(url).hostname)) {
@@ -149,9 +159,16 @@ async function fetchVisibleTasks(activePage) {
   };
 }
 
+async function fetchVisibleTasks(activePage) {
+  await activePage.goto(YARIG_URL, { waitUntil: "domcontentloaded" });
+  await activePage.waitForLoadState("domcontentloaded");
+  return inspectCurrentPage(activePage);
+}
+
 async function syncOnce() {
   const activePage = await ensureBrowser();
-  const { tasks, done } = await fetchVisibleTasks(activePage);
+  const livePayload = await fetchVisibleTasks(activePage);
+  const { tasks, done } = livePayload;
   const current = await api("/api/council/yar-context");
   const payload = {
     focus: current.focus || "",
@@ -166,6 +183,13 @@ async function syncOnce() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  await saveSnapshot({
+    tasks,
+    done,
+    currentUrl: livePayload.currentUrl || activePage.url(),
+    title: livePayload.title || await activePage.title(),
+    source: "worker-sync",
+  });
   log(`Sincronizadas ${tasks.length} tareas activas y ${done.length} finalizadas desde Yarig.ai`);
   return saved;
 }
@@ -179,7 +203,14 @@ async function prepareLoginWindow() {
   let lastError = null;
   while ((Date.now() - startedAt) < LOGIN_WAIT_MS) {
     try {
-      const payload = await fetchVisibleTasks(activePage);
+      const payload = await inspectCurrentPage(activePage);
+      await saveSnapshot({
+        tasks: payload.tasks,
+        done: payload.done,
+        currentUrl: payload.currentUrl,
+        title: payload.title,
+        source: "prepare-login",
+      });
       log(`Sesion de Yarig.ai lista con ${payload.tasks.length} tareas activas y ${payload.done.length} finalizadas`);
       return payload;
     } catch (error) {
@@ -207,6 +238,13 @@ async function main() {
   if (DUMP_JSON) {
     const activePage = await ensureBrowser();
     const payload = await fetchVisibleTasks(activePage);
+    await saveSnapshot({
+      tasks: payload.tasks,
+      done: payload.done,
+      currentUrl: payload.currentUrl,
+      title: payload.title,
+      source: "dump-json",
+    });
     process.stdout.write(JSON.stringify(payload));
     await closeBrowser();
     return;

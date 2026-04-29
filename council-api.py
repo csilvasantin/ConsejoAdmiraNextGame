@@ -1000,6 +1000,8 @@ async def save_yar_context(req: YarContextRequest, _auth=Depends(verify_token)):
 @app.post("/api/council/yar-sync")
 async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
     tool_path = Path(__file__).resolve().parent / "tools" / "yarig-tasks-sync.mjs"
+    snapshot_path = Path.home() / "Library" / "Logs" / "council-api" / "yarig-last.json"
+    login_log_path = Path.home() / "Library" / "Logs" / "council-api" / "yarig-login.log"
     if not tool_path.exists():
         raise HTTPException(status_code=501, detail="yarig-tasks-sync.mjs no disponible en este backend")
 
@@ -1094,6 +1096,49 @@ async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
                 continue
         return None
 
+    def _load_recent_snapshot(max_age_seconds: int = 12 * 3600) -> Optional[dict]:
+        def _normalize_snapshot(raw: dict, source_name: str) -> Optional[dict]:
+            saved_at = str(raw.get("savedAt", "") or "").strip()
+            if saved_at:
+                saved_dt = datetime.fromisoformat(saved_at.replace("Z", "+00:00"))
+                now_dt = datetime.now(saved_dt.tzinfo) if saved_dt.tzinfo else datetime.now()
+                if (now_dt - saved_dt).total_seconds() > max_age_seconds:
+                    return None
+            tasks = [str(x).strip() for x in (raw.get("tasks") or []) if str(x).strip()][:12]
+            done = [str(x).strip() for x in (raw.get("done") or []) if str(x).strip()][:12]
+            if not tasks and not done:
+                return None
+            return {
+                "currentUrl": str(raw.get("currentUrl", "") or "").strip(),
+                "title": str(raw.get("title", "") or "").strip(),
+                "tasks": tasks,
+                "done": done,
+                "source": str(raw.get("source", "") or source_name).strip() or source_name,
+                "savedAt": saved_at,
+            }
+
+        try:
+            if not snapshot_path.exists():
+                raise FileNotFoundError
+            raw = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            normalized = _normalize_snapshot(raw, "snapshot")
+            if normalized:
+                return normalized
+        except Exception:
+            pass
+        try:
+            if not login_log_path.exists():
+                return None
+            log_text = login_log_path.read_text(encoding="utf-8", errors="ignore")
+            matches = re.findall(r'(\{"ok":true,"prepared":true.*?\})', log_text, re.DOTALL)
+            if not matches:
+                return None
+            raw = json.loads(matches[-1])
+            raw["savedAt"] = raw.get("savedAt") or datetime.fromtimestamp(login_log_path.stat().st_mtime).isoformat()
+            return _normalize_snapshot(raw, "login-log")
+        except Exception:
+            return None
+
     env = os.environ.copy()
     payload = _scrape_yar_from_browser_tabs()
     if not payload:
@@ -1101,23 +1146,33 @@ async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=90, env=env)
         except subprocess.TimeoutExpired as e:
-            raise HTTPException(status_code=504, detail=f"yarig sync timeout: {(e.stderr or e.stdout or '').strip()[:240]}")
+            payload = _load_recent_snapshot()
+            if not payload:
+                raise HTTPException(status_code=504, detail=f"yarig sync timeout: {(e.stderr or e.stdout or '').strip()[:240]}")
         except FileNotFoundError:
             raise HTTPException(status_code=501, detail="node no disponible para lanzar yarig sync")
 
-        if res.returncode != 0:
+        if not payload and res.returncode != 0:
             detail = (res.stderr or res.stdout or "yarig sync failed").strip()[:400]
             if "ProcessSingleton" in detail or "already in use by another instance of Chromium" in detail:
-                raise HTTPException(
-                    status_code=409,
-                    detail="El perfil persistente de Yarig.AI está abierto en otra ventana. Termina el login, espera a que esa ventana se cierre y luego repite /yarig.ai sincro.",
-                )
-            raise HTTPException(status_code=502, detail=detail)
+                payload = _load_recent_snapshot()
+                if not payload:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="El perfil persistente de Yarig.AI está abierto en otra ventana. Termina el login, espera a que esa ventana se cierre y luego repite /yarig.ai sincro.",
+                    )
+            else:
+                payload = _load_recent_snapshot()
+                if not payload:
+                    raise HTTPException(status_code=502, detail=detail)
 
-        try:
-            payload = json.loads((res.stdout or "").strip() or "{}")
-        except json.JSONDecodeError as e:
-            raise HTTPException(status_code=502, detail=f"yarig sync devolvió JSON inválido: {e}")
+        if not payload:
+            try:
+                payload = json.loads((res.stdout or "").strip() or "{}")
+            except json.JSONDecodeError as e:
+                payload = _load_recent_snapshot()
+                if not payload:
+                    raise HTTPException(status_code=502, detail=f"yarig sync devolvió JSON inválido: {e}")
 
     tasks = [str(x).strip() for x in (payload.get("tasks") or []) if str(x).strip()][:12]
     done = [str(x).strip() for x in (payload.get("done") or []) if str(x).strip()][:12]
@@ -1140,6 +1195,8 @@ async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
         "context": context,
         "sourceUrl": payload.get("currentUrl", ""),
         "sourceTitle": payload.get("title", ""),
+        "source": payload.get("source", "worker"),
+        "snapshotSavedAt": payload.get("savedAt", ""),
         "imported": {
             "tasks": len(tasks),
             "done": len(done),
