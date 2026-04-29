@@ -12,6 +12,8 @@ const ONCE = process.argv.includes("--once");
 const DUMP_JSON = process.argv.includes("--dump-json");
 const PREPARE_LOGIN = process.argv.includes("--prepare-login");
 const WATCH_AFTER_LOGIN = process.argv.includes("--watch-after-login");
+const TASK_ACTION_INDEX = process.argv.indexOf("--task-action");
+const TASK_ACTION = TASK_ACTION_INDEX >= 0 ? String(process.argv[TASK_ACTION_INDEX + 1] || "").trim().toLowerCase() : "";
 const POLL_MS = Number(process.env.YARIG_SYNC_POLL_MS || 60000);
 const LOGIN_WAIT_MS = Number(process.env.YARIG_LOGIN_WAIT_MS || 300000);
 
@@ -37,7 +39,7 @@ function sleep(ms) {
 }
 
 function log(message, extra = null) {
-  if (DUMP_JSON) return;
+  if (DUMP_JSON || TASK_ACTION) return;
   const stamp = new Date().toISOString();
   if (extra == null) console.log(`[${stamp}] ${message}`);
   else console.log(`[${stamp}] ${message}`, extra);
@@ -226,6 +228,102 @@ async function fetchVisibleTasks(activePage, opts = {}) {
   return inspectCurrentPage(activePage);
 }
 
+function normalizeTaskLine(line) {
+  return String(line || "").replace(/\s+/g, " ").trim();
+}
+
+function taskDescriptionFromLine(line) {
+  const cleaned = normalizeTaskLine(line);
+  const idx = cleaned.indexOf(" - ");
+  return idx >= 0 ? cleaned.slice(idx + 3).trim() : cleaned;
+}
+
+async function findCurrentTaskCard(activePage, taskHint = "") {
+  const controlButton = activePage.getByRole("button", { name: /control tarea/i });
+  let card = activePage.locator("div,article,section").filter({
+    hasText: /En proceso/i,
+    has: controlButton,
+  }).first();
+  if (taskHint) {
+    const hinted = activePage.locator("div,article,section").filter({
+      hasText: taskHint,
+      has: controlButton,
+    }).first();
+    if (await hinted.count()) card = hinted;
+  }
+  await card.waitFor({ state: "visible", timeout: 15000 });
+  return card;
+}
+
+async function openTaskControlModal(activePage, taskHint = "") {
+  const card = await findCurrentTaskCard(activePage, taskHint);
+  await card.getByRole("button", { name: /control tarea/i }).click();
+  await activePage.waitForTimeout(1200);
+  return card;
+}
+
+async function pickModalControlButtons(activePage) {
+  const buttons = await activePage.evaluate(() => {
+    const viewportWidth = window.innerWidth || 0;
+    const viewportHeight = window.innerHeight || 0;
+    return Array.from(document.querySelectorAll("button"))
+      .map((button) => {
+        const rect = button.getBoundingClientRect();
+        const label = [button.innerText || "", button.getAttribute("title") || "", button.getAttribute("aria-label") || ""].join(" ").trim();
+        return {
+          label,
+          rect: {
+            x: rect.x,
+            y: rect.y,
+            w: rect.width,
+            h: rect.height,
+          },
+          area: rect.width * rect.height,
+          centerX: rect.x + (rect.width / 2),
+          centerY: rect.y + (rect.height / 2),
+          visible: rect.width > 30 && rect.height > 30,
+          viewportWidth,
+          viewportHeight,
+        };
+      })
+      .filter((item) => item.visible)
+      .filter((item) => !/control tarea/i.test(item.label))
+      .filter((item) => !/minimizar/i.test(item.label))
+      .filter((item) => item.centerY < item.viewportHeight * 0.7)
+      .filter((item) => item.area > 2000)
+      .sort((a, b) => a.centerX - b.centerX);
+  });
+  if (!buttons.length) {
+    throw new Error("No pude localizar los controles visuales de la tarea en Yarig.ai");
+  }
+  return buttons;
+}
+
+async function performTaskAction(activePage, action, taskHint = "") {
+  if (!["pause", "cancel", "finalize"].includes(action)) {
+    throw new Error(`Acción de Yarig no soportada: ${action}`);
+  }
+  await openTaskControlModal(activePage, taskHint);
+  const controls = await pickModalControlButtons(activePage);
+  const left = controls[0];
+  const right = controls[controls.length - 1];
+  const center = controls.reduce((best, item) => (item.area > best.area ? item : best), controls[0]);
+  let x = center.centerX;
+  let y = center.centerY;
+  if (action === "cancel") {
+    x = left.centerX;
+    y = left.centerY;
+  } else if (action === "finalize") {
+    x = right.centerX;
+    y = right.centerY;
+  } else {
+    x = center.rect.x + (center.rect.w * 0.30);
+    y = center.centerY;
+  }
+  await activePage.mouse.click(x, y);
+  await activePage.waitForTimeout(2200);
+}
+
 async function syncOnce() {
   const activePage = await ensureBrowser();
   const livePayload = await fetchVisibleTasks(activePage, { preferCurrent: true });
@@ -259,6 +357,28 @@ async function syncPayloadToApi(livePayload, activePage = null) {
   });
   log(`Sincronizadas ${tasks.length} tareas activas y ${done.length} finalizadas desde Yarig.ai`);
   return saved;
+}
+
+async function runTaskAction(action) {
+  const activePage = await ensureBrowser();
+  const currentPayload = await fetchVisibleTasks(activePage, { preferCurrent: true });
+  const currentTask = (currentPayload.tasks || []).find((item) => /^En proceso\b/i.test(normalizeTaskLine(item)));
+  if (!currentTask) {
+    throw new Error("No hay ninguna tarea en proceso en Yarig.ai para controlar");
+  }
+  await performTaskAction(activePage, action, taskDescriptionFromLine(currentTask));
+  const refreshedPayload = await fetchVisibleTasks(activePage, { preferCurrent: true });
+  const saved = await syncPayloadToApi(refreshedPayload, activePage);
+  return {
+    ok: true,
+    action,
+    currentTask,
+    currentUrl: refreshedPayload.currentUrl,
+    title: refreshedPayload.title,
+    tasks: refreshedPayload.tasks,
+    done: refreshedPayload.done,
+    context: saved,
+  };
 }
 
 async function prepareLoginWindow() {
@@ -303,6 +423,12 @@ async function watchLoop(activePage) {
 }
 
 async function main() {
+  if (TASK_ACTION) {
+    const payload = await runTaskAction(TASK_ACTION);
+    process.stdout.write(JSON.stringify(payload));
+    await closeBrowser();
+    return;
+  }
   if (WATCH_AFTER_LOGIN) {
     const payload = await prepareLoginWindow();
     process.stdout.write(JSON.stringify({

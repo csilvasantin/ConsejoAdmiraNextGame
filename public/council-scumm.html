@@ -307,6 +307,36 @@
             white-space: normal;
             word-break: break-word;
         }
+        .yar-task-controls {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 4px 0 6px 0;
+        }
+        .yar-task-btn {
+            appearance: none;
+            border: 2px solid #8a6738;
+            background: #2a1c16;
+            color: #f1d287;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 5px;
+            line-height: 1.2;
+            padding: 4px 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+        }
+        .yar-task-btn:hover {
+            background: #3a281e;
+            color: #fff1b7;
+        }
+        .yar-task-btn.finalize { border-color: #7fae6e; color: #c8f0be; }
+        .yar-task-btn.pause { border-color: #8eb3d8; color: #cfe6ff; }
+        .yar-task-btn.cancel { border-color: #b67272; color: #ffcccc; }
+        .yar-task-btn[disabled] {
+            opacity: 0.45;
+            cursor: default;
+        }
         /* Analizar history (en la ventana Racional) */
         .analizar-list {
             font-family: 'Press Start 2P', monospace;
@@ -2060,7 +2090,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.25</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.26</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3973,6 +4003,7 @@
             document.getElementById('win-proceso').innerHTML =
                 '<div class="window-overlay-title">EN PROCESO · Yarig.AI (' + enProceso.length + ')</div>' +
                 jornada +
+                _yarTaskControlHtml(enProceso) +
                 '<ol class="analizar-list">' + _yarSimpleListHtml(enProceso, 'sin tareas en proceso') + '</ol>';
             document.getElementById('win-creativo').innerHTML =
                 '<div class="window-overlay-title">PENDIENTES · Yarig.AI (' + pendientes.length + ')</div>' +
@@ -4356,6 +4387,15 @@
         return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     }
 
+    function _yarTaskControlHtml(enProceso) {
+        const disabled = enProceso.length ? '' : ' disabled';
+        return '<div class="yar-task-controls">' +
+            '<button class="yar-task-btn finalize" onclick="performYarigTaskAction(\'finalize\')"'+ disabled +'>Finalizar</button>' +
+            '<button class="yar-task-btn pause" onclick="performYarigTaskAction(\'pause\')"'+ disabled +'>Pausar</button>' +
+            '<button class="yar-task-btn cancel" onclick="performYarigTaskAction(\'cancel\')"'+ disabled +'>Cancelar</button>' +
+            '</div>';
+    }
+
     function setYarigPromptStatus(prefix) {
         const syncAt = _yarFmtSyncTime(yarContext.updatedAt);
         const syncUser = yarContext.syncUser || 'usuario no detectado';
@@ -4517,6 +4557,53 @@
         }
         if (status) status.textContent = '⚠️ No se pudo importar desde Yarig.ai';
         setActionLine('⚠️ Yarig.AI sincro falló — ' + (lastErr ? lastErr.message : 'sin backend disponible'));
+    }
+
+    async function performYarigTaskAction(action) {
+        if (!action) return;
+        const labels = { finalize: 'finalizar', pause: 'pausar', cancel: 'cancelar' };
+        const label = labels[action] || action;
+        const status = document.getElementById('yar-status');
+        if (status) status.textContent = 'YARIG.AI ' + label.toUpperCase() + '…';
+        setActionLine('🧭 Yarig.AI ' + label + ' — enviando control de tarea a Yarig…');
+        const urls = activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice();
+        let lastErr = null;
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + '/api/council/yar-task-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Council-Token': COUNCIL_API_TOKEN,
+                    },
+                    body: JSON.stringify({ action }),
+                    signal: AbortSignal.timeout(120000),
+                });
+                if (!res.ok) {
+                    const body = await res.text();
+                    throw new Error('HTTP ' + res.status + (body ? ': ' + body.slice(0, 180) : ''));
+                }
+                const data = await res.json();
+                yarContext = _normalizeYarContext(data.context || data);
+                activeApiUrl = baseUrl;
+                updateYarChip();
+                fillYarForm();
+                showYarigWindows();
+                addUserEntry('🧭 /yarig ' + label);
+                addConvEntry('conv-racional', '🧭', 'Yarig.AI', 'Yarig.AI', 'racional',
+                    'Tarea controlada en Yarig.ai: ' + label + '. La mesa ya refleja el nuevo estado.');
+                addConvEntry('conv-creativo', '🧭', 'Yarig.AI', 'Yarig.AI', 'creativo',
+                    data.currentTask ? ('Acción aplicada sobre: ' + data.currentTask) : 'Acción aplicada sobre la tarea en curso de Yarig.ai.');
+                if (status) status.textContent = 'Yarig.AI ' + label + ' OK';
+                setYarigPromptStatus('🧭 Yarig.AI ' + label);
+                return;
+            } catch (e) {
+                lastErr = e;
+                console.warn('Yarig task action failed at', baseUrl, e.message);
+            }
+        }
+        if (status) status.textContent = '⚠️ No se pudo ' + label + ' la tarea';
+        setActionLine('⚠️ Yarig.AI no pudo ' + label + ' la tarea — ' + (lastErr ? lastErr.message : 'sin backend disponible'));
     }
 
     async function prepareYarigLoginSession() {

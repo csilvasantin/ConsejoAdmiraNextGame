@@ -562,7 +562,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.24"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.26"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -653,6 +653,10 @@ class YarContextRequest(BaseModel):
     tasks: list[str] = []
     pending: list[str] = []
     ask: str = ""
+
+
+class YarTaskActionRequest(BaseModel):
+    action: str = ""
 
 
 class AgentReply(BaseModel):
@@ -1238,6 +1242,105 @@ async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
             "tasks": len(tasks),
             "done": len(done),
         },
+    }
+
+
+@app.post("/api/council/yar-task-action")
+async def yar_task_action(req: YarTaskActionRequest, _auth=Depends(verify_token)):
+    tool_path = Path(__file__).resolve().parent / "tools" / "yarig-tasks-sync.mjs"
+    if not tool_path.exists():
+        raise HTTPException(status_code=501, detail="yarig-tasks-sync.mjs no disponible en este backend")
+
+    action = str(req.action or "").strip().lower()
+    if action not in {"pause", "cancel", "finalize"}:
+        raise HTTPException(status_code=400, detail="Acción de Yarig no soportada")
+
+    env = os.environ.copy()
+    log_dir = Path.home() / "Library" / "Logs" / "council-api"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    login_log = log_dir / "yarig-login.log"
+    pid_file = log_dir / "yarig-login.pid"
+
+    def _is_same_yarig_login_process(pid: int) -> bool:
+        try:
+            res = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "command="],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            cmdline = (res.stdout or "").strip()
+            return (
+                res.returncode == 0
+                and "yarig-tasks-sync.mjs" in cmdline
+                and ("--prepare-login" in cmdline or "--watch-after-login" in cmdline)
+            )
+        except Exception:
+            return False
+
+    had_watcher = False
+    if pid_file.exists():
+        try:
+            existing_pid = int(pid_file.read_text(encoding="utf-8").strip())
+            if _is_same_yarig_login_process(existing_pid):
+                had_watcher = True
+                try:
+                    subprocess.run(["kill", "-9", str(existing_pid)], capture_output=True, text=True, timeout=5)
+                except Exception:
+                    pass
+                time.sleep(1.0)
+            pid_file.unlink(missing_ok=True)
+        except Exception:
+            try:
+                pid_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    cmd = ["node", str(tool_path), "--task-action", action]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
+    except subprocess.TimeoutExpired as e:
+        raise HTTPException(status_code=504, detail=f"yarig task action timeout: {(e.stderr or e.stdout or '').strip()[:240]}")
+    except FileNotFoundError:
+        raise HTTPException(status_code=501, detail="node no disponible para lanzar yarig task action")
+
+    if res.returncode != 0:
+        detail = (res.stderr or res.stdout or "yarig task action failed").strip()[:500]
+        if "ProcessSingleton" in detail or "already in use by another instance of Chromium" in detail:
+            raise HTTPException(status_code=409, detail="El perfil persistente de Yarig.AI está ocupado por otra ventana o watcher. Cierra esa sesión del sync y vuelve a intentarlo.")
+        if "login" in detail.lower() or "auth" in detail.lower():
+            raise HTTPException(status_code=401, detail="La sesión persistente de Yarig.AI necesita login antes de controlar tareas.")
+        raise HTTPException(status_code=502, detail=detail)
+
+    try:
+        payload = json.loads((res.stdout or "").strip() or "{}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=502, detail=f"yarig task action devolvió JSON inválido: {e}")
+    finally:
+        if had_watcher:
+            out = open(login_log, "a", encoding="utf-8")
+            try:
+                proc = subprocess.Popen(
+                    ["node", str(tool_path), "--watch-after-login"],
+                    stdout=out,
+                    stderr=out,
+                    text=True,
+                    env=env,
+                    cwd=str(Path(__file__).resolve().parent),
+                    start_new_session=True,
+                )
+                pid_file.write_text(str(proc.pid), encoding="utf-8")
+            except Exception:
+                out.close()
+
+    context = payload.get("context") or _load_yar_context()
+    return {
+        "ok": True,
+        "action": action,
+        "context": context,
+        "currentTask": payload.get("currentTask", ""),
+        "sourceUrl": payload.get("currentUrl", ""),
+        "sourceTitle": payload.get("title", ""),
     }
 
 
