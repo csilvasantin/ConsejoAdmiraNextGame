@@ -2039,7 +2039,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.12</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.13</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -4418,6 +4418,11 @@
                 lastErr = e;
                 console.warn('Yarig sync from session failed at', baseUrl, e.message);
             }
+        }
+        if (lastErr && /perfil persistente|ProcessSingleton|already in use by another instance of Chromium/i.test(String(lastErr.message || ''))) {
+            if (status) status.textContent = 'TERMINA EL LOGIN Y ESPERA A QUE SE CIERRE ESA VENTANA';
+            setActionLine('🧭 Yarig.AI login en curso — termina de entrar, espera a que la ventana se cierre y luego repite /yarig.ai sincro');
+            return;
         }
         if (lastErr && /login|auth|registration\/login/i.test(String(lastErr.message || ''))) {
             void prepareYarigLoginSession();

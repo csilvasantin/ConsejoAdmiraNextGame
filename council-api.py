@@ -534,7 +534,7 @@ app = FastAPI(title="AdmiraNext Council API", version="4.0.0")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.12"}
+    return {"status": "ok", "service": "AdmiraNext Council API", "version": "v26.29.04.13"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -1014,6 +1014,11 @@ async def sync_yar_context_from_logged_session(_auth=Depends(verify_token)):
 
     if res.returncode != 0:
         detail = (res.stderr or res.stdout or "yarig sync failed").strip()[:400]
+        if "ProcessSingleton" in detail or "already in use by another instance of Chromium" in detail:
+            raise HTTPException(
+                status_code=409,
+                detail="El perfil persistente de Yarig.AI está abierto en otra ventana. Termina el login, espera a que esa ventana se cierre y luego repite /yarig.ai sincro.",
+            )
         raise HTTPException(status_code=502, detail=detail)
 
     try:
