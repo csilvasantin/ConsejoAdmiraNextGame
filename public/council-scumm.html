@@ -2039,7 +2039,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.7</a>
+            <a href="https://www.youtube.com/watch?v=cHuqhQmc4ok" target="_blank" class="version-badge">AdmiraNext Consejo v26.29.04.8</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
                 <button class="gen-btn" id="btn-coetaneos" onclick="setGen('coetaneos')">🚀 Coetáneos</button>
@@ -3212,7 +3212,7 @@
         }
         if (currentVerb === 'hablar') {
             openYarOverlay();
-            setActionLine("🧭 Yarig.AI — escribe foco:, ayuda:, pend: o una nota para recoger y enviar contexto");
+            setActionLine("🧭 Yarig.AI — escribe foco:, ayuda:, tarea: o hecho: para recoger y enviar contexto");
         }
         if (currentVerb === 'leer') {
             triggerLeer();
@@ -3320,13 +3320,15 @@
             '/nombres on<br>' +
             '/nombres off<br>' +
             '/nombres toggle<br>' +
+            '/tarea &lt;texto&gt;<br>' +
+            '/hecho &lt;texto&gt;<br>' +
             '/yarig.ai on<br>' +
             '/yarig.ai off');
         addConvEntry('conv-creativo', '🧭', 'Yarig.AI', 'Yarig.AI', 'creativo',
             '<strong>Atajos de contexto</strong><br>' +
             'foco: &lt;objetivo&gt;<br>' +
             'hecho: &lt;avance&gt;<br>' +
-            'pend: &lt;tarea&gt;<br>' +
+            'tarea: &lt;tarea&gt;<br>' +
             'ayuda: &lt;qué debe vigilar el Consejo&gt;');
         setActionLine('⌨️ CLI lista — usa /nombres on|off o /help');
     }
@@ -3347,6 +3349,16 @@
             else setNameplatesVisible(!nameplatesVisible);
             const state = nameplatesVisible ? 'visibles' : 'ocultos';
             setActionLine('🏷 Nombres ' + state + ' — usa /help para ver más comandos');
+            return true;
+        }
+        const tareaMatch = text.match(/^\/tarea\s+(.+)$/i);
+        if (tareaMatch) {
+            void executeYarig('tarea: ' + tareaMatch[1].trim());
+            return true;
+        }
+        const hechoMatch = text.match(/^\/hecho\s+(.+)$/i);
+        if (hechoMatch) {
+            void executeYarig('hecho: ' + hechoMatch[1].trim());
             return true;
         }
         const yarigMatch = text.match(/^\/yarig\.ai(?:\s+(on|off|toggle))?$/i);
@@ -4319,7 +4331,7 @@
                 activeApiUrl = baseUrl;
                 updateYarChip();
                 if (status) status.textContent = 'YAR sincronizado con la mesa';
-                setActionLine('🧭 YAR sincronizado — el Consejo ya conoce foco, hechos y pendientes');
+                setActionLine('🧭 YAR sincronizado — el Consejo ya conoce foco, hechos y tareas');
                 return;
             } catch (e) {
                 console.warn('YAR context save failed at', baseUrl, e.message);
@@ -4333,7 +4345,7 @@
         const raw = String(text || '').trim();
         if (!raw) {
             openYarOverlay();
-            setActionLine('🧭 Yarig.AI — abre el panel o escribe foco:, ayuda:, hecho:, pend: o una nota libre');
+            setActionLine('🧭 Yarig.AI — abre el panel o escribe foco:, ayuda:, tarea:, hecho: o una nota libre');
             return;
         }
         await loadYarContext();
@@ -4353,8 +4365,8 @@
             const item = raw.replace(/^(done|hecho|hechos):/i, '').trim();
             if (item) next.done = (next.done || []).concat([item]).slice(-12);
             summary = 'Hecho añadido';
-        } else if (/^(pend|pending|todo):/i.test(raw)) {
-            const item = raw.replace(/^(pend|pending|todo):/i, '').trim();
+        } else if (/^(tarea|tareas|pend|pending|todo):/i.test(raw)) {
+            const item = raw.replace(/^(tarea|tareas|pend|pending|todo):/i, '').trim();
             if (item) {
                 next.tasks = (next.tasks || next.pending || []).concat([item]).slice(-12);
                 next.pending = next.tasks.slice();

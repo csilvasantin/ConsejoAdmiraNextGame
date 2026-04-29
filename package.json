@@ -7,6 +7,8 @@
     "start": "node src/server.js",
     "start:gui": "bash ./ops/macos/start-control-agent.sh",
     "crear:worker": "node tools/chatgpt-crear-worker.mjs",
+    "yarig:sync": "node tools/yarig-tasks-sync.mjs --once",
+    "yarig:watch": "node tools/yarig-tasks-sync.mjs",
     "agent:doctor": "bash ./ops/macos/doctor-gui-capture.sh",
     "agent:install": "bash ./ops/macos/install-launchagent.sh",
     "agent:uninstall": "bash ./ops/macos/uninstall-launchagent.sh"
