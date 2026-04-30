@@ -19,6 +19,11 @@ Cuando el usuario escriba `handoff`:
 1. actualizar `/HANDOFF.md` como fuente canónica para retomar desde otro ordenador;
 2. incluir siempre URL pública, versión visible, commit actual, foco de trabajo, últimos cambios, riesgos abiertos y siguientes pasos;
 3. hacer commit + push del handoff sin pedir confirmación adicional;
-4. responder con la URL pública del Consejo y el commit del handoff.
+4. enviar también Telegram con:
+   - URL pública del Consejo
+   - versión visible
+   - URL directa del `HANDOFF.md`
+   - commit del handoff
+5. responder con la URL pública del Consejo, la URL del handoff y el commit del handoff.
 
 El `HANDOFF.md` es preferible al diario para continuidad operativa rápida. El diario queda para cierre del día o sesiones largas.

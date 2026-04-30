@@ -94,8 +94,16 @@ Cuando el usuario escriba `handoff`, actualizar este archivo con:
 - fecha
 - URL pública
 - versión visible
+- URL directa de este `HANDOFF.md`
 - commit
 - últimos cambios
 - estado real de Yarig
 - riesgos abiertos
 - siguiente paso recomendado
+
+Y además enviar Telegram con:
+
+- URL pública del Consejo
+- versión visible
+- URL directa del `HANDOFF.md`
+- commit publicado
