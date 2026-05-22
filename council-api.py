@@ -167,6 +167,8 @@ HTTP_URL_RE = re.compile(r"^https?://", re.I)
 COUNCIL_API_TOKEN = os.environ.get("COUNCIL_API_TOKEN", "")
 ALLOWED_ORIGINS = [
     "https://csilvasantin.github.io",
+    "https://www.admira.live",
+    "https://admira.live",
     "http://localhost:8080",
     "http://localhost:3000",
     "http://localhost:3030",

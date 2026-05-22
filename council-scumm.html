@@ -4730,6 +4730,7 @@
     let conversationHistory = [];
     let yarContext = { focus: "", doing: "", done: [], tasks: [], pending: [], taskBuckets: { inProgress: [], pending: [], done: [] }, activeTask: "", ask: "", updatedAt: "", syncUser: "", syncSource: "", dayStartAt: "", dayEndAt: "" };
     let yarStatus = null;
+    let yarStatusErrors = [];
     let yarTaskEstimateHours = 1;
     let yarProjectOptions = [];
     let yarProjectsLoaded = false;
@@ -5072,6 +5073,7 @@
     }
 
     async function fetchYarigStatus(preferredBaseUrl) {
+        yarStatusErrors = [];
         const urls = preferredBaseUrl ? [preferredBaseUrl].concat(COUNCIL_API_URLS.filter(u => u !== preferredBaseUrl)) : (activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice());
         for (const baseUrl of urls) {
             try {
@@ -5086,6 +5088,7 @@
                 return yarStatus;
             } catch (e) {
                 console.warn('Yarig status fetch failed at', baseUrl, e.message);
+                yarStatusErrors.push({ baseUrl, message: e.message || String(e) });
             }
         }
         return yarStatus;
@@ -5099,7 +5102,10 @@
         addUserEntry('🧭 /yarig estado');
         if (!status) {
             if (statusEl) statusEl.textContent = '⚠️ Estado Yarig no disponible';
-            addConvEntry('conv-racional', '🧭', 'Yarig.AI', 'Estado', 'racional', 'No se pudo consultar el estado del backend Yarig.');
+            const detail = yarStatusErrors.length
+                ? yarStatusErrors.map(e => e.baseUrl + ' → ' + e.message).join('<br>')
+                : 'Sin detalle de error disponible.';
+            addConvEntry('conv-racional', '🧭', 'Yarig.AI', 'Estado', 'racional', 'No se pudo consultar el estado del backend Yarig.<br>' + detail);
             setActionLine('⚠️ Yarig.AI estado no disponible');
             return null;
         }
