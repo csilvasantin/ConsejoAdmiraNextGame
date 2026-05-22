@@ -51,7 +51,12 @@
   .row .adv.you{color:var(--good);font-weight:700}
   .row .amt{color:var(--accent);font-weight:700;text-align:right}
   .row .ts{font-size:9.5px;text-align:right}
-  .win{background:linear-gradient(180deg,rgba(136,255,170,.10),var(--card));border:1px solid rgba(136,255,170,.4);border-radius:12px;padding:16px;margin-bottom:14px}
+  .win{position:relative;background:linear-gradient(180deg,rgba(136,255,170,.10),var(--card));border:1px solid rgba(136,255,170,.4);border-radius:12px;padding:16px;margin-bottom:14px}
+  .feed-h-right{display:flex;align-items:center;gap:8px}
+  .sec-collapse{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--mut);border-radius:6px;font-size:11px;line-height:1;padding:4px 7px;cursor:pointer}
+  .sec-collapse:hover{border-color:var(--brand);color:var(--ink)}
+  .sec-collapse.win-x{position:absolute;top:12px;right:12px}
+  .sec-collapsed{display:none!important}
   .win.you{border-color:var(--good)}
   .win .k{font-family:monospace;font-size:9.5px;letter-spacing:.16em;color:var(--good);text-transform:uppercase}
   .win h2{margin:6px 0 2px;font-size:20px}
@@ -102,18 +107,24 @@
     <div class="hint" id="hint"></div>
     <div class="feed-h">
       <h2>Pujas en vivo</h2>
-      <span class="live"><span class="dot"></span>RTB · second-price</span>
+      <div class="feed-h-right">
+        <span class="live"><span class="dot"></span>RTB · second-price</span>
+        <button class="sec-collapse" id="feed-collapse" type="button" title="Plegar/expandir las pujas">▾</button>
+      </div>
     </div>
     <div id="feed"></div>
   </div>
 
   <div class="win hidden" id="win">
+    <button class="sec-collapse win-x" id="win-collapse" type="button" title="Plegar/expandir el creativo">▾</button>
     <div class="k" id="win-k">Adjudicado</div>
     <h2 id="win-name">—</h2>
     <div class="det">€<b id="win-amt">0.00</b> · <b id="win-space">espacio</b></div>
-    <div id="win-preview" class="preview hidden"></div>
-    <button class="btn go" id="launch-btn" type="button">🪙 Lanzar creativo a la pantalla</button>
-    <button class="btn ghost" id="again-btn" type="button">↻ Nueva subasta</button>
+    <div id="win-body">
+      <div id="win-preview" class="preview hidden"></div>
+      <button class="btn go" id="launch-btn" type="button">🪙 Lanzar creativo a la pantalla</button>
+      <button class="btn ghost" id="again-btn" type="button">↻ Nueva subasta</button>
+    </div>
   </div>
 
   <div class="foot">admira.live · gemelo digital XpaceOS · powered by ADmira</div>
@@ -277,6 +288,30 @@ $('again-btn').addEventListener('click',()=>location.reload());
 renderTop();
 timer=setInterval(tick,1000);
 bidTick=setInterval(simBid,1400);
+
+// ── Plegar secciones + reportar la altura al gemelo para que el panel encoja ──
+// Así, al plegar "Pujas en vivo" o el creativo, el contenedor del gemelo se
+// ajusta y queda sitio para ver la Xtore por detrás.
+function postHeight(){
+  try{ parent.postMessage({source:'admira-subasta', type:'height', height: Math.ceil(document.documentElement.scrollHeight)}, '*'); }catch(e){}
+}
+function setupCollapse(btnId, targetId){
+  const b=$(btnId), t=$(targetId);
+  if(!b||!t) return;
+  b.addEventListener('click', ()=>{
+    const hidden=t.classList.toggle('sec-collapsed');
+    b.textContent=hidden?'▸':'▾';
+    postHeight();
+  });
+}
+setupCollapse('feed-collapse','feed');
+setupCollapse('win-collapse','win-body');
+let _rafH=null;
+try{
+  const ro=new ResizeObserver(()=>{ if(_rafH) cancelAnimationFrame(_rafH); _rafH=requestAnimationFrame(postHeight); });
+  ro.observe(document.documentElement);
+}catch(e){ window.addEventListener('resize', postHeight); }
+postHeight();
 </script>
 </body>
 </html>
