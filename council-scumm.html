@@ -5091,6 +5091,28 @@
                 yarStatusErrors.push({ baseUrl, message: e.message || String(e) });
             }
         }
+        for (const baseUrl of urls) {
+            try {
+                await fetch(baseUrl + '/api/council/yar-status', {
+                    mode: 'no-cors',
+                    cache: 'no-store',
+                    signal: AbortSignal.timeout(5000),
+                });
+                yarStatus = {
+                    ok: false,
+                    limited: true,
+                    corsBlocked: true,
+                    reachableBaseUrl: baseUrl,
+                    errors: yarStatusErrors.slice(),
+                    counts: { inProgress: 0, pending: 0, done: 0 },
+                    worker: {},
+                };
+                updateYarChip();
+                return yarStatus;
+            } catch (e) {
+                yarStatusErrors.push({ baseUrl, message: 'probe ' + (e.message || String(e)) });
+            }
+        }
         return yarStatus;
     }
 
@@ -5108,6 +5130,15 @@
             addConvEntry('conv-racional', '🧭', 'Yarig.AI', 'Estado', 'racional', 'No se pudo consultar el estado del backend Yarig.<br>' + detail);
             setActionLine('⚠️ Yarig.AI estado no disponible');
             return null;
+        }
+        if (status.limited && status.corsBlocked) {
+            if (statusEl) statusEl.textContent = 'Yarig backend accesible · CORS pendiente';
+            const detail = (status.errors || []).map(e => e.baseUrl + ' → ' + e.message).join('<br>');
+            addConvEntry('conv-racional', '🧭', 'Yarig.AI', 'Estado', 'racional',
+                'El backend responde, pero el navegador no puede leer el detalle porque falta CORS para <strong>www.admira.live</strong>.<br>' +
+                'Backend alcanzado: ' + status.reachableBaseUrl + (detail ? '<br>' + detail : ''));
+            setActionLine('🧭 Yarig backend accesible · esperando CORS del backend');
+            return status;
         }
         const counts = status.counts || {};
         const worker = status.worker || {};
