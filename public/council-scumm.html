@@ -3163,16 +3163,19 @@
                 hackIntervals.push(typeInterval);
             });
 
-            // Launch hack on REAL machines via demo server
+            // Launch hack on REAL machines via council-api: ping → SSH si vive,
+            // Wake-on-LAN si está apagada. El backend devuelve estado por máquina.
             try {
-                await fetch(HACK_API + "/hack", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    signal: AbortSignal.timeout(5000)
-                });
-                console.log("HACK: launched on real machines");
+                const res = await callCouncilHackeo("start");
+                if (res && res.machines) {
+                    paintHackeoStatus(res);
+                    console.log("HACK: council-api responded", res.summary);
+                } else {
+                    paintHackeoStatus({ error: "no response" });
+                }
             } catch (e) {
-                console.warn("HACK: could not reach demo server, local animation only", e.message);
+                console.warn("HACK: council-api unreachable, local animation only", e.message);
+                paintHackeoStatus({ error: e.message });
             }
 
         } else {
@@ -3183,21 +3186,103 @@
             hackIntervals.forEach(i => clearInterval(i));
             hackIntervals = [];
 
-            // Stop hack on REAL machines (closes Terminal, kills script)
+            // Stop hack on REAL machines (cierra Terminal en cada Mac vivo)
             try {
-                await fetch(HACK_API + "/hack/stop", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    signal: AbortSignal.timeout(5000)
-                });
-                console.log("HACK: stopped on real machines, restoring state");
+                const res = await callCouncilHackeo("stop");
+                console.log("HACK: stopped via council-api", res && res.machines ? res.machines.length : 0);
             } catch (e) {
-                console.warn("HACK: could not reach demo server for stop", e.message);
+                console.warn("HACK: council-api stop failed", e.message);
             }
 
             // Refresh dashboard to restore council view
             await refresh();
         }
+    }
+
+    // Llama al backend (council-api.py) probando los URLs en orden.
+    // mode: "start" → /api/council/hackeo, "stop" → /api/council/hackeo/stop
+    async function callCouncilHackeo(mode) {
+        const path = mode === "stop" ? "/api/council/hackeo/stop" : "/api/council/hackeo";
+        const urls = activeApiUrl ? [activeApiUrl].concat(COUNCIL_API_URLS.filter(u => u !== activeApiUrl)) : COUNCIL_API_URLS.slice();
+        let lastErr = null;
+        for (const baseUrl of urls) {
+            try {
+                const res = await fetch(baseUrl + path, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Council-Token": COUNCIL_API_TOKEN,
+                    },
+                    signal: AbortSignal.timeout(20000),
+                });
+                if (!res.ok) { lastErr = "HTTP " + res.status; continue; }
+                return await res.json();
+            } catch (e) {
+                lastErr = e.message || String(e);
+            }
+        }
+        throw new Error(lastErr || "all council-api urls failed");
+    }
+
+    // Pinta sobre cada panel del overlay un badge con el estado real
+    // (online / offline / wol / failed) que devolvió el backend.
+    function paintHackeoStatus(res) {
+        const overlay = document.getElementById("hack-overlay");
+        if (!overlay) return;
+        // Banner superior con resumen
+        let banner = overlay.querySelector(".hack-status-banner");
+        if (!banner) {
+            banner = document.createElement("div");
+            banner.className = "hack-status-banner";
+            banner.style.cssText = "position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10;background:#000;color:#0f0;font-family:'Courier New',monospace;font-size:11px;padding:4px 12px;border:1px solid #0f0;letter-spacing:1px;";
+            overlay.appendChild(banner);
+        }
+        if (res && res.error) {
+            banner.textContent = "⚠ council-api: " + res.error + " — animación local";
+            banner.style.color = "#ff6";
+            banner.style.borderColor = "#ff6";
+            return;
+        }
+        const s = res.summary || {};
+        banner.textContent = `[council-api] total=${s.total||0} online=${s.online||0} ssh_ok=${s.ssh_ok||0} wol_sent=${s.wol_sent||0} failed=${s.failed||0}`;
+        banner.style.color = "#0f0";
+        banner.style.borderColor = "#0f0";
+
+        // Por cada máquina del backend, busca un panel de animación con
+        // el mismo id y le añade un badge en la cabecera.
+        const byId = {};
+        (res.machines || []).forEach(m => { byId[m.id] = m; });
+        HACK_MACHINES.forEach(m => {
+            const term = document.getElementById(`hack-term-${m.id}`);
+            if (!term) return;
+            const header = term.querySelector(".hack-terminal-header");
+            if (!header) return;
+            const real = byId[m.id];
+            let badge = "—";
+            let color = "#888";
+            if (real) {
+                if (real.action === "ssh_launched" && real.ok) { badge = "● HACKED"; color = "#0f0"; }
+                else if (real.action === "wol_sent") { badge = "◐ WoL"; color = "#fc0"; }
+                else if (real.action === "wol_skipped") { badge = "✗ no MAC"; color = "#f66"; }
+                else if (!real.ok) { badge = "✗ FAIL"; color = "#f66"; }
+                else if (real.online) { badge = "● online"; color = "#0f0"; }
+                else { badge = "○ offline"; color = "#888"; }
+            } else {
+                badge = "? not in machines.json";
+                color = "#888";
+            }
+            // Si ya existe un span de status, lo actualizamos; si no, lo creamos.
+            let st = header.querySelector(".hack-real-status");
+            if (!st) {
+                st = document.createElement("span");
+                st.className = "hack-real-status";
+                st.style.cssText = "margin-left:8px;font-size:10px;letter-spacing:1px;";
+                header.appendChild(st);
+            }
+            st.textContent = badge;
+            st.style.color = color;
+            st.title = real ? `${real.host} · ${real.detail || ""}` : "no match in council backend";
+        });
     }
 
     // ESC also closes hack overlay
@@ -4619,14 +4704,25 @@
     }
 
     // ── Council API config ──
-    // Tailscale Funnel del Mac Mini (Gran de Gracia) → council-api.py:8420
-    // El mount /council hace strip del prefijo:
-    // baseUrl + "/api/council/ask" → ".../council/api/council/ask" → backend /api/council/ask
-    const COUNCIL_API_URLS = [
-        "https://macmini.tail48b61c.ts.net/council",         // MacMini maestro persistente
-        "https://three2-consejoadmiranextgame.onrender.com", // Render.com — réplica/fallback
-        "http://localhost:8420",                              // Local dev fallback
-    ];
+    // Cadena de fallbacks. Es CRÍTICO no mezclar protocolos: si la
+    // página viene por HTTPS (caso producción: www.admira.live), el
+    // navegador bloquea por mixed-content cualquier fetch a `http://`
+    // (incluyendo localhost:8420 y el puerto 8420 directo del MacMini).
+    // Por eso bifurcamos según `location.protocol`:
+    //  · HTTPS → solo endpoints HTTPS (Funnel del MacMini + Render).
+    //  · HTTP  → operador en local: HTTP localhost + HTTP MacMini :8420
+    //            (necesita Tailscale en el host) + Render como red.
+    const isSecure = location.protocol === 'https:';
+    const COUNCIL_API_URLS = isSecure
+        ? [
+            'https://macmini.tail48b61c.ts.net/council',          // Tailscale Funnel HTTPS
+            'https://three2-consejoadmiranextgame.onrender.com',  // Render HTTPS
+        ]
+        : [
+            'http://localhost:8420',
+            'http://macmini.tail48b61c.ts.net:8420',
+            'https://three2-consejoadmiranextgame.onrender.com',
+        ];
     const COUNCIL_API_TOKEN = "admira2026";
     const YAR_DONE_BLOCK_START = '[YAR_DONE]';
     const YAR_DONE_BLOCK_END = '[/YAR_DONE]';

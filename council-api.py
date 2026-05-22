@@ -169,6 +169,8 @@ ALLOWED_ORIGINS = [
     "https://csilvasantin.github.io",
     "https://www.admira.live",
     "https://admira.live",
+    "https://www.admira.studio",
+    "https://admira.studio",
     "http://localhost:8080",
     "http://localhost:3000",
     "http://localhost:3030",
@@ -1665,7 +1667,7 @@ async def yar_create_task(req: YarTaskCreateRequest, _auth=Depends(verify_token)
 
 
 @app.post("/api/council/yar-projects")
-async def yar_projects(req: YarProjectsRequest | None = None, _auth=Depends(verify_token)):
+async def yar_projects(req: Optional[YarProjectsRequest] = None, _auth=Depends(verify_token)):
     tool_path = Path(__file__).resolve().parent / "tools" / "yarig-tasks-sync.mjs"
     if not tool_path.exists():
         raise HTTPException(status_code=501, detail="yarig-tasks-sync.mjs no disponible en este backend")
