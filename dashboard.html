@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>admira.live — Dashboard</title>
+<meta name="description" content="Dashboard operativo admira.live · datos en vivo de Yarig.">
+<meta name="robots" content="noindex">
+<style>
+  :root{
+    --bg:#02080d;
+    --panel:#06121a;
+    --panel-2:#081a24;
+    --ink:#dff8ff;
+    --mut:#75aab9;
+    --brand:#78f3ff;
+    --accent:#ffd866;
+    --ok:#4ade80;
+    --warn:#fbbf24;
+    --bad:#f87171;
+    --line:rgba(120,243,255,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,sans-serif;
+    line-height:1.5;min-height:100vh}
+  body{background:radial-gradient(ellipse at 15% -10%,rgba(120,243,255,.10),transparent 55%),
+    radial-gradient(ellipse at 110% 110%,rgba(255,216,102,.06),transparent 55%),var(--bg)}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 64px}
+
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+  .brand{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .brand .grad{background:linear-gradient(90deg,var(--brand),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand .mut{color:var(--mut)}
+  .status{display:flex;align-items:center;gap:10px;font-family:monospace;font-size:12px;color:var(--mut)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--mut);box-shadow:0 0 0 0 rgba(74,222,128,.6)}
+  .dot.ok{background:var(--ok);animation:pulse 2s infinite}
+  .dot.bad{background:var(--bad)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.5)}70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+  .refresh{font-family:monospace;font-size:11px;color:var(--mut);background:transparent;border:1px solid var(--line);
+    color:var(--brand);padding:6px 12px;border-radius:999px;cursor:pointer}
+  .refresh:hover{background:rgba(120,243,255,.08)}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+  .card{grid-column:span 4;background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:14px;padding:18px;min-height:120px}
+  .card.wide{grid-column:span 8}
+  .card.full{grid-column:span 12}
+  @media (max-width:760px){.card,.card.wide,.card.full{grid-column:span 12}}
+
+  .card h2{margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+  .card .sub{font-family:monospace;font-size:10px;color:var(--mut);opacity:.7;margin-bottom:12px}
+
+  .metric{font-size:48px;font-weight:800;letter-spacing:-.03em;line-height:1}
+  .metric .unit{font-size:16px;color:var(--mut);font-weight:600;margin-left:6px}
+  .metric.pos{color:var(--ok)} .metric.neg{color:var(--bad)} .metric.zero{color:var(--ink)}
+
+  ul.list{list-style:none;margin:0;padding:0}
+  ul.list li{padding:10px 0;border-bottom:1px solid rgba(120,243,255,.08)}
+  ul.list li:last-child{border-bottom:0}
+  .task-title{font-weight:600}
+  .task-meta{font-family:monospace;font-size:11px;color:var(--mut);margin-top:3px}
+  .chip{display:inline-block;font-family:monospace;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);margin-right:6px}
+  .chip.run{color:var(--ok);border-color:rgba(74,222,128,.4)}
+  .chip.done{color:var(--mut)}
+  .clock-row{display:flex;align-items:center;gap:10px;font-family:monospace;font-size:13px;padding:6px 0}
+  .clock-in{color:var(--ok)} .clock-out{color:var(--accent)}
+
+  .empty{color:var(--mut);font-size:13px;font-style:italic;padding:8px 0}
+  .err{color:var(--bad);font-family:monospace;font-size:12px;padding:8px 0;white-space:pre-wrap}
+  .skel{height:14px;border-radius:6px;background:linear-gradient(90deg,rgba(120,243,255,.06),rgba(120,243,255,.14),rgba(120,243,255,.06));
+    background-size:200% 100%;animation:sh 1.2s infinite;margin:8px 0}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  footer{margin-top:28px;font-family:monospace;font-size:11px;color:var(--mut);text-align:center}
+  footer a{color:var(--brand);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="grad">admira</span><span class="mut">.live</span> · dashboard</div>
+    <div class="status">
+      <span id="dot" class="dot"></span>
+      <span id="statusText">conectando…</span>
+      <button class="refresh" id="refreshBtn">↻ refrescar</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card" id="card-score">
+      <h2>Puntuación</h2><div class="sub">/api/score/total</div>
+      <div id="score"><div class="skel" style="width:60%;height:40px"></div></div>
+    </section>
+
+    <section class="card wide" id="card-journey">
+      <h2>Jornada de hoy</h2><div class="sub">/api/tasks/today · clocking</div>
+      <div id="journey"><div class="skel" style="width:50%"></div></div>
+    </section>
+
+    <section class="card full" id="card-tasks">
+      <h2>Tareas de hoy</h2><div class="sub">/api/tasks/today · tasks</div>
+      <div id="tasks"><div class="skel"></div><div class="skel" style="width:80%"></div></div>
+    </section>
+
+    <section class="card" id="card-ranking">
+      <h2>Ranking equipo</h2><div class="sub">/api/team/ranking</div>
+      <div id="ranking"><div class="skel"></div></div>
+    </section>
+
+    <section class="card wide" id="card-wall">
+      <h2>Muro</h2><div class="sub">/api/wall</div>
+      <div id="wall"><div class="skel"></div></div>
+    </section>
+
+    <section class="card full" id="card-company">
+      <h2>Tareas de compañía</h2><div class="sub">/api/company/tasks</div>
+      <div id="company"><div class="skel"></div></div>
+    </section>
+  </div>
+
+  <footer>
+    Admira v.26.05.24.r1 · datos en vivo vía <a href="https://admira-live-worker.csilvasantin.workers.dev/api/health" target="_blank" rel="noopener">admira-live-worker</a>
+    · auto-refresh 30s · <span id="lastFetch">—</span>
+  </footer>
+</div>
+
+<script>
+const API = "https://admira-live-worker.csilvasantin.workers.dev";
+const REFRESH_MS = 30000;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtTime = (dt) => dt ? esc(String(dt).slice(11,16)) : "—";
+const fmtDateTime = (dt) => dt ? esc(String(dt).replace("T"," ").slice(0,16)) : "—";
+
+async function getJSON(path){
+  const res = await fetch(API + path, { headers: { "Accept": "application/json" } });
+  if(!res.ok) throw new Error(path + " → HTTP " + res.status);
+  const body = await res.json();
+  if(body && body.ok === false) throw new Error(path + " → " + (body.message || body.error || "error"));
+  return body;
+}
+
+function renderScore(body){
+  const raw = body?.data;
+  const n = Number(raw);
+  const el = $("score");
+  if(raw === false || raw == null || Number.isNaN(n)){ el.innerHTML = `<div class="empty">Sin datos</div>`; return; }
+  const cls = n > 0 ? "pos" : n < 0 ? "neg" : "zero";
+  const sign = n > 0 ? "+" : "";
+  el.innerHTML = `<div class="metric ${cls}">${sign}${n}<span class="unit">pts</span></div>`;
+}
+
+function renderJourney(body){
+  const clocking = body?.data?.clocking || [];
+  const el = $("journey");
+  if(!clocking.length){ el.innerHTML = `<div class="empty">Sin fichajes hoy</div>`; return; }
+  el.innerHTML = clocking.map(c => {
+    const isIn = String(c.type) === "0";
+    return `<div class="clock-row">
+      <span class="${isIn ? "clock-in" : "clock-out"}">${isIn ? "▶ entrada" : "■ salida"}</span>
+      <span>${fmtTime(c.datetime)}</span>
+      <span class="task-meta">${esc(c.name || "")}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderTasks(body){
+  const tasks = body?.data?.tasks;
+  const el = $("tasks");
+  if(!tasks || tasks === false || !tasks.length){ el.innerHTML = `<div class="empty">Sin tareas hoy</div>`; return; }
+  el.innerHTML = `<ul class="list">` + tasks.map(t => {
+    const running = !t.end_time && String(t.finished) === "0";
+    const chip = running ? `<span class="chip run">en curso</span>` : `<span class="chip done">terminada</span>`;
+    const proj = t.project ? `· ${esc(t.project)}` : "";
+    const cust = t.customer ? `· ${esc(t.customer)}` : "";
+    return `<li>
+      <div class="task-title">${chip}${esc(t.description || "(sin descripción)")}</div>
+      <div class="task-meta">${fmtTime(t.start_time)}${t.end_time ? "–" + fmtTime(t.end_time) : ""} ${proj} ${cust}</div>
+    </li>`;
+  }).join("") + `</ul>`;
+}
+
+function renderRanking(body){
+  const r = body?.data;
+  const el = $("ranking");
+  if(!r || r === false || (Array.isArray(r) && !r.length)){ el.innerHTML = `<div class="empty">Sin ranking</div>`; return; }
+  const arr = Array.isArray(r) ? r : [r];
+  el.innerHTML = `<ul class="list">` + arr.map((m,i) =>
+    `<li><div class="task-title">${i+1}. ${esc(m.name || m.user || m.username || JSON.stringify(m))}</div>
+     <div class="task-meta">${esc(m.score ?? m.points ?? m.rank ?? "")}</div></li>`
+  ).join("") + `</ul>`;
+}
+
+function renderWall(body){
+  const w = body?.data;
+  const el = $("wall");
+  if(!w || w === false || (Array.isArray(w) && !w.length)){ el.innerHTML = `<div class="empty">Sin notificaciones</div>`; return; }
+  const arr = Array.isArray(w) ? w : [w];
+  el.innerHTML = `<ul class="list">` + arr.map(n =>
+    `<li><div class="task-title">${esc(n.text || n.message || n.title || JSON.stringify(n))}</div>
+     <div class="task-meta">${fmtDateTime(n.datetime || n.date || n.created || "")}</div></li>`
+  ).join("") + `</ul>`;
+}
+
+function renderCompany(body){
+  const c = body?.data;
+  const el = $("company");
+  if(!c || c === false || (Array.isArray(c) && !c.length)){ el.innerHTML = `<div class="empty">Sin tareas de compañía</div>`; return; }
+  const arr = Array.isArray(c) ? c : [c];
+  el.innerHTML = `<ul class="list">` + arr.map(t =>
+    `<li><div class="task-title">${esc(t.description || t.title || JSON.stringify(t))}</div>
+     <div class="task-meta">${esc(t.project || "")} ${fmtDateTime(t.creation_time || t.start_time || "")}</div></li>`
+  ).join("") + `</ul>`;
+}
+
+function setStatus(state, text){
+  const dot = $("dot");
+  dot.className = "dot" + (state === "ok" ? " ok" : state === "bad" ? " bad" : "");
+  $("statusText").textContent = text;
+}
+
+const PANELS = [
+  ["/api/score/total", renderScore, "score"],
+  ["/api/tasks/today", (b)=>{renderJourney(b);renderTasks(b);}, "tasks"],
+  ["/api/team/ranking", renderRanking, "ranking"],
+  ["/api/wall", renderWall, "wall"],
+  ["/api/company/tasks", renderCompany, "company"],
+];
+
+async function refresh(){
+  setStatus("", "actualizando…");
+  let okCount = 0, failCount = 0;
+  await Promise.all(PANELS.map(async ([path, render, id]) => {
+    try { render(await getJSON(path)); okCount++; }
+    catch(e){ failCount++; const el = $(id); if(el) el.innerHTML = `<div class="err">⚠ ${esc(e.message)}</div>`; }
+  }));
+  const now = new Date().toLocaleTimeString("es-ES");
+  $("lastFetch").textContent = "última: " + now;
+  if(failCount === 0) setStatus("ok", "en vivo · Yarig");
+  else if(okCount > 0) setStatus("ok", `parcial (${failCount} fallo${failCount>1?"s":""})`);
+  else setStatus("bad", "sin conexión");
+}
+
+$("refreshBtn").addEventListener("click", refresh);
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
