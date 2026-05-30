@@ -2169,7 +2169,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <a href="https://www.admira.live/dashboard.html" target="_blank" class="version-badge">Admira v.26.05.30.r1</a>
+            <a href="https://www.admira.live/dashboard.html" target="_blank" class="version-badge">Admira v.26.05.30.r2</a>
             <a href="https://csilvasantin.github.io/diario/" target="_blank" rel="noopener" class="version-badge" title="Diario operativo del Consejo">📓 Diario</a>
             <div class="gen-toggle">
                 <button class="gen-btn active-leyendas" id="btn-leyendas" onclick="setGen('leyendas')">⭐ Leyendas</button>
@@ -3880,7 +3880,7 @@
         try {
             const data = await callCouncilApi('/api/council/diario/append', { method: 'POST', body: { text: texto, author: 'Consejo' } });
             const pub = (data && data.publish) || {};
-            const estado = pub.pushed ? 'publicado en el diario público' : (pub.committed ? 'guardado localmente (push pendiente)' : 'guardado en el fichero del día');
+            const estado = pub.pushed ? 'pusheado al repo del diario (aparece en la web al próximo cierre del día)' : (pub.committed ? 'commiteado en local (push pendiente)' : 'guardado en el fichero del día');
             const url = (data && data.url) || DIARIO_PUBLIC_URL;
             addConvEntry('conv-racional', '🏛️', 'Consejo', 'Decisión registrada', 'racional',
                 '<strong>' + diarioEscape(texto) + '</strong><br>' +

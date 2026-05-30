@@ -1293,7 +1293,10 @@ def _diario_list_entries(limit: int = 20) -> list:
             "author": author,
             "hasConsejo": _DIARIO_CONSEJO_MARKER in raw,
             "markdown": raw,
-            "url": DIARIO_PUBLIC_URL.rstrip("/") + f"/{p.name}",
+            # GitHub Pages del diario solo sirve index.html (los .md sueltos dan
+            # 404), así que el enlace público es siempre el sitio, no el fichero.
+            "url": DIARIO_PUBLIC_URL,
+            "file": p.name,
         })
     return entries
 
@@ -1376,7 +1379,7 @@ async def append_diario(req: DiarioAppendRequest, _auth=Depends(verify_token)):
         "ok": True,
         "date": path.stem,
         "file": path.name,
-        "url": DIARIO_PUBLIC_URL.rstrip("/") + f"/{path.name}",
+        "url": DIARIO_PUBLIC_URL,
         "newFile": new_file,
         "publish": publish,
     }
